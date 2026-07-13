@@ -13,9 +13,13 @@ Foco del producto: **rendimiento en los últimos 5 partidos** (totales, medias p
 | Caché | Upstash Redis (opcional) |
 | Sincronización | GitHub Actions (cron 4×/día) |
 
-Implicación del plan gratuito: las estadísticas detalladas de una jornada completa
-quedan sincronizadas en ≤ 72 h (resultados y alineaciones, el mismo día).
-Si se pasa a un plan de pago, solo cambia la frecuencia: cero cambios de código.
+Implicaciones del plan gratuito de API-Football:
+
+- **Solo da acceso a las temporadas 2022 a 2024** (2024 = temporada 2024-25).
+  La temporada en curso requiere un plan de pago (~19 $/mes). Por eso
+  `CURRENT_SEASON=2024`. Si algún día pagas, basta cambiar esa variable.
+- Las estadísticas de una jornada completa se sincronizan en ≤ 72 h.
+- Si se pasa a un plan de pago, solo cambian variables: cero cambios de código.
 
 ## Estructura
 
