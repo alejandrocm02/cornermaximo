@@ -15,6 +15,8 @@ export interface ApiFootballConfig {
   baseUrl: string; // https://v3.football.api-sports.io
   budget: RequestBudgetGuard;
   maxRetries?: number;
+  /** Separación mínima entre requests (plan gratuito: 10/min => ~6.5s). */
+  minIntervalMs?: number;
   /** Inyectable para tests. */
   fetchFn?: typeof fetch;
   /** Inyectable para tests (sin esperas reales). */
@@ -34,11 +36,14 @@ export class ApiFootballClient {
   private readonly maxRetries: number;
   private readonly fetchFn: typeof fetch;
   private readonly sleepFn: (ms: number) => Promise<void>;
+  private readonly minIntervalMs: number;
+  private lastRequestAt = 0;
 
   constructor(private readonly config: ApiFootballConfig) {
     this.maxRetries = config.maxRetries ?? 3;
     this.fetchFn = config.fetchFn ?? fetch;
     this.sleepFn = config.sleepFn ?? defaultSleep;
+    this.minIntervalMs = config.minIntervalMs ?? 6_500;
   }
 
   /**
@@ -75,8 +80,16 @@ export class ApiFootballClient {
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       if (attempt > 0) {
-        await this.sleepFn(1000 * 2 ** (attempt - 1));
+        // 429 => esperar más que el minuto de la ventana de rate limit
+        await this.sleepFn(attempt === 1 ? 7_000 : 15_000 * (attempt - 1));
       }
+
+      // Ritmo del plan gratuito: 10 requests/minuto
+      const sinceLast = Date.now() - this.lastRequestAt;
+      if (sinceLast < this.minIntervalMs) {
+        await this.sleepFn(this.minIntervalMs - sinceLast);
+      }
+      this.lastRequestAt = Date.now();
 
       const res = await this.fetchFn(url.toString(), {
         headers: { 'x-apisports-key': this.config.apiKey },

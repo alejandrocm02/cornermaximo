@@ -1,25 +1,34 @@
-# Sincronización con coste 0€: GitHub Actions llama a los endpoints
-# protegidos de la app desplegada en Vercel. El endpoint decide qué jobs
-# ejecutar según prioridad y presupuesto de requests restante (100/día).
+# Sincronización con coste 0€: GitHub Actions llama al endpoint protegido
+# de la app en Vercel. Cada invocación trabaja ~45s (límite de Vercel Hobby)
+# y respeta el rate limit del plan gratuito de API-Football (10 req/min,
+# 100 req/día), así que encadenamos varias tandas por ejecución.
 name: sync
 
 on:
   schedule:
-    # 4 tandas diarias (UTC). Cada tanda procesa la cola respetando el presupuesto.
-    - cron: '0 3 * * *'   # madrugada: plantillas, clasificaciones, próximos partidos
+    - cron: '0 3 * * *'   # madrugada
     - cron: '0 9 * * *'   # mañana
     - cron: '0 15 * * *'  # tarde
-    - cron: '30 22 * * *' # noche: resultados y alineaciones del día
-  workflow_dispatch: {} # ejecución manual desde GitHub
+    - cron: '30 22 * * *' # noche
+  workflow_dispatch: {}
 
 jobs:
   run-sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Llamar al endpoint de sincronización
+      - name: Ejecutar tandas de sincronización
         run: |
-          curl --fail-with-body -sS -X POST \
-            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
-            -H "Content-Type: application/json" \
-            "${{ secrets.APP_URL }}/api/admin/sync/run" \
-            -d '{"maxRequests": 25}'
+          for i in $(seq 1 10); do
+            echo "--- tanda $i ---"
+            RESP=$(curl -sS -X POST \
+              -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+              -H "Content-Type: application/json" \
+              "${{ secrets.APP_URL }}/api/admin/sync/run" \
+              -d '{"maxRequests":8}' || echo "CURL_ERROR")
+            echo "$RESP"
+            case "$RESP" in
+              *'"stopped":"completed"'*)        echo "Todo sincronizado."; break ;;
+              *'"stopped":"budget_exhausted"'*) echo "Presupuesto diario agotado."; break ;;
+            esac
+            sleep 10
+          done
