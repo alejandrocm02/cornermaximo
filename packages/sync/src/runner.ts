@@ -30,6 +30,15 @@ import {
 
 const STALE_HOURS = 20;
 const VERIFY_AFTER_HOURS = 24;
+/** Margen frente al límite de 60s de Vercel Hobby: paramos limpiamente antes. */
+const TIME_BUDGET_MS = 45_000;
+
+class TimeBudgetExceededError extends Error {
+  constructor() {
+    super('Presupuesto de tiempo de la ejecución agotado; se continúa en la próxima tanda.');
+    this.name = 'TimeBudgetExceededError';
+  }
+}
 
 export interface SyncRunOptions {
   maxRequests?: number;
@@ -39,7 +48,7 @@ export interface SyncRunOptions {
 export interface SyncRunResult {
   executed: string[];
   requestsUsedThisRun: number;
-  stopped: 'completed' | 'budget_exhausted';
+  stopped: 'completed' | 'budget_exhausted' | 'time_budget_exhausted';
 }
 
 export function createApiFootballProvider(budget: PrismaBudgetGuard): FootballDataProvider {
@@ -85,6 +94,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
   const budget = new PrismaBudgetGuard(db, providerRow.id, dailyLimit, maxRequests);
   const provider = createApiFootballProvider(budget);
   const executed: string[] = [];
+  const startedAtMs = Date.now();
 
   /** Ejecuta una unidad de trabajo con registro en SyncJob/SyncLog. */
   async function unit(
@@ -94,6 +104,9 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
     priority: number,
     fn: () => Promise<unknown>,
   ): Promise<void> {
+    if (Date.now() - startedAtMs > TIME_BUDGET_MS) {
+      throw new TimeBudgetExceededError();
+    }
     const job = await db.syncJob.create({
       data: { providerId: providerRow.id, entity, entityExternalId, status: 'RUNNING', priority, startedAt: new Date() },
     });
@@ -221,6 +234,9 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
   } catch (err) {
     if (err instanceof BudgetExceededError) {
       return { executed, requestsUsedThisRun: budget.usedThisRun, stopped: 'budget_exhausted' };
+    }
+    if (err instanceof TimeBudgetExceededError) {
+      return { executed, requestsUsedThisRun: budget.usedThisRun, stopped: 'time_budget_exhausted' };
     }
     throw err;
   }
