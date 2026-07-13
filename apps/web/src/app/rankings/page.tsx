@@ -25,7 +25,9 @@ export default async function RankingsPage({
   const leagues = await prisma.competition.findMany({ orderBy: { name: 'asc' } });
 
   // Reutilizamos el endpoint interno para no duplicar la consulta
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_URL != null ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
   let rows: Array<{ rank: number; slug: string; name: string; team: string | null; total: number; minutes: number }> = [];
   try {
     const res = await fetch(
