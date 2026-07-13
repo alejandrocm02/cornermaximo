@@ -1,0 +1,25 @@
+# Sincronización con coste 0€: GitHub Actions llama a los endpoints
+# protegidos de la app desplegada en Vercel. El endpoint decide qué jobs
+# ejecutar según prioridad y presupuesto de requests restante (100/día).
+name: sync
+
+on:
+  schedule:
+    # 4 tandas diarias (UTC). Cada tanda procesa la cola respetando el presupuesto.
+    - cron: '0 3 * * *'   # madrugada: plantillas, clasificaciones, próximos partidos
+    - cron: '0 9 * * *'   # mañana
+    - cron: '0 15 * * *'  # tarde
+    - cron: '30 22 * * *' # noche: resultados y alineaciones del día
+  workflow_dispatch: {} # ejecución manual desde GitHub
+
+jobs:
+  run-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar al endpoint de sincronización
+        run: |
+          curl --fail-with-body -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.APP_URL }}/api/admin/sync/run" \
+            -d '{"maxRequests": 25}'

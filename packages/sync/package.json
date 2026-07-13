@@ -1,0 +1,16 @@
+{
+  "name": "@futstats/sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@futstats/db": "*",
+    "@futstats/providers": "*",
+    "@futstats/shared": "*"
+  }
+}

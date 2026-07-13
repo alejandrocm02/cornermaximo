@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "prisma.prisma",
+    "vitest.explorer",
+    "bradlc.vscode-tailwindcss"
+  ]
+}

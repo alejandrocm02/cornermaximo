@@ -1,0 +1,687 @@
+// =====================================================================
+// FUTSTATS — Schema de base de datos
+// PostgreSQL + Prisma. Métricas en columnas tipadas e indexables.
+// JSON solo para respuestas originales del proveedor (auditoría).
+// NULL = "dato no disponible en el proveedor" (distinto de 0).
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------
+
+enum PositionGroup {
+  GK
+  DF
+  MF
+  FW
+}
+
+enum PreferredFoot {
+  LEFT
+  RIGHT
+  BOTH
+}
+
+enum PlayerStatus {
+  AVAILABLE
+  INJURED
+  SUSPENDED
+  DOUBT
+  NOT_CALLED
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  SUSPENDED
+  ABANDONED
+  CANCELLED
+}
+
+enum MatchPlayerRole {
+  STARTER
+  SUBSTITUTE
+  BENCH_UNUSED // convocado sin minutos: NO cuenta como uno de los últimos 5 jugados
+  NOT_CALLED
+}
+
+enum EventType {
+  GOAL
+  OWN_GOAL
+  PENALTY_GOAL
+  MISSED_PENALTY
+  YELLOW_CARD
+  SECOND_YELLOW
+  RED_CARD
+  SUBSTITUTION
+  VAR
+}
+
+enum CompetitionType {
+  LEAGUE
+  CUP
+}
+
+enum TeamHistoryType {
+  TRANSFER
+  LOAN
+  YOUTH_PROMOTION
+}
+
+enum SyncEntity {
+  COMPETITIONS
+  TEAMS
+  SQUADS
+  FIXTURES
+  MATCH_DETAILS
+  PLAYER_MATCH_STATS
+  INJURIES
+  STANDINGS
+}
+
+enum SyncStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum UserRole {
+  USER
+  ANALYST
+  ADMIN
+}
+
+// ---------------------------------------------------------------------
+// Datos maestros
+// ---------------------------------------------------------------------
+
+model Country {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String?  @unique // ISO 3166-1 alpha-2 cuando exista
+  flagUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  competitions        Competition[]
+  teams               Team[]
+  players             Player[]      @relation("PlayerNationality")
+  playersSecondNation Player[]      @relation("PlayerSecondNationality")
+  coaches             Coach[]
+}
+
+model Competition {
+  id         Int             @id @default(autoincrement())
+  externalId String // id en el proveedor
+  providerId Int
+  name       String
+  slug       String          @unique
+  type       CompetitionType @default(LEAGUE)
+  logoUrl    String?
+  countryId  Int
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  country  Country    @relation(fields: [countryId], references: [id])
+  provider DataProvider @relation(fields: [providerId], references: [id])
+  seasons  Season[]
+
+  @@unique([providerId, externalId])
+}
+
+model Season {
+  id            Int      @id @default(autoincrement())
+  competitionId Int
+  year          Int // año de inicio: 2026 => temporada 2026-27
+  startDate     DateTime?
+  endDate       DateTime?
+  isCurrent     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  competition Competition  @relation(fields: [competitionId], references: [id])
+  teams       SeasonTeam[]
+  matches     Match[]
+  standings   Standing[]
+
+  @@unique([competitionId, year])
+}
+
+model Stadium {
+  id         Int      @id @default(autoincrement())
+  externalId String?
+  name       String
+  city       String?
+  capacity   Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  teams Team[]
+}
+
+model Coach {
+  id            Int      @id @default(autoincrement())
+  externalId    String?
+  providerId    Int?
+  name          String
+  photoUrl      String?
+  nationalityId Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  nationality Country? @relation(fields: [nationalityId], references: [id])
+  teams       Team[]
+}
+
+model Team {
+  id         Int      @id @default(autoincrement())
+  externalId String
+  providerId Int
+  name       String
+  shortName  String?
+  slug       String   @unique
+  crestUrl   String?
+  founded    Int?
+  countryId  Int
+  stadiumId  Int?
+  coachId    Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  country Country  @relation(fields: [countryId], references: [id])
+  stadium Stadium? @relation(fields: [stadiumId], references: [id])
+  coach   Coach?   @relation(fields: [coachId], references: [id])
+
+  seasons        SeasonTeam[]
+  players        Player[]
+  playerHistory  PlayerTeamHistory[]
+  matchTeams     MatchTeam[]
+  matchPlayers   MatchPlayer[]
+  standings      Standing[]
+  favoriteOf     FavoriteTeam[]
+
+  @@unique([providerId, externalId])
+  @@index([countryId])
+}
+
+model SeasonTeam {
+  seasonId Int
+  teamId   Int
+
+  season Season @relation(fields: [seasonId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@id([seasonId, teamId])
+}
+
+// ---------------------------------------------------------------------
+// Jugadores
+// ---------------------------------------------------------------------
+
+model Player {
+  id                  Int            @id @default(autoincrement())
+  externalId          String
+  providerId          Int
+  fullName            String
+  knownAs             String? // nombre deportivo
+  slug                String         @unique
+  photoUrl            String?
+  birthDate           DateTime?
+  nationalityId       Int?
+  secondNationalityId Int?
+  heightCm            Int?
+  weightKg            Int?
+  preferredFoot       PreferredFoot?
+  shirtNumber         Int?
+  status              PlayerStatus   @default(AVAILABLE)
+  currentTeamId       Int? // null = sin equipo
+  joinedAt            DateTime?
+  contractUntil       DateTime?
+  // Calidad del dato
+  lastSyncedAt        DateTime?
+  manuallyEdited      Boolean        @default(false)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  nationality       Country? @relation("PlayerNationality", fields: [nationalityId], references: [id])
+  secondNationality Country? @relation("PlayerSecondNationality", fields: [secondNationalityId], references: [id])
+  currentTeam       Team?    @relation(fields: [currentTeamId], references: [id])
+
+  positions    PlayerPosition[]
+  teamHistory  PlayerTeamHistory[]
+  matchPlayers MatchPlayer[]
+  injuries     Injury[]
+  suspensions  Suspension[]
+  favoriteOf   FavoritePlayer[]
+
+  @@unique([providerId, externalId])
+  @@index([currentTeamId])
+  @@index([fullName])
+  @@index([knownAs])
+}
+
+model PlayerPosition {
+  id               Int           @id @default(autoincrement())
+  playerId         Int
+  group            PositionGroup
+  specificPosition String? // p.ej. "Lateral derecho", "Mediocentro defensivo"
+  isPrimary        Boolean       @default(false)
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, group, specificPosition])
+  @@index([group])
+}
+
+model PlayerTeamHistory {
+  id       Int             @id @default(autoincrement())
+  playerId Int
+  teamId   Int
+  type     TeamHistoryType @default(TRANSFER)
+  fromDate DateTime
+  toDate   DateTime? // null = vigente
+
+  player Player @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@index([playerId, fromDate])
+}
+
+// ---------------------------------------------------------------------
+// Partidos
+// ---------------------------------------------------------------------
+
+model Match {
+  id           Int         @id @default(autoincrement())
+  externalId   String
+  providerId   Int
+  seasonId     Int
+  round        String? // "Jornada 12"
+  kickoffAt    DateTime
+  status       MatchStatus @default(SCHEDULED)
+  hasExtraTime Boolean     @default(false)
+  hasPenalties Boolean     @default(false)
+  // Segunda pasada de verificación post-partido (correcciones del proveedor)
+  statsVerifiedAt DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  season       Season        @relation(fields: [seasonId], references: [id])
+  teams        MatchTeam[]
+  matchPlayers MatchPlayer[]
+  events       MatchEvent[]
+
+  @@unique([providerId, externalId])
+  @@index([seasonId, kickoffAt])
+  @@index([status, kickoffAt])
+}
+
+model MatchTeam {
+  id           Int     @id @default(autoincrement())
+  matchId      Int
+  teamId       Int
+  isHome       Boolean
+  goals        Int?
+  penaltyGoals Int? // tanda de penaltis, si la hubo
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team  Team  @relation(fields: [teamId], references: [id])
+
+  @@unique([matchId, teamId])
+  @@unique([matchId, isHome])
+}
+
+model MatchPlayer {
+  id             Int             @id @default(autoincrement())
+  matchId        Int
+  playerId       Int
+  teamId         Int // equipo con el que jugó ESE partido (soporta traspasos a mitad de temporada)
+  role           MatchPlayerRole
+  positionPlayed String? // posición en ese partido (puede diferir de la habitual)
+  shirtNumber    Int?
+  minutesPlayed  Int             @default(0)
+  rating         Float? // valoración del proveedor, si existe
+  isCaptain      Boolean         @default(false)
+  subbedInMinute  Int?
+  subbedOutMinute Int?
+
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  fieldStats PlayerMatchStatistics?
+  gkStats    GoalkeeperMatchStatistics?
+
+  @@unique([matchId, playerId])
+  // Índice clave del producto: "últimos 5 partidos" de un jugador.
+  @@index([playerId, matchId])
+  @@index([playerId, role])
+}
+
+model MatchEvent {
+  id             Int       @id @default(autoincrement())
+  matchId        Int
+  teamExternalId String?
+  playerId       Int?
+  assistPlayerId Int?
+  type           EventType
+  minute         Int
+  extraMinute    Int?
+  detail         String?
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([playerId])
+}
+
+// ---------------------------------------------------------------------
+// Estadísticas por jugador y partido — JUGADORES DE CAMPO
+// NULL = no disponible en el proveedor. Nunca inventar.
+// ---------------------------------------------------------------------
+
+model PlayerMatchStatistics {
+  id            Int @id @default(autoincrement())
+  matchPlayerId Int @unique
+
+  // Ataque
+  goals                Int?
+  assists              Int?
+  shotsTotal           Int?
+  shotsOnTarget        Int?
+  shotsOffTarget       Int?
+  shotsBlocked         Int?
+  chancesCreated       Int?
+  bigChancesCreated    Int?
+  bigChancesMissed     Int?
+  touchesInBox         Int?
+  dribblesAttempted    Int?
+  dribblesCompleted    Int?
+  offsides             Int?
+  penaltiesScored      Int?
+  penaltiesMissed      Int?
+
+  // Pases
+  passesAttempted      Int?
+  passesCompleted      Int?
+  keyPasses            Int?
+  progressivePasses    Int?
+  passesIntoFinalThird Int?
+  passesIntoBox        Int?
+  crossesAttempted     Int?
+  crossesCompleted     Int?
+  longBallsAttempted   Int?
+  longBallsCompleted   Int?
+  throughBalls         Int?
+  switchesOfPlay       Int?
+  expectedAssists      Float? // xA, si el proveedor lo da
+  expectedGoals        Float? // xG, si el proveedor lo da
+
+  // Defensa
+  tacklesAttempted     Int?
+  tacklesWon           Int?
+  interceptions        Int?
+  clearances           Int?
+  blocks               Int?
+  recoveries           Int?
+  duelsTotal           Int?
+  duelsWon             Int?
+  aerialDuelsTotal     Int?
+  aerialDuelsWon       Int?
+  errorsLeadingToShot  Int?
+  errorsLeadingToGoal  Int?
+  dribbledPast         Int?
+
+  // Disciplina
+  foulsCommitted       Int?
+  foulsDrawn           Int?
+  yellowCards          Int?
+  secondYellowCards    Int?
+  redCards             Int?
+  penaltiesCommitted   Int?
+  penaltiesWon         Int?
+
+  // Pérdidas y posesión
+  possessionsLost      Int?
+  dispossessed         Int?
+  badControls          Int?
+  touches              Int?
+  touchesOwnHalf       Int?
+  touchesOppHalf       Int?
+  touchesFinalThird    Int?
+  progressiveCarries   Int?
+
+  // Auditoría / calidad del dato
+  rawProviderData Json?
+  syncedAt        DateTime  @default(now())
+  correctedAt     DateTime?
+  correctedBy     String?
+
+  matchPlayer MatchPlayer @relation(fields: [matchPlayerId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------
+// Estadísticas por partido — PORTEROS (tabla separada, métricas propias)
+// ---------------------------------------------------------------------
+
+model GoalkeeperMatchStatistics {
+  id            Int @id @default(autoincrement())
+  matchPlayerId Int @unique
+
+  goalsConceded         Int?
+  cleanSheet            Boolean?
+  shotsFaced            Int?
+  shotsOnTargetFaced    Int?
+  saves                 Int?
+  savesInsideBox        Int?
+  savesOutsideBox       Int?
+  penaltiesFaced        Int?
+  penaltiesSaved        Int?
+  penaltiesConceded     Int?
+  goalsPrevented        Float? // si existe
+  postShotExpectedGoals Float? // PSxG, si existe
+  sweeperActions        Int? // salidas
+  sweeperActionsSuccessful Int?
+  highClaims            Int? // balones aéreos atrapados
+  punches               Int?
+  clearances            Int?
+  errorsLeadingToShot   Int?
+  errorsLeadingToGoal   Int?
+  avgDefensiveActionDistance Float? // si existe
+
+  // Distribución
+  passesAttempted    Int?
+  passesCompleted    Int?
+  longBallsAttempted Int?
+  longBallsCompleted Int?
+  goalKicks          Int?
+  actionsOutsideBox  Int?
+
+  rawProviderData Json?
+  syncedAt        DateTime  @default(now())
+  correctedAt     DateTime?
+  correctedBy     String?
+
+  matchPlayer MatchPlayer @relation(fields: [matchPlayerId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------
+// Disponibilidad y clasificación
+// ---------------------------------------------------------------------
+
+model Injury {
+  id             Int       @id @default(autoincrement())
+  playerId       Int
+  externalId     String?
+  type           String? // "Lesión muscular", etc.
+  reason         String?
+  startDate      DateTime
+  expectedReturn DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@index([playerId, startDate])
+}
+
+model Suspension {
+  id        Int       @id @default(autoincrement())
+  playerId  Int
+  reason    String?
+  startDate DateTime
+  endDate   DateTime?
+  matchesRemaining Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@index([playerId, startDate])
+}
+
+model Standing {
+  id           Int      @id @default(autoincrement())
+  seasonId     Int
+  teamId       Int
+  position     Int
+  played       Int      @default(0)
+  won          Int      @default(0)
+  drawn        Int      @default(0)
+  lost         Int      @default(0)
+  goalsFor     Int      @default(0)
+  goalsAgainst Int      @default(0)
+  points       Int      @default(0)
+  form         String? // "WWDLW"
+  updatedAt    DateTime @updatedAt
+
+  season Season @relation(fields: [seasonId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@unique([seasonId, teamId])
+}
+
+// ---------------------------------------------------------------------
+// Usuarios (preparado; fuera del MVP salvo rol ADMIN para el panel)
+// ---------------------------------------------------------------------
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  favoritePlayers  FavoritePlayer[]
+  favoriteTeams    FavoriteTeam[]
+  savedComparisons SavedComparison[]
+}
+
+model FavoritePlayer {
+  userId   Int
+  playerId Int
+  addedAt  DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([userId, playerId])
+}
+
+model FavoriteTeam {
+  userId  Int
+  teamId  Int
+  addedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([userId, teamId])
+}
+
+model SavedComparison {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  playerIds Int[] // 2-4 jugadores
+  name      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------
+// Sincronización y calidad del dato
+// ---------------------------------------------------------------------
+
+model DataProvider {
+  id       Int    @id @default(autoincrement())
+  name     String @unique // "api-football"
+  priority Int    @default(1) // menor = prioritario en conflictos
+
+  competitions Competition[]
+  syncJobs     SyncJob[]
+  budgets      RequestBudget[]
+}
+
+/// Contador diario de requests: imprescindible con el plan gratuito (100/día).
+model RequestBudget {
+  id         Int      @id @default(autoincrement())
+  providerId Int
+  date       DateTime @db.Date
+  used       Int      @default(0)
+  dailyLimit Int
+
+  provider DataProvider @relation(fields: [providerId], references: [id])
+
+  @@unique([providerId, date])
+}
+
+model SyncJob {
+  id               Int        @id @default(autoincrement())
+  providerId       Int
+  entity           SyncEntity
+  entityExternalId String? // p.ej. id de fixture a sincronizar
+  status           SyncStatus @default(PENDING)
+  priority         Int        @default(5) // menor = antes (resultados > stats detalladas)
+  attempts         Int        @default(0)
+  maxAttempts      Int        @default(3)
+  requestsEstimate Int        @default(1) // para planificar el presupuesto diario
+  scheduledAt      DateTime   @default(now())
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  error            String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  provider DataProvider @relation(fields: [providerId], references: [id])
+  logs     SyncLog[]
+
+  @@index([status, priority, scheduledAt])
+}
+
+model SyncLog {
+  id        Int      @id @default(autoincrement())
+  syncJobId Int?
+  level     String   @default("info") // info | warn | error
+  message   String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  syncJob SyncJob? @relation(fields: [syncJobId], references: [id])
+
+  @@index([createdAt])
+}

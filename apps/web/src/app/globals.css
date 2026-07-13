@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-pitch-bg text-slate-100 antialiased;
+  font-feature-settings: 'tnum'; /* números tabulares para las estadísticas */
+}
