@@ -193,6 +193,17 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       }
     }
 
+    // 3.5 Clasificación inicial: competición-temporada sin ninguna fila aún.
+    // Va ANTES del backfill masivo de estadísticas para no quedar relegada horas.
+    for (const { comp, season } of compSeasons) {
+      const hasStandings = await db.standing.count({ where: { seasonId: season.id } });
+      if (hasStandings === 0) {
+        await unit('STANDINGS', key(comp, season), `clasificacion:${comp.slug}:${season.year}`, 2, () =>
+          syncStandings(db, provider, providerRow.id, comp.externalId, season.year),
+        );
+      }
+    }
+
     // 4. Plantillas de equipos sin jugadores (bootstrap progresivo, 1 req/equipo)
     const teamsWithoutPlayers = await db.team.findMany({
       where: { players: { none: {} }, seasons: { some: {} } },
