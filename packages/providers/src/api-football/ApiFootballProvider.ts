@@ -1,13 +1,13 @@
 /**
  * Adaptador de API-Football que implementa FootballDataProvider.
- * Coste aproximado en requests:
- *  - getCompetitions: 0 (los ids de las 5 ligas son constantes conocidas)
+ * Coste en requests (plan Pro, 7 500/día):
+ *  - getCompetitions: 0 (las competiciones rastreadas son constantes conocidas: 5 ligas + Mundial 2026)
  *  - getTeamsByCompetition: 1
  *  - getPlayersByTeam: 1 (endpoint /players/squads)
- *  - getFixtures: 1 por liga/temporada
+ *  - getFixtures: 1 por competición/temporada
  *  - getLineups: 1 por partido
  *  - getPlayerMatchStatistics: 1 por partido (todos los jugadores de golpe)
- *  - getInjuries / getStandings: 1 por liga
+ *  - getInjuries / getStandings: 1 por competición/temporada
  */
 import { TRACKED_COMPETITIONS } from '@futstats/shared';
 import type { FootballDataProvider } from '../FootballDataProvider';
@@ -37,25 +37,24 @@ export class ApiFootballProvider implements FootballDataProvider {
 
   constructor(private readonly client: ApiFootballClient) {}
 
-  async getCompetitions(season: number): Promise<ProviderCompetition[]> {
-    // Competiciones fijas: 0 requests gastadas.
-    return TRACKED_COMPETITIONS.filter((c) => c.seasons == null || c.seasons.includes(season)).map((l) => ({
-      externalId: String(l.apiFootballId),
-      name: l.name,
-      country: l.country,
-      type: l.type,
+  async getCompetitions(): Promise<ProviderCompetition[]> {
+    // Las competiciones rastreadas (5 ligas + Mundial 2026) son fijas: 0 requests gastadas.
+    return TRACKED_COMPETITIONS.map((c) => ({
+      externalId: String(c.apiFootballId),
+      name: c.name,
+      country: c.country,
       logoUrl: null,
-      season,
+      type: c.type,
     }));
   }
 
   async getTeamsByCompetition(competitionExternalId: string, season: number): Promise<ProviderTeam[]> {
-    const league = TRACKED_COMPETITIONS.find((l) => String(l.apiFootballId) === competitionExternalId);
+    const competition = TRACKED_COMPETITIONS.find((c) => String(c.apiFootballId) === competitionExternalId);
     const raws = await this.client.get<Parameters<typeof mapTeam>[0]>('/teams', {
       league: competitionExternalId,
       season,
     });
-    return raws.map((raw) => mapTeam(raw, league?.country ?? 'Unknown'));
+    return raws.map((raw) => mapTeam(raw, competition?.country ?? 'Unknown'));
   }
 
   async getPlayersByTeam(teamExternalId: string): Promise<ProviderPlayer[]> {

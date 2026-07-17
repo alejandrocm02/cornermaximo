@@ -14,9 +14,8 @@ export interface ProviderCompetition {
   externalId: string;
   name: string;
   country: string;
-  type: 'LEAGUE' | 'CUP';
   logoUrl: string | null;
-  season: number;
+  type: 'LEAGUE' | 'CUP';
 }
 
 export interface ProviderTeam {
@@ -26,6 +25,8 @@ export interface ProviderTeam {
   crestUrl: string | null;
   founded: number | null;
   country: string;
+  /** true = selección nacional (Mundial, Eurocopa...); false = club. */
+  isNational: boolean;
   stadiumName: string | null;
   stadiumCity: string | null;
   stadiumCapacity: number | null;
@@ -126,6 +127,8 @@ export interface ProviderInjury {
 
 export interface ProviderStandingRow {
   teamExternalId: string;
+  /** Fase de grupos (competiciones CUP, p.ej. "Grupo A"); null en ligas de tabla única. */
+  group: string | null;
   position: number;
   played: number;
   won: number;

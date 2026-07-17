@@ -1,7 +1,8 @@
 /**
  * Presupuesto de requests respaldado en BD (tabla RequestBudget).
- * Doble límite: diario (según plan contratado) y por ejecución
- * (cada tanda de GitHub Actions gasta como máximo `runLimit`).
+ * Doble límite: diario (plan Pro: 7 500/día, configurable vía
+ * `API_FOOTBALL_DAILY_LIMIT`) y por ejecución (cada tanda de GitHub Actions
+ * gasta como máximo `runLimit`).
  */
 import type { PrismaClient } from '@futstats/db';
 import type { RequestBudgetGuard } from '@futstats/providers';

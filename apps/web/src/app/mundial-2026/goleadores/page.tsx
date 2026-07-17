@@ -1,61 +1,48 @@
-import { prisma } from '@futstats/db';
+import { WORLD_CUP_2026 } from '@futstats/shared';
 import Link from 'next/link';
+import { topPlayerStat, type WorldCupStatMetric } from '@/lib/worldCupStats';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Rankings' };
+export const metadata = { title: 'Mundial 2026 — Estadísticas individuales' };
 
-const METRICS = [
+const METRICS: Array<{ value: WorldCupStatMetric; label: string }> = [
   { value: 'goals', label: 'Goles' },
   { value: 'assists', label: 'Asistencias' },
-  { value: 'keyPasses', label: 'Pases clave' },
   { value: 'shotsOnTarget', label: 'Tiros a puerta' },
+  { value: 'keyPasses', label: 'Pases clave' },
+  { value: 'dribblesCompleted', label: 'Regates completados' },
   { value: 'tacklesWon', label: 'Entradas ganadas' },
   { value: 'interceptions', label: 'Intercepciones' },
+  { value: 'yellowCards', label: 'Tarjetas amarillas' },
+  { value: 'redCards', label: 'Tarjetas rojas' },
   { value: 'saves', label: 'Paradas (porteros)' },
-] as const;
+  { value: 'goalsConceded', label: 'Goles encajados (porteros)' },
+  { value: 'penaltiesSaved', label: 'Penaltis parados (porteros)' },
+];
 
-export default async function RankingsPage({
+export default async function WorldCupTopStatsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ metric?: string; league?: string }>;
+  searchParams: Promise<{ metric?: string }>;
 }) {
-  const { metric: metricParam, league } = await searchParams;
-  const metric = METRICS.some((m) => m.value === metricParam) ? metricParam! : 'goals';
+  const { metric: metricParam } = await searchParams;
+  const metric = (METRICS.find((m) => m.value === metricParam)?.value ?? 'goals') as WorldCupStatMetric;
 
-  const leagues = await prisma.competition.findMany({ orderBy: { name: 'asc' } });
-
-  // Reutilizamos el endpoint interno para no duplicar la consulta
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL != null ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-  let rows: Array<{ rank: number; slug: string; name: string; team: string | null; total: number; minutes: number }> = [];
-  try {
-    const res = await fetch(
-      `${base}/api/rankings?metric=${metric}${league != null && league !== '' ? `&league=${league}` : ''}`,
-      { cache: 'no-store' },
-    );
-    if (res.ok) {
-      const data = (await res.json()) as { results: typeof rows };
-      rows = data.results;
-    }
-  } catch {
-    // BD vacía o app arrancando: se muestra el estado vacío
-  }
+  const rows = await topPlayerStat(WORLD_CUP_2026.slug, metric, 25);
+  const currentLabel = METRICS.find((m) => m.value === metric)?.label ?? metric;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Rankings</h1>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">Mundial 2026</p>
+        <h1 className="text-2xl font-bold">Estadísticas individuales</h1>
+        <p className="text-sm text-pitch-muted">Acumulado real de todos los partidos disputados en el torneo, por jugador y selección.</p>
+      </div>
 
       <form method="GET" className="flex flex-wrap gap-3 text-sm">
         <select name="metric" defaultValue={metric} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
           {METRICS.map((m) => (
             <option key={m.value} value={m.value}>{m.label}</option>
-          ))}
-        </select>
-        <select name="league" defaultValue={league ?? ''} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
-          <option value="">Todas las ligas</option>
-          {leagues.map((l) => (
-            <option key={l.id} value={l.slug}>{l.name}</option>
           ))}
         </select>
         <button type="submit" className="rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black">Ver</button>
@@ -67,19 +54,25 @@ export default async function RankingsPage({
             <tr className="border-b border-pitch-border">
               <th className="px-4 py-2">#</th>
               <th className="px-4 py-2">Jugador</th>
-              <th className="px-4 py-2">Equipo</th>
-              <th className="px-4 py-2 text-right">Total</th>
+              <th className="px-4 py-2">Selección</th>
+              <th className="px-4 py-2 text-right">{currentLabel}</th>
               <th className="px-4 py-2 text-right">Minutos</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.map((r, i) => (
               <tr key={r.slug} className="border-b border-pitch-border/50 last:border-0">
-                <td className="px-4 py-2 text-pitch-muted">{r.rank}</td>
+                <td className="px-4 py-2 text-pitch-muted">{i + 1}</td>
                 <td className="px-4 py-2">
                   <Link href={`/jugadores/${r.slug}`} className="hover:text-pitch-accent">{r.name}</Link>
                 </td>
-                <td className="px-4 py-2 text-pitch-muted">{r.team ?? '—'}</td>
+                <td className="px-4 py-2 text-pitch-muted">
+                  {r.teamSlug != null ? (
+                    <Link href={`/equipos/${r.teamSlug}`} className="hover:text-pitch-accent">{r.team}</Link>
+                  ) : (
+                    r.team ?? '—'
+                  )}
+                </td>
                 <td className="px-4 py-2 text-right font-semibold">{r.total}</td>
                 <td className="px-4 py-2 text-right text-pitch-muted">{r.minutes}</td>
               </tr>
@@ -87,7 +80,7 @@ export default async function RankingsPage({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-pitch-muted">
-                  Sin datos todavía. Los rankings aparecen tras sincronizar estadísticas de partidos.
+                  Sin datos todavía. Aparecerán en cuanto se sincronicen estadísticas de partidos del Mundial.
                 </td>
               </tr>
             )}

@@ -2,13 +2,17 @@
  * Runner de sincronización: en cada ejecución (lanzada por GitHub Actions)
  * decide qué trabajo hacer, por prioridad, hasta agotar el presupuesto asignado.
  *
+ * Sincroniza TODAS las competiciones rastreadas (`TRACKED_COMPETITIONS`: las 5 grandes
+ * ligas en sus temporadas 2025-26 y 2026-27, y el Mundial 2026) y, dentro de cada una,
+ * TODAS sus temporadas configuradas — no una única "temporada actual" global.
+ *
  * Prioridades:
- *  1. Bootstrap: competiciones (0 req) -> equipos -> calendario -> plantillas
- *  2. Resultados: refrescar fixtures si hay partidos pendientes de resultado (1 req/liga)
+ *  1. Bootstrap: competiciones y temporadas (0 req) -> equipos -> calendario -> plantillas
+ *  2. Resultados: refrescar fixtures si hay partidos pendientes de resultado (1 req/competición-temporada)
  *  3. Stats post-partido, primera pasada (2 req/partido, los más recientes primero)
  *  4. Segunda pasada de verificación a las 24h (2 req/partido)
- *  5. Clasificación (1 req/liga, máx. 1 vez/20h)
- *  6. Lesiones (1 req/liga, máx. 1 vez/20h)
+ *  5. Clasificación (1 req/competición-temporada, máx. 1 vez/20h)
+ *  6. Lesiones (1 req/competición-temporada, máx. 1 vez/20h)
  */
 import type { PrismaClient, SyncEntity } from '@futstats/db';
 import {
@@ -17,6 +21,7 @@ import {
   BudgetExceededError,
   type FootballDataProvider,
 } from '@futstats/providers';
+import { TRACKED_COMPETITIONS } from '@futstats/shared';
 import { PrismaBudgetGuard } from './budget';
 import {
   syncCompetitions,
@@ -29,11 +34,8 @@ import {
 } from './services';
 
 const STALE_HOURS = 20;
-const SQUAD_STALE_HOURS = 24 * 7;
 const VERIFY_AFTER_HOURS = 24;
-const DEFAULT_DAILY_LIMIT = 7_500;
-const DEFAULT_RUN_LIMIT = 100;
-/** Margen frente al límite de 60s de Vercel Hobby: paramos limpiamente antes. */
+/** Margen frente al límite de 60s de Vercel Hobby: paramos limpiamente antes (no depende del plan de API-Football). */
 const TIME_BUDGET_MS = 45_000;
 
 class TimeBudgetExceededError extends Error {
@@ -44,8 +46,8 @@ class TimeBudgetExceededError extends Error {
 }
 
 export interface SyncRunOptions {
+  /** Nº máximo de requests a gastar en esta ejecución (plan Pro: hasta 7 500/día). */
   maxRequests?: number;
-  season?: number;
 }
 
 export interface SyncRunResult {
@@ -62,7 +64,9 @@ export function createApiFootballProvider(budget: PrismaBudgetGuard): FootballDa
       apiKey,
       baseUrl: process.env.API_FOOTBALL_BASE_URL ?? 'https://v3.football.api-sports.io',
       budget,
-      minIntervalMs: positiveNumberEnv('API_FOOTBALL_MIN_INTERVAL_MS', 1_000),
+      minIntervalMs: process.env.API_FOOTBALL_MIN_INTERVAL_MS != null
+        ? Number(process.env.API_FOOTBALL_MIN_INTERVAL_MS)
+        : undefined,
     }),
   );
 }
@@ -84,15 +88,9 @@ function hoursAgo(date: Date | null): number {
   return (Date.now() - date.getTime()) / 3_600_000;
 }
 
-function positiveNumberEnv(name: string, fallback: number): number {
-  const value = Number(process.env[name] ?? fallback);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
 export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): Promise<SyncRunResult> {
-  const season = options.season ?? positiveNumberEnv('CURRENT_SEASON', new Date().getFullYear());
-  const dailyLimit = positiveNumberEnv('API_FOOTBALL_DAILY_LIMIT', DEFAULT_DAILY_LIMIT);
-  const maxRequests = options.maxRequests ?? DEFAULT_RUN_LIMIT;
+  const dailyLimit = Number(process.env.API_FOOTBALL_DAILY_LIMIT ?? 7_500);
+  const maxRequests = options.maxRequests ?? 200;
 
   const providerRow = await db.dataProvider.upsert({
     where: { name: 'api-football' },
@@ -147,52 +145,62 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
   }
 
   try {
-    // 1. Competiciones y temporadas (0 requests con API-Football)
+    // 1. Competiciones y TODAS sus temporadas rastreadas (0 requests con API-Football)
     await unit('COMPETITIONS', null, 'competiciones', 1, () =>
-      syncCompetitions(db, provider, providerRow.id, season),
+      syncCompetitions(db, provider, providerRow.id),
     );
 
     const competitions = await db.competition.findMany({
-      include: { seasons: { where: { year: season }, include: { _count: { select: { teams: true, matches: true } } } } },
+      include: { seasons: { include: { _count: { select: { teams: true, matches: true } } } } },
     });
 
-    // 2. Equipos de ligas sin equipos
-    for (const comp of competitions) {
-      const s = comp.seasons[0];
-      if (s != null && s._count.teams === 0) {
-        await unit('TEAMS', comp.externalId, `equipos:${comp.slug}`, 1, () =>
-          syncTeams(db, provider, providerRow.id, comp.externalId, season),
+    // Pares (competición, temporada) a procesar: cada competición puede tener varias
+    // temporadas activas a la vez (p.ej. LaLiga 2025-26 y 2026-27).
+    type CompSeason = { comp: (typeof competitions)[number]; season: (typeof competitions)[number]['seasons'][number] };
+    // Solo se mantienen activamente las temporadas rastreadas; las históricas
+    // (p.ej. 2024-25) quedan en la base de datos pero no gastan requests.
+    const compSeasons: CompSeason[] = competitions.flatMap((comp) => {
+      const tracked = TRACKED_COMPETITIONS.find((t) => String(t.apiFootballId) === comp.externalId);
+      return comp.seasons
+        .filter((season) => tracked?.seasons.includes(season.year) ?? false)
+        .map((season) => ({ comp, season }));
+    });
+    /** Clave estable para trackear frescura por (competición, temporada) en SyncJob. */
+    const key = (comp: { externalId: string }, season: { year: number }) => `${comp.externalId}:${season.year}`;
+
+    // 2. Equipos de competición-temporada sin equipos
+    for (const { comp, season } of compSeasons) {
+      if (season._count.teams === 0) {
+        await unit('TEAMS', key(comp, season), `equipos:${comp.slug}:${season.year}`, 1, () =>
+          syncTeams(db, provider, providerRow.id, comp.externalId, season.year),
         );
       }
     }
 
-    // 3. Calendario: ligas sin partidos, o con resultados pendientes y sync antiguo
-    for (const comp of competitions) {
-      const s = comp.seasons[0];
-      if (s == null) continue;
-      const needsBootstrap = s._count.matches === 0;
+    // 3. Calendario: competición-temporada sin partidos, o con resultados pendientes y sync antiguo
+    for (const { comp, season } of compSeasons) {
+      const needsBootstrap = season._count.matches === 0;
       const pendingResults = await db.match.count({
-        where: { seasonId: s.id, status: 'SCHEDULED', kickoffAt: { lt: new Date() } },
+        where: { seasonId: season.id, status: 'SCHEDULED', kickoffAt: { lt: new Date() } },
       });
-      const stale = hoursAgo(await lastSuccessAt(db, 'FIXTURES', comp.externalId)) > 6;
+      // El Mundial 2026 está en juego: refrescamos su calendario más a menudo (2h) que las ligas (6h).
+      const staleHours = comp.slug === 'mundial-2026' ? 2 : 6;
+      const stale = hoursAgo(await lastSuccessAt(db, 'FIXTURES', key(comp, season))) > staleHours;
       if (needsBootstrap || (pendingResults > 0 && stale)) {
-        await unit('FIXTURES', comp.externalId, `calendario:${comp.slug}`, 2, () =>
-          syncFixtures(db, provider, providerRow.id, comp.externalId, season),
+        await unit('FIXTURES', key(comp, season), `calendario:${comp.slug}:${season.year}`, 2, () =>
+          syncFixtures(db, provider, providerRow.id, comp.externalId, season.year),
         );
       }
     }
 
     // 4. Plantillas de equipos sin jugadores (bootstrap progresivo, 1 req/equipo)
     const teamsWithoutPlayers = await db.team.findMany({
-      where: { players: { none: {} }, seasons: { some: { season: { year: season } } } },
-      include: { seasons: { where: { season: { year: season } }, include: { season: { include: { competition: true } } } } },
+      where: { players: { none: {} }, seasons: { some: {} } },
       orderBy: { id: 'asc' },
     });
     for (const team of teamsWithoutPlayers) {
-      if (hoursAgo(await lastSuccessAt(db, 'SQUADS', team.externalId)) <= SQUAD_STALE_HOURS) continue;
-      const updateCurrentTeam = team.seasons.some((entry) => entry.season.competition.type === 'LEAGUE');
       await unit('SQUADS', team.externalId, `plantilla:${team.slug}`, 2, () =>
-        syncSquad(db, provider, providerRow.id, team.id, team.externalId, { updateCurrentTeam }),
+        syncSquad(db, provider, providerRow.id, team.id, team.externalId),
       );
     }
 
@@ -200,7 +208,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
     const unsyncedMatches = await db.match.findMany({
       where: { status: 'FINISHED', matchPlayers: { none: {} } },
       orderBy: { kickoffAt: 'desc' }, // los más recientes primero: alimentan "últimos 5"
-      take: 40,
+      take: 80,
     });
     for (const match of unsyncedMatches) {
       await unit('PLAYER_MATCH_STATS', match.externalId, `stats:${match.externalId}`, 3, () =>
@@ -217,7 +225,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
         kickoffAt: { lt: new Date(Date.now() - VERIFY_AFTER_HOURS * 3_600_000) },
       },
       orderBy: { kickoffAt: 'asc' },
-      take: 20,
+      take: 40,
     });
     for (const match of toVerify) {
       await unit('MATCH_DETAILS', match.externalId, `verificacion:${match.externalId}`, 4, async () => {
@@ -226,20 +234,21 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       });
     }
 
-    // 7. Clasificación (máx. 1 vez cada STALE_HOURS por liga)
-    for (const comp of competitions) {
-      if (hoursAgo(await lastSuccessAt(db, 'STANDINGS', comp.externalId)) > STALE_HOURS) {
-        await unit('STANDINGS', comp.externalId, `clasificacion:${comp.slug}`, 5, () =>
-          syncStandings(db, provider, providerRow.id, comp.externalId, season),
+    // 7. Clasificación (Mundial en juego: cada 2h; ligas: cada STALE_HOURS)
+    for (const { comp, season } of compSeasons) {
+      const standingsStaleHours = comp.slug === 'mundial-2026' ? 2 : STALE_HOURS;
+      if (hoursAgo(await lastSuccessAt(db, 'STANDINGS', key(comp, season))) > standingsStaleHours) {
+        await unit('STANDINGS', key(comp, season), `clasificacion:${comp.slug}:${season.year}`, 5, () =>
+          syncStandings(db, provider, providerRow.id, comp.externalId, season.year),
         );
       }
     }
 
-    // 8. Lesiones (máx. 1 vez cada STALE_HOURS por liga)
-    for (const comp of competitions) {
-      if (hoursAgo(await lastSuccessAt(db, 'INJURIES', comp.externalId)) > STALE_HOURS) {
-        await unit('INJURIES', comp.externalId, `lesiones:${comp.slug}`, 6, () =>
-          syncInjuries(db, provider, providerRow.id, comp.externalId, season),
+    // 8. Lesiones (máx. 1 vez cada STALE_HOURS por competición-temporada)
+    for (const { comp, season } of compSeasons) {
+      if (hoursAgo(await lastSuccessAt(db, 'INJURIES', key(comp, season))) > STALE_HOURS) {
+        await unit('INJURIES', key(comp, season), `lesiones:${comp.slug}:${season.year}`, 6, () =>
+          syncInjuries(db, provider, providerRow.id, comp.externalId, season.year),
         );
       }
     }

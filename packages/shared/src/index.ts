@@ -39,39 +39,67 @@ export type PreferredFoot = (typeof PREFERRED_FEET)[number];
 
 export type TrendDirection = 'UP' | 'STABLE' | 'DOWN' | 'INSUFFICIENT_SAMPLE';
 
-export type TrackedCompetition = {
+/** Las 5 grandes ligas, con el id que usa API-Football. */
+export const BIG_FIVE_LEAGUES = [
+  { slug: 'laliga', name: 'LaLiga', country: 'Spain', apiFootballId: 140 },
+  { slug: 'premier-league', name: 'Premier League', country: 'England', apiFootballId: 39 },
+  { slug: 'serie-a', name: 'Serie A', country: 'Italy', apiFootballId: 135 },
+  { slug: 'bundesliga', name: 'Bundesliga', country: 'Germany', apiFootballId: 78 },
+  { slug: 'ligue-1', name: 'Ligue 1', country: 'France', apiFootballId: 61 },
+] as const;
+
+/** Copa Mundial de la FIFA 2026 (Canadá/México/EE. UU.), id fijo de API-Football. */
+export const WORLD_CUP_2026 = {
+  slug: 'mundial-2026',
+  name: 'Copa Mundial de la FIFA 2026',
+  country: 'World',
+  apiFootballId: 1,
+} as const;
+
+/** Temporadas (año de inicio) de las 5 grandes ligas que se mantienen sincronizadas. */
+export const LEAGUE_SEASONS = [2025, 2026] as const; // 2025-26 (cierre) + 2026-27 (en curso)
+
+/** Temporada más reciente: la que se marca isCurrent en cada liga. */
+export const LATEST_LEAGUE_SEASON = LEAGUE_SEASONS[LEAGUE_SEASONS.length - 1];
+
+/** Alias semánticos: última temporada de liga completada y la que está en curso. */
+export const RECENT_SEASON = LEAGUE_SEASONS[0]; // 2025-26
+export const CURRENT_SEASON = LEAGUE_SEASONS[1]; // 2026-27
+
+/** Temporada (año) del Mundial 2026 en API-Football. */
+export const WORLD_CUP_SEASON = 2026;
+
+export type CompetitionKind = 'LEAGUE' | 'CUP';
+
+export interface TrackedCompetition {
   slug: string;
   name: string;
   country: string;
   apiFootballId: number;
-  type: 'LEAGUE' | 'CUP';
-  seasons?: readonly number[];
-};
+  type: CompetitionKind;
+  /** Temporadas (año de inicio) a sincronizar para esta competición. */
+  seasons: readonly number[];
+}
 
-/** Las 5 grandes ligas, con el id que usa API-Football. */
-export const BIG_FIVE_LEAGUES: readonly TrackedCompetition[] = [
-  { slug: 'laliga', name: 'LaLiga', country: 'Spain', apiFootballId: 140, type: 'LEAGUE' },
-  { slug: 'premier-league', name: 'Premier League', country: 'England', apiFootballId: 39, type: 'LEAGUE' },
-  { slug: 'serie-a', name: 'Serie A', country: 'Italy', apiFootballId: 135, type: 'LEAGUE' },
-  { slug: 'bundesliga', name: 'Bundesliga', country: 'Germany', apiFootballId: 78, type: 'LEAGUE' },
-  { slug: 'ligue-1', name: 'Ligue 1', country: 'France', apiFootballId: 61, type: 'LEAGUE' },
-] as const;
-
-/** FIFA World Cup 2026 en API-Football: league=1, season=2026. */
-export const WORLD_CUP_2026: TrackedCompetition = {
-  slug: 'mundial-2026',
-  name: 'Mundial 2026',
-  country: 'World',
-  apiFootballId: 1,
-  type: 'CUP',
-  seasons: [2026],
-} as const;
-
-export const TRACKED_COMPETITIONS: readonly TrackedCompetition[] = [...BIG_FIVE_LEAGUES, WORLD_CUP_2026] as const;
-
-export const RECENT_SEASON = 2025;
-export const CURRENT_SEASON = 2026;
-export const TRACKED_SEASONS = [RECENT_SEASON, CURRENT_SEASON] as const;
+/** Todas las competiciones que la plataforma sincroniza: 5 ligas + Mundial 2026. */
+export const TRACKED_COMPETITIONS: readonly TrackedCompetition[] = [
+  ...BIG_FIVE_LEAGUES.map((l) => ({
+    slug: l.slug,
+    name: l.name,
+    country: l.country,
+    apiFootballId: l.apiFootballId,
+    type: 'LEAGUE' as const,
+    seasons: LEAGUE_SEASONS,
+  })),
+  {
+    slug: WORLD_CUP_2026.slug,
+    name: WORLD_CUP_2026.name,
+    country: WORLD_CUP_2026.country,
+    apiFootballId: WORLD_CUP_2026.apiFootballId,
+    type: 'CUP' as const,
+    seasons: [WORLD_CUP_SEASON] as const,
+  },
+];
 
 /** Número de partidos de la ventana de análisis reciente. */
 export const RECENT_MATCHES_WINDOW = 5;

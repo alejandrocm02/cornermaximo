@@ -1,94 +1,86 @@
 import { prisma } from '@futstats/db';
-import { CURRENT_SEASON, RECENT_SEASON } from '@futstats/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { MatchRows } from '@/components/MatchRows';
-import { seasonLabel } from '@/lib/football';
+import { notFound, redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const competition = await prisma.competition.findUnique({ where: { slug } });
-  return { title: competition?.name ?? 'Liga' };
+  const c = await prisma.competition.findUnique({ where: { slug } });
+  return { title: c?.name ?? 'Liga' };
 }
 
-export default async function LeaguePage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function LeaguePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ temporada?: string }>;
+}) {
   const { slug } = await params;
+  const { temporada } = await searchParams;
+
   const competition = await prisma.competition.findUnique({
     where: { slug },
-    include: {
-      seasons: {
-        where: { year: { in: [RECENT_SEASON, CURRENT_SEASON] } },
-        include: {
-          standings: {
-            include: { team: { select: { name: true, slug: true, crestUrl: true } } },
-            orderBy: { position: 'asc' },
-          },
-          _count: { select: { teams: true, matches: true } },
-        },
-        orderBy: { year: 'desc' },
-      },
-    },
+    include: { seasons: { orderBy: { year: 'asc' }, select: { id: true, year: true, isCurrent: true } } },
   });
   if (competition == null) notFound();
+  // El Mundial 2026 tiene su propia sección (grupos, eliminatorias, goleadores).
+  if (competition.type === 'CUP') redirect('/mundial-2026');
 
-  const [previousMatches, upcomingMatches, currentFinished] = await Promise.all([
-    prisma.match.findMany({
-      where: { status: 'FINISHED', season: { competitionId: competition.id, year: RECENT_SEASON } },
-      include: { teams: { include: { team: { select: { name: true, slug: true } } } } },
-      orderBy: { kickoffAt: 'desc' },
-      take: 10,
-    }),
-    prisma.match.findMany({
-      where: {
-        status: 'SCHEDULED',
-        kickoffAt: { gte: new Date() },
-        season: { competitionId: competition.id, year: CURRENT_SEASON },
-      },
-      include: { teams: { include: { team: { select: { name: true, slug: true } } } } },
-      orderBy: { kickoffAt: 'asc' },
-      take: 10,
-    }),
-    prisma.match.findMany({
-      where: { status: 'FINISHED', season: { competitionId: competition.id, year: CURRENT_SEASON } },
-      include: { teams: { include: { team: { select: { name: true, slug: true } } } } },
-      orderBy: { kickoffAt: 'desc' },
-      take: 6,
-    }),
-  ]);
+  const availableSeasons = competition.seasons;
+  const requestedYear = temporada != null ? Number(temporada) : undefined;
+  const seasonMeta =
+    availableSeasons.find((s) => s.year === requestedYear) ??
+    availableSeasons.find((s) => s.isCurrent) ??
+    availableSeasons[availableSeasons.length - 1];
 
-  const currentSeason = competition.seasons.find((season) => season.year === CURRENT_SEASON);
+  const season =
+    seasonMeta != null
+      ? await prisma.season.findUnique({
+          where: { id: seasonMeta.id },
+          include: {
+            standings: { include: { team: { select: { name: true, slug: true, crestUrl: true } } }, orderBy: { position: 'asc' } },
+            matches: {
+              where: { status: 'SCHEDULED', kickoffAt: { gte: new Date() } },
+              include: { teams: { include: { team: { select: { name: true } } } } },
+              orderBy: { kickoffAt: 'asc' },
+              take: 5,
+            },
+          },
+        })
+      : null;
 
   return (
     <div className="space-y-8">
-      <section className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">
-            {seasonLabel(RECENT_SEASON)} y {seasonLabel(CURRENT_SEASON)}
-          </p>
-          <h1 className="mt-2 text-2xl font-bold">{competition.name}</h1>
-          <p className="mt-2 text-sm text-pitch-muted">
-            Historico de partidos anteriores y preparacion de la nueva temporada.
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          {competition.seasons.map((season) => (
-            <div key={season.id} className="rounded-lg border border-pitch-border bg-pitch-card px-4 py-3">
-              <p className="font-semibold">{seasonLabel(season.year)}</p>
-              <p className="text-xs text-pitch-muted">{season._count.matches} partidos</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">
+          {competition.name} {season != null && <span className="text-pitch-muted">· {season.year}-{(season.year + 1) % 100}</span>}
+        </h1>
+        {availableSeasons.length > 1 && (
+          <div className="flex gap-2 text-sm">
+            {availableSeasons.map((s) => (
+              <Link
+                key={s.id}
+                href={`/ligas/${slug}?temporada=${s.year}`}
+                className={`rounded-lg border px-3 py-1.5 ${
+                  s.id === seasonMeta?.id
+                    ? 'border-pitch-accent text-pitch-accent'
+                    : 'border-pitch-border text-pitch-muted hover:text-white'
+                }`}
+              >
+                {s.year}-{(s.year + 1) % 100}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">
-          Clasificacion {seasonLabel(CURRENT_SEASON)}
-        </h2>
-        {currentSeason != null && currentSeason.standings.length > 0 ? (
-          <div className="overflow-x-auto rounded-lg border border-pitch-border">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Clasificación</h2>
+        {season != null && season.standings.length > 0 ? (
+          <div className="overflow-x-auto rounded-xl border border-pitch-border">
             <table className="w-full min-w-[560px] bg-pitch-card text-sm">
               <thead className="text-left text-xs uppercase text-pitch-muted">
                 <tr className="border-b border-pitch-border">
@@ -105,7 +97,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
                 </tr>
               </thead>
               <tbody>
-                {currentSeason.standings.map((row) => (
+                {season.standings.map((row) => (
                   <tr key={row.id} className="border-b border-pitch-border/50 last:border-0">
                     <td className="px-3 py-2 text-pitch-muted">{row.position}</td>
                     <td className="px-3 py-2">
@@ -127,22 +119,28 @@ export default async function LeaguePage({ params }: { params: Promise<{ slug: s
             </table>
           </div>
         ) : (
-          <p className="text-sm text-pitch-muted">Clasificacion 2026/27 preparada; aparecera al sincronizar standings.</p>
+          <p className="text-sm text-pitch-muted">Clasificación aún no sincronizada.</p>
         )}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">
-            Partidos anteriores {seasonLabel(RECENT_SEASON)}
-          </h2>
-          <MatchRows matches={previousMatches} empty="Sin resultados 2025/26 sincronizados todavia." />
-        </div>
-        <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">
-            Nueva temporada {seasonLabel(CURRENT_SEASON)}
-          </h2>
-          <MatchRows matches={upcomingMatches.length > 0 ? upcomingMatches : currentFinished} empty="Sin fixtures 2026/27 en la base de datos todavia." />
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Próximos partidos</h2>
+        <div className="space-y-2">
+          {season?.matches.map((m) => {
+            const home = m.teams.find((t) => t.isHome);
+            const away = m.teams.find((t) => !t.isHome);
+            return (
+              <div key={m.id} className="flex items-center gap-4 rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm">
+                <span className="w-32 text-xs text-pitch-muted">
+                  {m.kickoffAt.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <span>{home?.team.name} — {away?.team.name}</span>
+              </div>
+            );
+          })}
+          {(season == null || season.matches.length === 0) && (
+            <p className="text-sm text-pitch-muted">Sin partidos programados en la base de datos.</p>
+          )}
         </div>
       </section>
     </div>

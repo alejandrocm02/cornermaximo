@@ -18,7 +18,7 @@ export interface FootballDataProvider {
   /** Nombre único del proveedor ("api-football"). */
   readonly name: string;
 
-  getCompetitions(season: number): Promise<ProviderCompetition[]>;
+  getCompetitions(): Promise<ProviderCompetition[]>;
   getTeamsByCompetition(competitionExternalId: string, season: number): Promise<ProviderTeam[]>;
   getPlayersByTeam(teamExternalId: string): Promise<ProviderPlayer[]>;
   getFixtures(competitionExternalId: string, season: number): Promise<ProviderFixture[]>;
@@ -29,7 +29,7 @@ export interface FootballDataProvider {
   getStandings(competitionExternalId: string, season: number): Promise<ProviderStandingRow[]>;
 }
 
-/** Control de presupuesto de requests del proveedor. */
+/** Control de presupuesto diario de requests (plan Pro: 7 500/día). */
 export interface RequestBudgetGuard {
   /** true si quedan al menos `n` requests disponibles hoy. */
   canSpend(n: number): Promise<boolean>;

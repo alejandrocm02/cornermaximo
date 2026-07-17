@@ -1,6 +1,7 @@
 /**
  * Cliente HTTP de API-Football (v3.football.api-sports.io).
- * - Comprueba el presupuesto ANTES de cada request.
+ * - Comprueba el presupuesto ANTES de cada request (plan Pro: 7 500/día).
+ * - Respeta el ritmo del plan Pro: 300 req/min (5/s) vía X-RateLimit-*.
  * - Reintenta errores transitorios (429/5xx) con backoff exponencial.
  * - La clave de API vive SOLO en el servidor.
  */
@@ -12,10 +13,10 @@ import {
 
 export interface ApiFootballConfig {
   apiKey: string;
-  baseUrl: string; // https://v3.football.api-sports.io, or v3.football.api-sports.io
+  baseUrl: string; // https://v3.football.api-sports.io
   budget: RequestBudgetGuard;
   maxRetries?: number;
-  /** Separación mínima entre requests. Ajustar según el rate limit del plan contratado. */
+  /** Separación mínima entre requests (plan Pro: 300/min => 200ms es de sobra). */
   minIntervalMs?: number;
   /** Inyectable para tests. */
   fetchFn?: typeof fetch;
@@ -32,24 +33,18 @@ interface ApiFootballEnvelope<T> {
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-function normalizeBaseUrl(baseUrl: string): string {
-  return /^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`;
-}
-
 export class ApiFootballClient {
   private readonly maxRetries: number;
   private readonly fetchFn: typeof fetch;
   private readonly sleepFn: (ms: number) => Promise<void>;
   private readonly minIntervalMs: number;
-  private readonly baseUrl: string;
   private lastRequestAt = 0;
 
   constructor(private readonly config: ApiFootballConfig) {
     this.maxRetries = config.maxRetries ?? 3;
     this.fetchFn = config.fetchFn ?? fetch;
     this.sleepFn = config.sleepFn ?? defaultSleep;
-    this.minIntervalMs = config.minIntervalMs ?? 1_000;
-    this.baseUrl = normalizeBaseUrl(config.baseUrl);
+    this.minIntervalMs = config.minIntervalMs ?? 200;
   }
 
   /**
@@ -78,7 +73,7 @@ export class ApiFootballClient {
       throw new BudgetExceededError();
     }
 
-    const url = new URL(path, this.baseUrl);
+    const url = new URL(path, this.config.baseUrl);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, String(v));
     }
@@ -90,7 +85,7 @@ export class ApiFootballClient {
         await this.sleepFn(attempt === 1 ? 7_000 : 15_000 * (attempt - 1));
       }
 
-      // Ritmo configurable para respetar el rate limit del plan contratado.
+      // Ritmo del plan Pro: 300 requests/minuto (5/s)
       const sinceLast = Date.now() - this.lastRequestAt;
       if (sinceLast < this.minIntervalMs) {
         await this.sleepFn(this.minIntervalMs - sinceLast);

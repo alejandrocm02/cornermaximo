@@ -4,7 +4,7 @@
  */
 import type { PrismaClient, Prisma } from '@futstats/db';
 import type { FootballDataProvider, ProviderPlayerMatchStats } from '@futstats/providers';
-import { toSlug, type PositionGroup } from '@futstats/shared';
+import { TRACKED_COMPETITIONS, toSlug, type PositionGroup } from '@futstats/shared';
 
 // ---------- helpers ----------
 
@@ -32,40 +32,48 @@ async function uniqueTeamSlug(db: PrismaClient, name: string, externalId: string
 
 // ---------- competiciones ----------
 
+/**
+ * Crea/actualiza cada competición rastreada (5 ligas + Mundial 2026) y TODAS sus
+ * temporadas (`TrackedCompetition.seasons`), marcando `isCurrent` solo en la más
+ * reciente de cada una. 0 requests: los ids y temporadas son constantes conocidas.
+ */
 export async function syncCompetitions(
   db: PrismaClient,
   provider: FootballDataProvider,
   providerDbId: number,
-  season: number,
 ): Promise<void> {
-  const currentSeason = Number(process.env.CURRENT_SEASON ?? season);
-  const isCurrentSeason = season === currentSeason;
-  const comps = await provider.getCompetitions(season);
+  const comps = await provider.getCompetitions();
   for (const c of comps) {
+    const tracked = TRACKED_COMPETITIONS.find((t) => String(t.apiFootballId) === c.externalId);
     const countryId = await ensureCountry(db, c.country);
     const comp = await db.competition.upsert({
       where: { providerId_externalId: { providerId: providerDbId, externalId: c.externalId } },
-      update: { name: c.name, type: c.type, logoUrl: c.logoUrl },
+      update: { name: c.name, logoUrl: c.logoUrl, type: c.type },
       create: {
         providerId: providerDbId,
         externalId: c.externalId,
         name: c.name,
-        slug: toSlug(c.name),
+        slug: tracked?.slug ?? toSlug(c.name),
         type: c.type,
         logoUrl: c.logoUrl,
         countryId,
       },
     });
-    if (isCurrentSeason) {
-      await db.season.updateMany({
-        where: { competitionId: comp.id, year: { not: season } },
-        data: { isCurrent: false },
+
+    const seasons = tracked?.seasons ?? [];
+    const latestYear = seasons[seasons.length - 1];
+    for (const year of seasons) {
+      await db.season.upsert({
+        where: { competitionId_year: { competitionId: comp.id, year } },
+        update: { isCurrent: year === latestYear },
+        create: { competitionId: comp.id, year, isCurrent: year === latestYear },
       });
     }
-    await db.season.upsert({
-      where: { competitionId_year: { competitionId: comp.id, year: season } },
-      update: { isCurrent: isCurrentSeason },
-      create: { competitionId: comp.id, year: season, isCurrent: isCurrentSeason },
+    // Temporadas históricas (p.ej. 2024-25) fuera de la lista rastreada:
+    // se conservan como archivo pero nunca deben quedar marcadas como actuales.
+    await db.season.updateMany({
+      where: { competitionId: comp.id, year: { notIn: [...seasons] }, isCurrent: true },
+      data: { isCurrent: false },
     });
   }
 }
@@ -105,7 +113,7 @@ export async function syncTeams(
 
     const team = await db.team.upsert({
       where: { providerId_externalId: { providerId: providerDbId, externalId: t.externalId } },
-      update: { name: t.name, shortName: t.shortName, crestUrl: t.crestUrl, stadiumId },
+      update: { name: t.name, shortName: t.shortName, crestUrl: t.crestUrl, stadiumId, isNational: t.isNational },
       create: {
         providerId: providerDbId,
         externalId: t.externalId,
@@ -114,6 +122,7 @@ export async function syncTeams(
         slug: await uniqueTeamSlug(db, t.name, t.externalId),
         crestUrl: t.crestUrl,
         founded: t.founded,
+        isNational: t.isNational,
         countryId,
         stadiumId,
       },
@@ -135,19 +144,28 @@ export async function syncSquad(
   providerDbId: number,
   teamDbId: number,
   teamExternalId: string,
-  options: { updateCurrentTeam?: boolean } = {},
 ): Promise<number> {
-  const updateCurrentTeam = options.updateCurrentTeam ?? true;
+  const team = await db.team.findUniqueOrThrow({ where: { id: teamDbId } });
   const players = await provider.getPlayersByTeam(teamExternalId);
   for (const p of players) {
+    // Un jugador puede aparecer en dos plantillas: su club y su selección nacional
+    // (mismo externalId en API-Football). `currentTeamId` representa el CLUB actual,
+    // así que la convocatoria de una selección nunca debe pisarlo; solo lo rellena
+    // si el jugador todavía no tiene club conocido en nuestra base de datos.
+    const existing = await db.player.findUnique({
+      where: { providerId_externalId: { providerId: providerDbId, externalId: p.externalId } },
+      select: { currentTeamId: true },
+    });
+    const setCurrentTeam = !team.isNational || existing?.currentTeamId == null;
+
     const player = await db.player.upsert({
       where: { providerId_externalId: { providerId: providerDbId, externalId: p.externalId } },
       update: {
         fullName: p.fullName,
         photoUrl: p.photoUrl,
         shirtNumber: p.shirtNumber,
-        ...(updateCurrentTeam ? { currentTeamId: teamDbId } : {}),
         lastSyncedAt: new Date(),
+        ...(setCurrentTeam ? { currentTeamId: teamDbId } : {}),
       },
       create: {
         providerId: providerDbId,
@@ -157,7 +175,7 @@ export async function syncSquad(
         slug: await uniquePlayerSlug(db, p.fullName, p.externalId),
         photoUrl: p.photoUrl,
         shirtNumber: p.shirtNumber,
-        currentTeamId: updateCurrentTeam ? teamDbId : null,
+        currentTeamId: setCurrentTeam ? teamDbId : null,
         lastSyncedAt: new Date(),
       },
     });
@@ -403,11 +421,12 @@ export async function syncStandings(
     await db.standing.upsert({
       where: { seasonId_teamId: { seasonId: seasonRow.id, teamId: team.id } },
       update: {
+        group: r.group,
         position: r.position, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
         goalsFor: r.goalsFor, goalsAgainst: r.goalsAgainst, points: r.points, form: r.form,
       },
       create: {
-        seasonId: seasonRow.id, teamId: team.id,
+        seasonId: seasonRow.id, teamId: team.id, group: r.group,
         position: r.position, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
         goalsFor: r.goalsFor, goalsAgainst: r.goalsAgainst, points: r.points, form: r.form,
       },

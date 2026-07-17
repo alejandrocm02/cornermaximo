@@ -3,7 +3,6 @@
  * Métricas en lista blanca -> SQL raw seguro (el nombre de columna nunca viene del usuario).
  */
 import { prisma } from '@futstats/db';
-import { CURRENT_SEASON } from '@futstats/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { jsonError } from '@/lib/api';
@@ -33,7 +32,6 @@ const querySchema = z.object({
     ...(Object.keys(GK_METRICS) as [keyof typeof GK_METRICS]),
   ]),
   league: z.string().trim().max(50).optional(),
-  season: z.coerce.number().int().min(2000).max(2100).default(CURRENT_SEASON),
   position: z.enum(['GK', 'DF', 'MF', 'FW']).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -53,7 +51,7 @@ export async function GET(request: Request) {
   if (!parsed.success) {
     return jsonError(422, 'INVALID_QUERY', parsed.error.issues.map((i) => i.message).join('; '));
   }
-  const { metric, league, season, position, limit } = parsed.data;
+  const { metric, league, position, limit } = parsed.data;
 
   const isGk = metric in GK_METRICS;
   const column = isGk
@@ -68,8 +66,6 @@ export async function GET(request: Request) {
     params.push(league);
     conditions.push(`c.slug = $${params.length}`);
   }
-  params.push(season);
-  conditions.push(`se.year = $${params.length}`);
   if (position != null) {
     params.push(position);
     conditions.push(

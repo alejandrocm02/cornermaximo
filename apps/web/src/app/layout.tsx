@@ -5,14 +5,14 @@ import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'FutStats — Análisis de futbolistas', template: '%s | FutStats' },
   description:
-    'Base de datos y análisis de futbolistas de las 5 grandes ligas: rendimiento en los últimos 5 partidos.',
+    'Base de datos y análisis de futbolistas de las 5 grandes ligas (2025-26 y 2026-27) y del Mundial 2026: rendimiento en los últimos 5 partidos, clasificaciones y estadísticas colectivas.',
 };
 
 const NAV = [
   { href: '/', label: 'Inicio' },
+  { href: '/mundial-2026', label: 'Mundial 2026' },
   { href: '/jugadores', label: 'Jugadores' },
   { href: '/ligas', label: 'Ligas' },
-  { href: '/mundial-2026', label: 'Mundial 2026' },
   { href: '/rankings', label: 'Rankings' },
   { href: '/comparador', label: 'Comparador' },
 ];
@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
         <footer className="mx-auto max-w-6xl px-4 py-8 text-xs text-pitch-muted">
-          Datos: API-Football. Actualización diferida según presupuesto disponible.
+          Datos: API-Football (plan Pro). Sincronización automática cada hora.
         </footer>
       </body>
     </html>

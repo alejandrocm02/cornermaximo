@@ -41,7 +41,14 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
           <span className="h-20 w-20 rounded-full bg-pitch-border" />
         )}
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{team.name}</h1>
+          <h1 className="text-2xl font-bold">
+            {team.name}
+            {team.isNational && (
+              <span className="ml-2 rounded-full bg-pitch-accent/15 px-2 py-0.5 align-middle text-xs font-medium text-pitch-accent">
+                Selección nacional
+              </span>
+            )}
+          </h1>
           <p className="text-sm text-pitch-muted">
             {team.country.name}
             {team.stadium != null && ` · ${team.stadium.name}`}
@@ -49,10 +56,10 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
           </p>
           {standing != null && (
             <p className="mt-1 text-sm">
-              <Link href={`/ligas/${standing.season.competition.slug}`} className="text-pitch-accent hover:underline">
+              <Link href={`/${standing.season.competition.type === 'CUP' ? 'mundial-2026' : `ligas/${standing.season.competition.slug}`}`} className="text-pitch-accent hover:underline">
                 {standing.season.competition.name}
               </Link>{' '}
-              — {standing.position}º con {standing.points} pts
+              {standing.group != null && `— ${standing.group}`} — {standing.position}º con {standing.points} pts
             </p>
           )}
         </div>

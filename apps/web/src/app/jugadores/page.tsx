@@ -22,7 +22,9 @@ export default async function PlayersPage({
   const page = Math.max(1, Number(pageParam ?? 1) || 1);
   const pageSize = 24;
 
-  const leagues = await prisma.competition.findMany({ orderBy: { name: 'asc' } });
+  // El filtro usa el club actual del jugador, así que no aplica bien a competiciones de
+  // selecciones (Mundial): esas se navegan desde /mundial-2026 (selecciones y goleadores).
+  const leagues = await prisma.competition.findMany({ where: { type: 'LEAGUE' }, orderBy: { name: 'asc' } });
 
   const where = {
     ...(position != null && position !== ''

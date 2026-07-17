@@ -196,6 +196,7 @@ model Team {
   slug       String   @unique
   crestUrl   String?
   founded    Int?
+  isNational Boolean  @default(false) // selección nacional (Mundial, Eurocopa...) vs. club
   countryId  Int
   stadiumId  Int?
   coachId    Int?
@@ -559,6 +560,7 @@ model Standing {
   id           Int      @id @default(autoincrement())
   seasonId     Int
   teamId       Int
+  group        String? // fase de grupos (competiciones CUP, p.ej. "Grupo A" del Mundial); null en ligas
   position     Int
   played       Int      @default(0)
   won          Int      @default(0)
@@ -574,6 +576,7 @@ model Standing {
   team   Team   @relation(fields: [teamId], references: [id])
 
   @@unique([seasonId, teamId])
+  @@index([seasonId, group])
 }
 
 // ---------------------------------------------------------------------
@@ -639,7 +642,7 @@ model DataProvider {
   budgets      RequestBudget[]
 }
 
-/// Contador diario de requests del proveedor.
+/// Contador diario de requests, para no superar el límite del plan de API-Football (Pro: 7 500/día).
 model RequestBudget {
   id         Int      @id @default(autoincrement())
   providerId Int

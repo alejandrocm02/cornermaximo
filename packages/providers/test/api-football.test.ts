@@ -6,6 +6,8 @@ import {
   InMemoryBudgetGuard,
   mapFixturePlayers,
   mapMatchStatus,
+  mapStandings,
+  mapTeam,
 } from '../src';
 
 /** fetch simulado: responde con un envelope de API-Football. */
@@ -39,7 +41,7 @@ function makeClient(response: unknown[], budget = new InMemoryBudgetGuard(100)) 
   };
 }
 
-describe('presupuesto de requests', () => {
+describe('presupuesto de requests (plan Pro, 7 500/día)', () => {
   it('bloquea cuando el presupuesto está agotado', async () => {
     const { client } = makeClient([], new InMemoryBudgetGuard(0));
     await expect(client.get('/teams', { league: 140, season: 2026 })).rejects.toBeInstanceOf(
@@ -51,26 +53,6 @@ describe('presupuesto de requests', () => {
     const { client, budget } = makeClient([]);
     await client.get('/teams', { league: 140, season: 2026 });
     expect(budget.usedToday).toBe(1);
-  });
-
-  it('acepta la URL base sin protocolo', async () => {
-    let requestedUrl = '';
-    const client = new ApiFootballClient({
-      apiKey: 'test',
-      baseUrl: 'v3.football.api-sports.io',
-      budget: new InMemoryBudgetGuard(100),
-      fetchFn: (async (url: Parameters<typeof fetch>[0]) => {
-        requestedUrl = String(url);
-        return new Response(JSON.stringify(envelope([])), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }) as unknown as typeof fetch,
-      sleepFn: noSleep,
-    });
-
-    await client.get('/teams', { league: 140, season: 2026 });
-    expect(requestedUrl).toContain('https://v3.football.api-sports.io/teams');
   });
 });
 
@@ -171,7 +153,7 @@ describe('mapFixturePlayers', () => {
 });
 
 describe('ApiFootballProvider', () => {
-  it('getCompetitions devuelve competiciones fijas sin gastar requests', async () => {
+  it('getCompetitions devuelve las 5 grandes ligas + Mundial 2026 sin gastar requests', async () => {
     const budget = new InMemoryBudgetGuard(0); // presupuesto agotado a propósito
     const provider = new ApiFootballProvider(
       new ApiFootballClient({
@@ -182,18 +164,65 @@ describe('ApiFootballProvider', () => {
         sleepFn: noSleep,
       }),
     );
-    const comps = await provider.getCompetitions(2026);
+    const comps = await provider.getCompetitions();
     expect(comps).toHaveLength(6);
     expect(comps.map((c) => c.name)).toContain('LaLiga');
-    expect(comps.map((c) => c.name)).toContain('Mundial 2026');
+    expect(comps.find((c) => c.name === 'Copa Mundial de la FIFA 2026')?.type).toBe('CUP');
     expect(budget.usedToday).toBe(0);
   });
+});
 
-  it('no incluye el Mundial fuera de la temporada 2026', async () => {
-    const { client } = makeClient([]);
-    const provider = new ApiFootballProvider(client);
-    const comps = await provider.getCompetitions(2025);
-    expect(comps).toHaveLength(5);
-    expect(comps.map((c) => c.name)).not.toContain('Mundial 2026');
+describe('mapTeam', () => {
+  it('usa el país propio del equipo cuando el proveedor lo da (selecciones nacionales)', () => {
+    const team = mapTeam(
+      {
+        team: { id: 1, name: 'Belgium', code: 'BEL', founded: 1895, logo: null, country: 'Belgium', national: true },
+        venue: null,
+      },
+      'World', // país "de respaldo" de la competición (Mundial), no debe usarse si hay dato propio
+    );
+    expect(team.country).toBe('Belgium');
+  });
+
+  it('cae al país de respaldo si el proveedor no lo da', () => {
+    const team = mapTeam(
+      { team: { id: 541, name: 'Real Madrid', code: 'RMA', founded: 1902, logo: null }, venue: null },
+      'Spain',
+    );
+    expect(team.country).toBe('Spain');
+  });
+});
+
+describe('mapStandings', () => {
+  it('recorre TODOS los grupos, no solo el primero (bug de fase de grupos)', () => {
+    const raw = {
+      league: {
+        standings: [
+          [
+            { rank: 1, team: { id: 1 }, points: 6, group: 'Group A', all: { played: 2, win: 2, draw: 0, lose: 0, goals: { for: 4, against: 1 } }, form: 'WW' },
+          ],
+          [
+            { rank: 1, team: { id: 2 }, points: 4, group: 'Group B', all: { played: 2, win: 1, draw: 1, lose: 0, goals: { for: 3, against: 2 } }, form: 'WD' },
+          ],
+        ],
+      },
+    };
+    const rows = mapStandings(raw);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.group)).toEqual(['Group A', 'Group B']);
+    expect(rows.map((r) => r.teamExternalId)).toEqual(['1', '2']);
+  });
+
+  it('liga de tabla única: un solo grupo, group = null si el proveedor no lo da', () => {
+    const raw = {
+      league: {
+        standings: [
+          [{ rank: 1, team: { id: 541 }, points: 90, all: { played: 38, win: 29, draw: 3, lose: 6, goals: { for: 85, against: 30 } }, form: 'WWWDW' }],
+        ],
+      },
+    };
+    const rows = mapStandings(raw);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.group).toBeNull();
   });
 });
