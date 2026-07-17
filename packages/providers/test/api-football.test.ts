@@ -59,7 +59,7 @@ describe('presupuesto de requests', () => {
       apiKey: 'test',
       baseUrl: 'v3.football.api-sports.io',
       budget: new InMemoryBudgetGuard(100),
-      fetchFn: (async (url) => {
+      fetchFn: (async (url: Parameters<typeof fetch>[0]) => {
         requestedUrl = String(url);
         return new Response(JSON.stringify(envelope([])), {
           status: 200,
