@@ -14,6 +14,7 @@ export interface ProviderCompetition {
   externalId: string;
   name: string;
   country: string;
+  type: 'LEAGUE' | 'CUP';
   logoUrl: string | null;
   season: number;
 }

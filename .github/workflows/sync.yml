@@ -1,34 +1,35 @@
-# Sincronización con coste 0€: GitHub Actions llama al endpoint protegido
-# de la app en Vercel. Cada invocación trabaja ~45s (límite de Vercel Hobby)
-# y respeta el rate limit del plan gratuito de API-Football (10 req/min,
-# 100 req/día), así que encadenamos varias tandas por ejecución.
+# Sincronizacion: GitHub Actions llama al endpoint protegido de la app.
+# Cada invocacion trabaja ~45s y respeta el presupuesto configurado de API-Football.
 name: sync
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # madrugada
-    - cron: '0 9 * * *'   # mañana
-    - cron: '0 15 * * *'  # tarde
-    - cron: '30 22 * * *' # noche
+    - cron: '0 3 * * *'
+    - cron: '0 9 * * *'
+    - cron: '0 15 * * *'
+    - cron: '30 22 * * *'
   workflow_dispatch: {}
 
 jobs:
   run-sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Ejecutar tandas de sincronización
+      - name: Ejecutar tandas de sincronizacion
         run: |
-          for i in $(seq 1 10); do
-            echo "--- tanda $i ---"
-            RESP=$(curl -sS -X POST \
-              -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
-              -H "Content-Type: application/json" \
-              "${{ secrets.APP_URL }}/api/admin/sync/run" \
-              -d '{"maxRequests":8}' || echo "CURL_ERROR")
-            echo "$RESP"
-            case "$RESP" in
-              *'"stopped":"completed"'*)        echo "Todo sincronizado."; break ;;
-              *'"stopped":"budget_exhausted"'*) echo "Presupuesto diario agotado."; break ;;
-            esac
-            sleep 10
+          for SEASON in 2025 2026; do
+            echo "=== temporada $SEASON ==="
+            for i in $(seq 1 8); do
+              echo "--- tanda $i ---"
+              RESP=$(curl -sS -X POST \
+                -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+                -H "Content-Type: application/json" \
+                "${{ secrets.APP_URL }}/api/admin/sync/run" \
+                -d "{\"season\":$SEASON,\"maxRequests\":40}" || echo "CURL_ERROR")
+              echo "$RESP"
+              case "$RESP" in
+                *'"stopped":"completed"'*)        echo "Temporada $SEASON sincronizada."; break ;;
+                *'"stopped":"budget_exhausted"'*) echo "Presupuesto diario agotado."; exit 0 ;;
+              esac
+              sleep 10
+            done
           done

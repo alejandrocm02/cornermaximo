@@ -38,25 +38,34 @@ export async function syncCompetitions(
   providerDbId: number,
   season: number,
 ): Promise<void> {
+  const currentSeason = Number(process.env.CURRENT_SEASON ?? season);
+  const isCurrentSeason = season === currentSeason;
   const comps = await provider.getCompetitions(season);
   for (const c of comps) {
     const countryId = await ensureCountry(db, c.country);
     const comp = await db.competition.upsert({
       where: { providerId_externalId: { providerId: providerDbId, externalId: c.externalId } },
-      update: { name: c.name, logoUrl: c.logoUrl },
+      update: { name: c.name, type: c.type, logoUrl: c.logoUrl },
       create: {
         providerId: providerDbId,
         externalId: c.externalId,
         name: c.name,
         slug: toSlug(c.name),
+        type: c.type,
         logoUrl: c.logoUrl,
         countryId,
       },
     });
+    if (isCurrentSeason) {
+      await db.season.updateMany({
+        where: { competitionId: comp.id, year: { not: season } },
+        data: { isCurrent: false },
+      });
+    }
     await db.season.upsert({
       where: { competitionId_year: { competitionId: comp.id, year: season } },
-      update: { isCurrent: true },
-      create: { competitionId: comp.id, year: season, isCurrent: true },
+      update: { isCurrent: isCurrentSeason },
+      create: { competitionId: comp.id, year: season, isCurrent: isCurrentSeason },
     });
   }
 }
@@ -126,7 +135,9 @@ export async function syncSquad(
   providerDbId: number,
   teamDbId: number,
   teamExternalId: string,
+  options: { updateCurrentTeam?: boolean } = {},
 ): Promise<number> {
+  const updateCurrentTeam = options.updateCurrentTeam ?? true;
   const players = await provider.getPlayersByTeam(teamExternalId);
   for (const p of players) {
     const player = await db.player.upsert({
@@ -135,7 +146,7 @@ export async function syncSquad(
         fullName: p.fullName,
         photoUrl: p.photoUrl,
         shirtNumber: p.shirtNumber,
-        currentTeamId: teamDbId,
+        ...(updateCurrentTeam ? { currentTeamId: teamDbId } : {}),
         lastSyncedAt: new Date(),
       },
       create: {
@@ -146,7 +157,7 @@ export async function syncSquad(
         slug: await uniquePlayerSlug(db, p.fullName, p.externalId),
         photoUrl: p.photoUrl,
         shirtNumber: p.shirtNumber,
-        currentTeamId: teamDbId,
+        currentTeamId: updateCurrentTeam ? teamDbId : null,
         lastSyncedAt: new Date(),
       },
     });

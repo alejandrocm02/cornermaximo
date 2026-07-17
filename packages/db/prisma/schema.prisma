@@ -639,7 +639,7 @@ model DataProvider {
   budgets      RequestBudget[]
 }
 
-/// Contador diario de requests: imprescindible con el plan gratuito (100/día).
+/// Contador diario de requests del proveedor.
 model RequestBudget {
   id         Int      @id @default(autoincrement())
   providerId Int

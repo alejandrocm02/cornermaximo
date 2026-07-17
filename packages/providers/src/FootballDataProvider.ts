@@ -29,7 +29,7 @@ export interface FootballDataProvider {
   getStandings(competitionExternalId: string, season: number): Promise<ProviderStandingRow[]>;
 }
 
-/** Control de presupuesto de requests (crítico con el plan gratuito de 100/día). */
+/** Control de presupuesto de requests del proveedor. */
 export interface RequestBudgetGuard {
   /** true si quedan al menos `n` requests disponibles hoy. */
   canSpend(n: number): Promise<boolean>;

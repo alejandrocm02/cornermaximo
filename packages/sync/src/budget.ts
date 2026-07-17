@@ -1,6 +1,6 @@
 /**
  * Presupuesto de requests respaldado en BD (tabla RequestBudget).
- * Doble límite: diario (plan gratuito 100/día) y por ejecución
+ * Doble límite: diario (según plan contratado) y por ejecución
  * (cada tanda de GitHub Actions gasta como máximo `runLimit`).
  */
 import type { PrismaClient } from '@futstats/db';

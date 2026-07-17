@@ -29,7 +29,10 @@ import {
 } from './services';
 
 const STALE_HOURS = 20;
+const SQUAD_STALE_HOURS = 24 * 7;
 const VERIFY_AFTER_HOURS = 24;
+const DEFAULT_DAILY_LIMIT = 7_500;
+const DEFAULT_RUN_LIMIT = 100;
 /** Margen frente al límite de 60s de Vercel Hobby: paramos limpiamente antes. */
 const TIME_BUDGET_MS = 45_000;
 
@@ -59,6 +62,7 @@ export function createApiFootballProvider(budget: PrismaBudgetGuard): FootballDa
       apiKey,
       baseUrl: process.env.API_FOOTBALL_BASE_URL ?? 'https://v3.football.api-sports.io',
       budget,
+      minIntervalMs: positiveNumberEnv('API_FOOTBALL_MIN_INTERVAL_MS', 1_000),
     }),
   );
 }
@@ -80,10 +84,15 @@ function hoursAgo(date: Date | null): number {
   return (Date.now() - date.getTime()) / 3_600_000;
 }
 
+function positiveNumberEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): Promise<SyncRunResult> {
-  const season = options.season ?? Number(process.env.CURRENT_SEASON ?? new Date().getFullYear());
-  const dailyLimit = Number(process.env.API_FOOTBALL_DAILY_LIMIT ?? 100);
-  const maxRequests = options.maxRequests ?? 25;
+  const season = options.season ?? positiveNumberEnv('CURRENT_SEASON', new Date().getFullYear());
+  const dailyLimit = positiveNumberEnv('API_FOOTBALL_DAILY_LIMIT', DEFAULT_DAILY_LIMIT);
+  const maxRequests = options.maxRequests ?? DEFAULT_RUN_LIMIT;
 
   const providerRow = await db.dataProvider.upsert({
     where: { name: 'api-football' },
@@ -176,11 +185,14 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
     // 4. Plantillas de equipos sin jugadores (bootstrap progresivo, 1 req/equipo)
     const teamsWithoutPlayers = await db.team.findMany({
       where: { players: { none: {} }, seasons: { some: { season: { year: season } } } },
+      include: { seasons: { where: { season: { year: season } }, include: { season: { include: { competition: true } } } } },
       orderBy: { id: 'asc' },
     });
     for (const team of teamsWithoutPlayers) {
+      if (hoursAgo(await lastSuccessAt(db, 'SQUADS', team.externalId)) <= SQUAD_STALE_HOURS) continue;
+      const updateCurrentTeam = team.seasons.some((entry) => entry.season.competition.type === 'LEAGUE');
       await unit('SQUADS', team.externalId, `plantilla:${team.slug}`, 2, () =>
-        syncSquad(db, provider, providerRow.id, team.id, team.externalId),
+        syncSquad(db, provider, providerRow.id, team.id, team.externalId, { updateCurrentTeam }),
       );
     }
 

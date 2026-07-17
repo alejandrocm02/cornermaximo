@@ -39,7 +39,7 @@ function makeClient(response: unknown[], budget = new InMemoryBudgetGuard(100)) 
   };
 }
 
-describe('presupuesto de requests (plan gratuito 100/día)', () => {
+describe('presupuesto de requests', () => {
   it('bloquea cuando el presupuesto está agotado', async () => {
     const { client } = makeClient([], new InMemoryBudgetGuard(0));
     await expect(client.get('/teams', { league: 140, season: 2026 })).rejects.toBeInstanceOf(
@@ -51,6 +51,26 @@ describe('presupuesto de requests (plan gratuito 100/día)', () => {
     const { client, budget } = makeClient([]);
     await client.get('/teams', { league: 140, season: 2026 });
     expect(budget.usedToday).toBe(1);
+  });
+
+  it('acepta la URL base sin protocolo', async () => {
+    let requestedUrl = '';
+    const client = new ApiFootballClient({
+      apiKey: 'test',
+      baseUrl: 'v3.football.api-sports.io',
+      budget: new InMemoryBudgetGuard(100),
+      fetchFn: (async (url) => {
+        requestedUrl = String(url);
+        return new Response(JSON.stringify(envelope([])), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }) as unknown as typeof fetch,
+      sleepFn: noSleep,
+    });
+
+    await client.get('/teams', { league: 140, season: 2026 });
+    expect(requestedUrl).toContain('https://v3.football.api-sports.io/teams');
   });
 });
 
@@ -151,7 +171,7 @@ describe('mapFixturePlayers', () => {
 });
 
 describe('ApiFootballProvider', () => {
-  it('getCompetitions devuelve las 5 grandes ligas sin gastar requests', async () => {
+  it('getCompetitions devuelve competiciones fijas sin gastar requests', async () => {
     const budget = new InMemoryBudgetGuard(0); // presupuesto agotado a propósito
     const provider = new ApiFootballProvider(
       new ApiFootballClient({
@@ -163,8 +183,17 @@ describe('ApiFootballProvider', () => {
       }),
     );
     const comps = await provider.getCompetitions(2026);
-    expect(comps).toHaveLength(5);
+    expect(comps).toHaveLength(6);
     expect(comps.map((c) => c.name)).toContain('LaLiga');
+    expect(comps.map((c) => c.name)).toContain('Mundial 2026');
     expect(budget.usedToday).toBe(0);
+  });
+
+  it('no incluye el Mundial fuera de la temporada 2026', async () => {
+    const { client } = makeClient([]);
+    const provider = new ApiFootballProvider(client);
+    const comps = await provider.getCompetitions(2025);
+    expect(comps).toHaveLength(5);
+    expect(comps.map((c) => c.name)).not.toContain('Mundial 2026');
   });
 });

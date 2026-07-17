@@ -1,5 +1,7 @@
 import { prisma } from '@futstats/db';
+import { CURRENT_SEASON, TRACKED_SEASONS } from '@futstats/shared';
 import Link from 'next/link';
+import { seasonLabel } from '@/lib/football';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Rankings' };
@@ -17,21 +19,22 @@ const METRICS = [
 export default async function RankingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ metric?: string; league?: string }>;
+  searchParams: Promise<{ metric?: string; league?: string; season?: string }>;
 }) {
-  const { metric: metricParam, league } = await searchParams;
+  const { metric: metricParam, league, season: seasonParam } = await searchParams;
   const metric = METRICS.some((m) => m.value === metricParam) ? metricParam! : 'goals';
+  const parsedSeason = Number(seasonParam ?? CURRENT_SEASON);
+  const season = TRACKED_SEASONS.some((value) => value === parsedSeason) ? parsedSeason : CURRENT_SEASON;
 
   const leagues = await prisma.competition.findMany({ orderBy: { name: 'asc' } });
 
-  // Reutilizamos el endpoint interno para no duplicar la consulta
   const base =
     process.env.NEXT_PUBLIC_APP_URL ??
     (process.env.VERCEL_URL != null ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
   let rows: Array<{ rank: number; slug: string; name: string; team: string | null; total: number; minutes: number }> = [];
   try {
     const res = await fetch(
-      `${base}/api/rankings?metric=${metric}${league != null && league !== '' ? `&league=${league}` : ''}`,
+      `${base}/api/rankings?metric=${metric}&season=${season}${league != null && league !== '' ? `&league=${league}` : ''}`,
       { cache: 'no-store' },
     );
     if (res.ok) {
@@ -39,7 +42,7 @@ export default async function RankingsPage({
       rows = data.results;
     }
   } catch {
-    // BD vacía o app arrancando: se muestra el estado vacío
+    // Base de datos vacia o app arrancando: se muestra el estado vacio.
   }
 
   return (
@@ -53,15 +56,20 @@ export default async function RankingsPage({
           ))}
         </select>
         <select name="league" defaultValue={league ?? ''} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
-          <option value="">Todas las ligas</option>
+          <option value="">Todas las competiciones</option>
           {leagues.map((l) => (
             <option key={l.id} value={l.slug}>{l.name}</option>
+          ))}
+        </select>
+        <select name="season" defaultValue={season} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          {TRACKED_SEASONS.map((value) => (
+            <option key={value} value={value}>{seasonLabel(value)}</option>
           ))}
         </select>
         <button type="submit" className="rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black">Ver</button>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-pitch-border">
+      <div className="overflow-hidden rounded-lg border border-pitch-border">
         <table className="w-full bg-pitch-card text-sm">
           <thead className="text-left text-xs uppercase text-pitch-muted">
             <tr className="border-b border-pitch-border">
@@ -79,7 +87,7 @@ export default async function RankingsPage({
                 <td className="px-4 py-2">
                   <Link href={`/jugadores/${r.slug}`} className="hover:text-pitch-accent">{r.name}</Link>
                 </td>
-                <td className="px-4 py-2 text-pitch-muted">{r.team ?? '—'}</td>
+                <td className="px-4 py-2 text-pitch-muted">{r.team ?? '-'}</td>
                 <td className="px-4 py-2 text-right font-semibold">{r.total}</td>
                 <td className="px-4 py-2 text-right text-pitch-muted">{r.minutes}</td>
               </tr>
@@ -87,7 +95,7 @@ export default async function RankingsPage({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-pitch-muted">
-                  Sin datos todavía. Los rankings aparecen tras sincronizar estadísticas de partidos.
+                  Sin datos todavia. Los rankings aparecen tras sincronizar estadisticas de partidos.
                 </td>
               </tr>
             )}

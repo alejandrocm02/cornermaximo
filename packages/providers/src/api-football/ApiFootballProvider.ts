@@ -1,6 +1,6 @@
 /**
  * Adaptador de API-Football que implementa FootballDataProvider.
- * Coste en requests (plan gratuito 100/día):
+ * Coste aproximado en requests:
  *  - getCompetitions: 0 (los ids de las 5 ligas son constantes conocidas)
  *  - getTeamsByCompetition: 1
  *  - getPlayersByTeam: 1 (endpoint /players/squads)
@@ -9,7 +9,7 @@
  *  - getPlayerMatchStatistics: 1 por partido (todos los jugadores de golpe)
  *  - getInjuries / getStandings: 1 por liga
  */
-import { BIG_FIVE_LEAGUES } from '@futstats/shared';
+import { TRACKED_COMPETITIONS } from '@futstats/shared';
 import type { FootballDataProvider } from '../FootballDataProvider';
 import type {
   ProviderCompetition,
@@ -38,18 +38,19 @@ export class ApiFootballProvider implements FootballDataProvider {
   constructor(private readonly client: ApiFootballClient) {}
 
   async getCompetitions(season: number): Promise<ProviderCompetition[]> {
-    // Las 5 grandes ligas son fijas: 0 requests gastadas.
-    return BIG_FIVE_LEAGUES.map((l) => ({
+    // Competiciones fijas: 0 requests gastadas.
+    return TRACKED_COMPETITIONS.filter((c) => c.seasons == null || c.seasons.includes(season)).map((l) => ({
       externalId: String(l.apiFootballId),
       name: l.name,
       country: l.country,
+      type: l.type,
       logoUrl: null,
       season,
     }));
   }
 
   async getTeamsByCompetition(competitionExternalId: string, season: number): Promise<ProviderTeam[]> {
-    const league = BIG_FIVE_LEAGUES.find((l) => String(l.apiFootballId) === competitionExternalId);
+    const league = TRACKED_COMPETITIONS.find((l) => String(l.apiFootballId) === competitionExternalId);
     const raws = await this.client.get<Parameters<typeof mapTeam>[0]>('/teams', {
       league: competitionExternalId,
       season,

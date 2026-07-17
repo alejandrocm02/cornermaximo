@@ -13,7 +13,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // límite de Vercel Hobby
 
 const bodySchema = z.object({
-  maxRequests: z.number().int().min(1).max(100).default(25),
+  maxRequests: z.number().int().min(1).max(500).default(100),
+  season: z.number().int().min(2000).max(2100).optional(),
 });
 
 export async function POST(request: Request) {
@@ -21,16 +22,19 @@ export async function POST(request: Request) {
     return jsonError(401, 'UNAUTHORIZED', 'Token de sincronización inválido.');
   }
 
-  let maxRequests = 25;
+  let maxRequests = 100;
+  let season: number | undefined;
   try {
     const body: unknown = await request.json();
-    maxRequests = bodySchema.parse(body).maxRequests;
+    const parsed = bodySchema.parse(body);
+    maxRequests = parsed.maxRequests;
+    season = parsed.season;
   } catch {
     // cuerpo vacío o inválido: se usa el valor por defecto
   }
 
   try {
-    const result = await runSync(prisma, { maxRequests });
+    const result = await runSync(prisma, { maxRequests, season });
     return NextResponse.json(result);
   } catch (err) {
     await prisma.syncLog.create({

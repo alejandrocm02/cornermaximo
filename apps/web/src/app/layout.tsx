@@ -12,6 +12,7 @@ const NAV = [
   { href: '/', label: 'Inicio' },
   { href: '/jugadores', label: 'Jugadores' },
   { href: '/ligas', label: 'Ligas' },
+  { href: '/mundial-2026', label: 'Mundial 2026' },
   { href: '/rankings', label: 'Rankings' },
   { href: '/comparador', label: 'Comparador' },
 ];
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
         <footer className="mx-auto max-w-6xl px-4 py-8 text-xs text-pitch-muted">
-          Datos: API-Football. Actualización diferida según presupuesto del plan gratuito.
+          Datos: API-Football. Actualización diferida según presupuesto disponible.
         </footer>
       </body>
     </html>

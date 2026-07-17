@@ -83,7 +83,7 @@ export function mapTeam(raw: RawTeamResponse, country: string): ProviderTeam {
     shortName: raw.team.code ?? null,
     crestUrl: raw.team.logo ?? null,
     founded: raw.team.founded ?? null,
-    country,
+    country: raw.team.country ?? country,
     stadiumName: raw.venue?.name ?? null,
     stadiumCity: raw.venue?.city ?? null,
     stadiumCapacity: raw.venue?.capacity ?? null,
@@ -340,8 +340,8 @@ interface RawStandingsResponse {
 }
 
 export function mapStandings(raw: RawStandingsResponse): ProviderStandingRow[] {
-  const table = raw.league.standings[0] ?? [];
-  return table.map((row) => ({
+  const tables = raw.league.standings ?? [];
+  return tables.flatMap((table) => table.map((row) => ({
     teamExternalId: String(row.team.id),
     position: row.rank,
     played: row.all.played,
@@ -352,5 +352,5 @@ export function mapStandings(raw: RawStandingsResponse): ProviderStandingRow[] {
     goalsAgainst: row.all.goals.against,
     points: row.points,
     form: row.form,
-  }));
+  })));
 }
