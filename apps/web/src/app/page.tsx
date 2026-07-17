@@ -8,8 +8,17 @@ import { seasonLabel } from '@/lib/football';
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const [leagues, previousMatches, upcomingMatches, worldCup, worldCupStats] = await Promise.all([
+  const [leagues, featuredPlayers, playersCount, previousMatches, upcomingMatches, worldCup, worldCupStats] = await Promise.all([
     prisma.competition.findMany({ where: { slug: { not: WORLD_CUP_2026.slug } }, orderBy: { name: 'asc' } }),
+    prisma.player.findMany({
+      include: {
+        currentTeam: { select: { name: true, slug: true, crestUrl: true } },
+        positions: { where: { isPrimary: true } },
+      },
+      orderBy: [{ lastSyncedAt: 'desc' }, { fullName: 'asc' }],
+      take: 12,
+    }),
+    prisma.player.count(),
     prisma.match.findMany({
       where: { status: 'FINISHED', season: { year: RECENT_SEASON } },
       include: {
@@ -59,8 +68,8 @@ export default async function HomePage() {
             <p className="text-xs text-pitch-muted">partidos recientes {seasonLabel(RECENT_SEASON)}</p>
           </div>
           <div className="rounded-lg border border-pitch-border bg-pitch-card p-4">
-            <p className="text-2xl font-semibold">{upcomingMatches.length}</p>
-            <p className="text-xs text-pitch-muted">proximos {seasonLabel(CURRENT_SEASON)}</p>
+            <p className="text-2xl font-semibold">{playersCount}</p>
+            <p className="text-xs text-pitch-muted">jugadores</p>
           </div>
           <Link href="/mundial-2026" className="rounded-lg border border-pitch-accent/50 bg-pitch-accent/10 p-4 hover:border-pitch-accent">
             <p className="text-2xl font-semibold">{worldCupStats._count._all}</p>
@@ -84,6 +93,42 @@ export default async function HomePage() {
           <p className="mt-2 text-sm text-pitch-muted">
             La sincronizacion ya puede pedir ambas temporadas. Los partidos finalizados alimentan rankings y perfiles.
           </p>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-pitch-muted">Jugadores</h2>
+          <Link href="/jugadores" className="text-sm font-medium text-pitch-accent hover:underline">
+            Ver todos
+          </Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {featuredPlayers.map((player) => (
+            <Link
+              key={player.id}
+              href={`/jugadores/${player.slug}`}
+              className="flex min-w-0 items-center gap-3 rounded-lg border border-pitch-border bg-pitch-card p-3 hover:border-pitch-accent"
+            >
+              {player.photoUrl != null ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={player.photoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+              ) : (
+                <span className="h-12 w-12 rounded-full bg-pitch-border" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{player.knownAs ?? player.fullName}</p>
+                <p className="truncate text-xs text-pitch-muted">
+                  {player.positions[0]?.group ?? '-'} - {player.currentTeam?.name ?? 'Sin equipo'}
+                </p>
+              </div>
+            </Link>
+          ))}
+          {featuredPlayers.length === 0 && (
+            <p className="col-span-full rounded-lg border border-dashed border-pitch-border p-6 text-center text-sm text-pitch-muted">
+              Los jugadores apareceran aqui despues de sincronizar plantillas.
+            </p>
+          )}
         </div>
       </section>
 
