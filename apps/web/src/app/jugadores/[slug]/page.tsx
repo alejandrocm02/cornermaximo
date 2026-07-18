@@ -29,8 +29,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return { title: p != null ? (p.knownAs ?? p.fullName) : 'Jugador' };
 }
 
-export default async function PlayerPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PlayerPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ desde?: string }>;
+}) {
   const { slug } = await params;
+  const { desde } = await searchParams;
+  // Conserva los filtros del directorio al volver desde el perfil
+  const backHref = desde != null && /^[\w=&%.+-]*$/.test(desde) ? `/jugadores?${desde}` : '/jugadores';
   const player = await prisma.player.findUnique({
     where: { slug },
     include: {
@@ -71,7 +80,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   return (
     <div className="space-y-8">
       {/* Cabecera */}
-      <Breadcrumbs items={[{ label: 'Jugadores', href: '/jugadores' }, { label: player.knownAs ?? player.fullName }]} />
+      <Breadcrumbs items={[{ label: 'Jugadores', href: backHref }, { label: player.knownAs ?? player.fullName }]} />
       <section className="flex flex-wrap items-center gap-5 rounded-2xl border border-pitch-border bg-pitch-card p-6">
         {player.photoUrl != null ? (
           // eslint-disable-next-line @next/next/no-img-element
