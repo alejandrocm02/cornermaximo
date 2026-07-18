@@ -30,6 +30,42 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
   if (team == null) notFound();
   const standing = team.standings[0];
 
+  // Selecciones: `currentTeamId` de un jugador apunta a su CLUB, así que la
+  // convocatoria real se reconstruye desde las actas de los partidos del torneo
+  // (titulares, suplentes y convocados sin minutos), con sus números agregados.
+  interface RosterRow {
+    slug: string;
+    name: string;
+    photoUrl: string | null;
+    position: string | null;
+    club: string | null;
+    played: bigint;
+    minutes: bigint;
+    goals: bigint | null;
+  }
+  const roster: RosterRow[] = team.isNational
+    ? await prisma.$queryRawUnsafe<RosterRow[]>(
+        `
+        SELECT p.slug,
+               COALESCE(p."knownAs", p."fullName") AS name,
+               p."photoUrl" AS "photoUrl",
+               (SELECT pp."group"::text FROM "PlayerPosition" pp WHERE pp."playerId" = p.id AND pp."isPrimary" LIMIT 1) AS position,
+               ct.name AS club,
+               COUNT(*) FILTER (WHERE mp."minutesPlayed" > 0)::bigint AS played,
+               COALESCE(SUM(mp."minutesPlayed"), 0)::bigint AS minutes,
+               SUM(s.goals)::bigint AS goals
+        FROM "MatchPlayer" mp
+        JOIN "Player" p ON p.id = mp."playerId"
+        LEFT JOIN "Team" ct ON ct.id = p."currentTeamId" AND ct.id <> mp."teamId"
+        LEFT JOIN "PlayerMatchStatistics" s ON s."matchPlayerId" = mp.id
+        WHERE mp."teamId" = $1
+        GROUP BY p.id, p.slug, p."knownAs", p."fullName", p."photoUrl", ct.name
+        ORDER BY minutes DESC
+        `,
+        team.id,
+      )
+    : [];
+
   const injured = team.players.filter((p) => p.status === 'INJURED' || p.status === 'DOUBT');
 
   return (
@@ -92,6 +128,70 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
         </section>
       )}
 
+      {team.isNational ? (
+        <section className="space-y-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-pitch-muted">
+            Convocatoria — Mundial 2026 ({roster.length} jugadores)
+          </h2>
+          <p className="-mt-4 text-xs text-pitch-muted">
+            Construida a partir de las actas de los partidos del torneo. PJ = partidos con minutos.
+          </p>
+          {GROUP_ORDER.map((group) => {
+            const players = roster.filter((r) => r.position === group);
+            if (players.length === 0) return null;
+            return (
+              <div key={group}>
+                <h3 className="mb-2 text-xs font-semibold uppercase text-pitch-muted">{GROUP_ES[group]}</h3>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {players.map((r) => (
+                    <Link
+                      key={r.slug}
+                      href={`/jugadores/${r.slug}`}
+                      className="flex items-center gap-3 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 text-sm hover:border-pitch-accent"
+                    >
+                      {r.photoUrl != null ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img width={32} height={32} loading="lazy" decoding="async" src={r.photoUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+                      ) : (
+                        <span className="h-8 w-8 shrink-0 rounded-full bg-pitch-border" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">{r.name}</span>
+                        <span className="block truncate text-xs text-pitch-muted">{r.club ?? '—'}</span>
+                      </span>
+                      <span className="shrink-0 text-right text-xs text-pitch-muted">
+                        <span className="block">{Number(r.played)} PJ · {Number(r.minutes)}&apos;</span>
+                        {r.goals != null && Number(r.goals) > 0 && (
+                          <span className="block font-semibold text-pitch-accent">{Number(r.goals)} goles</span>
+                        )}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {roster.filter((r) => r.position == null).length > 0 && (
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase text-pitch-muted">Sin posición registrada</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {roster.filter((r) => r.position == null).map((r) => (
+                  <Link key={r.slug} href={`/jugadores/${r.slug}`} className="flex items-center gap-3 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 text-sm hover:border-pitch-accent">
+                    <span className="min-w-0 flex-1 truncate">{r.name}</span>
+                    <span className="shrink-0 text-xs text-pitch-muted">{Number(r.played)} PJ · {Number(r.minutes)}&apos;</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+          {roster.length === 0 && (
+            <p className="text-sm text-pitch-muted">
+              La convocatoria todavía no está disponible: se completará automáticamente al sincronizar
+              las actas de los partidos.
+            </p>
+          )}
+        </section>
+      ) : (
       <section className="space-y-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-pitch-muted">Plantilla</h2>
         {GROUP_ORDER.map((group) => {
@@ -120,6 +220,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
           <p className="text-sm text-pitch-muted">Plantilla aún no sincronizada.</p>
         )}
       </section>
+      )}
     </div>
   );
 }
