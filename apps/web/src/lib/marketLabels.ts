@@ -69,7 +69,8 @@ export const TRANSFER_TYPE_LABELS: Record<string, string> = {
 
 /** Cómo mostrar el coste sin presentar estimaciones como cifras oficiales. */
 export function feeLabel(fee: string | null): { text: string; note: string } {
-  if (fee == null || fee === '') return { text: 'No revelado', note: '' };
+  // Solo mostramos cuota si es una cifra real; texto no monetario del proveedor no es un coste
+  if (fee == null || fee === '' || !/[€$£\d]/.test(fee)) return { text: 'No revelado', note: '' };
   return { text: fee, note: 'Cantidad reportada por el proveedor' };
 }
 

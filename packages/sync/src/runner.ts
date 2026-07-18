@@ -25,6 +25,7 @@ import { TRACKED_COMPETITIONS } from '@futstats/shared';
 import { PrismaBudgetGuard } from './budget';
 import { syncNews } from './news';
 import {
+  cleanupTransferDuplicates,
   syncTransfers,
   syncCompetitions,
   syncFixtures,
@@ -275,6 +276,9 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
         );
       }
     }
+
+    // 7.7 Limpieza de operaciones duplicadas del proveedor (sin coste de API)
+    await cleanupTransferDuplicates(db);
 
     // 8. Lesiones (máx. 1 vez cada STALE_HOURS por competición-temporada)
     for (const { comp, season } of compSeasons) {

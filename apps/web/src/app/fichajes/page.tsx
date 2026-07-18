@@ -64,7 +64,11 @@ export default async function TransfersPage({
       take: PAGE_SIZE,
     }),
     prisma.newsItem.findMany({
-      where: { category: { in: ['rumores', 'fichajes'] } },
+      where: {
+        category: { in: ['rumores', 'fichajes'] },
+        // Solo mercado reciente: un rumor antiguo ya no es información útil
+        publishedAt: { gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) },
+      },
       include: { team: { select: { name: true, slug: true } } },
       orderBy: { publishedAt: 'desc' },
       take: 6,

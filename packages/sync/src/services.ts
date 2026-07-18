@@ -473,6 +473,22 @@ export async function syncInjuries(
 
 // ---------- traspasos (mercado) ----------
 
+/**
+ * El proveedor a veces registra la misma operación (mismo jugador y mismos clubes)
+ * con dos fechas próximas. Conservamos la más reciente y borramos el resto.
+ */
+export async function cleanupTransferDuplicates(db: PrismaClient): Promise<number> {
+  return db.$executeRaw`
+    DELETE FROM "Transfer" a
+    USING "Transfer" b
+    WHERE a."playerExternalId" = b."playerExternalId"
+      AND a."externalKey" <> b."externalKey"
+      AND COALESCE(a."fromName", '') = COALESCE(b."fromName", '')
+      AND COALESCE(a."toName", '') = COALESCE(b."toName", '')
+      AND (a."date" < b."date" OR (a."date" = b."date" AND a."externalKey" < b."externalKey"))
+      AND b."date" - a."date" <= INTERVAL '45 days'`;
+}
+
 /** Fecha desde la que interesan los movimientos (mercado 2025 en adelante). */
 const TRANSFERS_SINCE = new Date('2025-06-01');
 
@@ -481,10 +497,11 @@ function transferType(typeRaw: string | null): { type: string; fee: string | nul
   const t = typeRaw.trim();
   if (/^loan$/i.test(t)) return { type: 'CESION', fee: null };
   if (/loan/i.test(t)) return { type: 'REGRESO_CESION', fee: null };
-  if (/^free$/i.test(t)) return { type: 'AGENTE_LIBRE', fee: null };
-  // Cualquier importe ("€ 40M", "$ 12M"...) es un traspaso con cifra reportada por el proveedor
+  if (/^free/i.test(t)) return { type: 'AGENTE_LIBRE', fee: null }; // "Free", "Free agent", "Free transfer"
+  if (/^(transfer|permanent|swap)$/i.test(t)) return { type: 'TRASPASO', fee: null }; // sin cifra revelada
+  // Un importe real ("€ 40M", "$ 12M"...) es un traspaso con cifra reportada por el proveedor
   if (/[€$£]|\d/.test(t)) return { type: 'TRASPASO', fee: t };
-  return { type: 'DESCONOCIDO', fee: t };
+  return { type: 'DESCONOCIDO', fee: null }; // texto no monetario: nunca mostrarlo como cuota
 }
 
 export async function syncTransfers(
@@ -512,8 +529,16 @@ export async function syncTransfers(
   const teamId = new Map(teams.map((t) => [t.externalId, t.id]));
   const playerId = new Map(players.map((p) => [p.externalId, p.id]));
 
-  let count = 0;
+  // El proveedor repite a veces la misma operación con fechas cercanas: nos quedamos con la más reciente
+  const byMove = new Map<string, (typeof recent)[number]>();
   for (const t of recent) {
+    const key = `${t.playerExternalId}|${t.teamOutExternalId ?? t.teamOutName ?? '-'}|${t.teamInExternalId ?? t.teamInName ?? '-'}`;
+    const prev = byMove.get(key);
+    if (prev == null || new Date(t.date) > new Date(prev.date)) byMove.set(key, t);
+  }
+
+  let count = 0;
+  for (const t of byMove.values()) {
     const { type, fee } = transferType(t.typeRaw);
     const externalKey = `api-football|${t.playerExternalId}|${t.date}|${t.teamOutExternalId ?? '-'}|${t.teamInExternalId ?? '-'}`;
     await db.transfer.upsert({

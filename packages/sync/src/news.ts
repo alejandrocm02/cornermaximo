@@ -128,7 +128,10 @@ export async function syncNews(db: PrismaClient): Promise<number> {
       continue; // un feed caído no debe tumbar la sincronización
     }
 
+    const freshSince = Date.now() - 30 * 24 * 60 * 60 * 1000;
     for (const item of parseRss(xml).slice(0, 30)) {
+      // Algunos feeds (portadas) recuperan artículos antiguos: no son "última hora"
+      if (item.publishedAt.getTime() < freshSince) continue;
       const lowerTitle = item.title.toLowerCase();
       const team = teamMatchers.find((t) => lowerTitle.includes(t.name.toLowerCase()));
       const player = playerMatchers.find((p) => lowerTitle.includes(p.knownAs!.toLowerCase()));
