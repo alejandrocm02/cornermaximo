@@ -44,7 +44,8 @@ export function roundLabel(round: string | null): string | null {
   return ROUND_ES[round] ?? round;
 }
 
-/** "Group A" -> "Grupo A" */
+/** "Group A" -> "Grupo A"; "Group Stage" (ranking de terceros) -> etiqueta propia */
 export function groupLabel(group: string): string {
+  if (group === 'Group Stage') return 'Mejores terceros';
   return group.replace(/^Group /, 'Grupo ');
 }
