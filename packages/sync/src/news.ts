@@ -137,11 +137,13 @@ export async function syncNews(db: PrismaClient): Promise<number> {
       const player = playerMatchers.find((p) => lowerTitle.includes(p.knownAs!.toLowerCase()));
       const category = classify(item.title);
       try {
+        // La URL es la identidad real de una noticia: algunos feeds cambian el guid
+        // entre descargas y duplicarían el mismo artículo.
         await db.newsItem.upsert({
-          where: { guid: item.guid },
+          where: { guid: item.url },
           update: { title: item.title, summary: item.summary, imageUrl: item.imageUrl },
           create: {
-            guid: item.guid,
+            guid: item.url,
             title: item.title,
             summary: item.summary,
             url: item.url,
@@ -161,5 +163,14 @@ export async function syncNews(db: PrismaClient): Promise<number> {
       }
     }
   }
+
+  // Limpieza: filas antiguas guardadas bajo un guid distinto para la misma URL
+  await db.$executeRaw`
+    DELETE FROM "NewsItem" a
+    USING "NewsItem" b
+    WHERE a."url" = b."url"
+      AND a."id" <> b."id"
+      AND (a."publishedAt" < b."publishedAt" OR (a."publishedAt" = b."publishedAt" AND a."id" < b."id"))`;
+
   return stored;
 }
