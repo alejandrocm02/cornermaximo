@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { MainNav } from '@/components/MainNav';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -8,34 +8,22 @@ export const metadata: Metadata = {
     'Base de datos y análisis de futbolistas de las 5 grandes ligas (2025-26 y 2026-27) y del Mundial 2026: rendimiento en los últimos 5 partidos, clasificaciones y estadísticas colectivas.',
 };
 
-const NAV = [
-  { href: '/', label: 'Inicio' },
-  { href: '/mundial-2026', label: 'Mundial 2026' },
-  { href: '/jugadores', label: 'Jugadores' },
-  { href: '/ligas', label: 'Ligas' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/comparador', label: 'Comparador' },
-];
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body>
-        <header className="border-b border-pitch-border bg-pitch-card/60 backdrop-blur">
-          <nav className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
-            <Link href="/" className="text-lg font-bold tracking-tight">
-              Fut<span className="text-pitch-accent">Stats</span>
-            </Link>
-            <div className="flex gap-4 text-sm text-pitch-muted">
-              {NAV.map((item) => (
-                <Link key={item.href} href={item.href} className="hover:text-white">
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </nav>
+        <a
+          href="#contenido"
+          className="sr-only z-50 rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+        >
+          Saltar al contenido principal
+        </a>
+        <header className="sticky top-0 z-30 border-b border-pitch-border bg-pitch-card/80 backdrop-blur">
+          <MainNav />
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        <main id="contenido" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-8 outline-none">
+          {children}
+        </main>
         <footer className="mx-auto max-w-6xl px-4 py-8 text-xs text-pitch-muted">
           Datos: API-Football (plan Pro). Sincronización automática cada hora.
         </footer>

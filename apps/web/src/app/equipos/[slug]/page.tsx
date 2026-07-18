@@ -2,6 +2,7 @@ import { prisma } from '@futstats/db';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,18 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
 
   return (
     <div className="space-y-8">
+      <Breadcrumbs
+        items={[
+          ...(standing != null
+            ? [
+                standing.season.competition.type === 'CUP'
+                  ? { label: 'Mundial 2026', href: '/mundial-2026' }
+                  : { label: standing.season.competition.name, href: `/ligas/${standing.season.competition.slug}` },
+              ]
+            : [{ label: 'Ligas', href: '/ligas' }]),
+          { label: team.name },
+        ]}
+      />
       <section className="flex flex-wrap items-center gap-5 rounded-2xl border border-pitch-border bg-pitch-card p-6">
         {team.crestUrl != null ? (
           // eslint-disable-next-line @next/next/no-img-element

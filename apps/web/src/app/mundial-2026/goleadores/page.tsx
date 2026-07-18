@@ -1,6 +1,7 @@
 import { WORLD_CUP_2026 } from '@futstats/shared';
 import Link from 'next/link';
 import { topPlayerStat, type WorldCupStatMetric } from '@/lib/worldCupStats';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Mundial 2026 — Estadísticas individuales' };
@@ -33,6 +34,7 @@ export default async function WorldCupTopStatsPage({
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Mundial 2026', href: '/mundial-2026' }, { label: 'Estadísticas individuales' }]} />
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">Mundial 2026</p>
         <h1 className="text-2xl font-bold">Estadísticas individuales</h1>

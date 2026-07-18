@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { formatMatchDate } from '@/lib/football';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,7 @@ export default async function LeaguePage({
 
   return (
     <div className="space-y-8">
+      <Breadcrumbs items={[{ label: 'Ligas', href: '/ligas' }, { label: competition.name }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">
           {competition.name} {season != null && <span className="text-pitch-muted">· {season.year}-{(season.year + 1) % 100}</span>}

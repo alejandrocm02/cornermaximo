@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { TrendBadge } from '@/components/TrendBadge';
 import { getLastMatches } from '@/lib/recent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   return (
     <div className="space-y-8">
       {/* Cabecera */}
+      <Breadcrumbs items={[{ label: 'Jugadores', href: '/jugadores' }, { label: player.knownAs ?? player.fullName }]} />
       <section className="flex flex-wrap items-center gap-5 rounded-2xl border border-pitch-border bg-pitch-card p-6">
         {player.photoUrl != null ? (
           // eslint-disable-next-line @next/next/no-img-element
