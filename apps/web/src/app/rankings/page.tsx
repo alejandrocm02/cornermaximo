@@ -5,7 +5,12 @@ import { seasonLabel } from '@/lib/football';
 import { rankingRows, type RankingMetric } from '@/lib/leaderboards';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Rankings' };
+export const metadata = {
+  title: { absolute: 'Ranking de goleadores, asistencias y estadísticas | FutStats' },
+  description:
+    'Rankings de goles, asistencias, pases clave y paradas por liga y temporada, con datos actualizados automáticamente.',
+  alternates: { canonical: '/rankings' },
+};
 
 const METRICS: Array<{ value: RankingMetric; label: string; unit: string }> = [
   { value: 'goals', label: 'Goles', unit: 'goles' },
@@ -47,8 +52,26 @@ export default async function RankingsPage({
   const updatedAt = lastSync._max.syncedAt;
   const leader = rows?.[0];
 
+  const itemListJsonLd =
+    rows != null && rows.length > 0
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: `Ranking de ${metricDef.label.toLowerCase()} · ${leagueName} · ${seasonLabel(season)}`,
+          itemListElement: rows.slice(0, 10).map((r, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: r.name,
+            url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/jugadores/${r.slug}`,
+          })),
+        }
+      : null;
+
   return (
     <div className="space-y-6">
+      {itemListJsonLd != null && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      )}
       <div>
         <h1 className="text-2xl font-bold">
           Ranking de {metricDef.label.toLowerCase()} · {leagueName} · {seasonLabel(season)}
@@ -107,6 +130,8 @@ export default async function RankingsPage({
       )}
 
       {rows != null && (
+        <>
+        <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">Desliza la tabla lateralmente para ver todas las columnas →</p>
         <div className="overflow-x-auto rounded-xl border border-pitch-border">
           <table className="w-full min-w-[560px] bg-pitch-card text-sm">
             <caption className="sr-only">
@@ -155,6 +180,7 @@ export default async function RankingsPage({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

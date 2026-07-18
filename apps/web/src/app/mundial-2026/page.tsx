@@ -5,7 +5,12 @@ import { groupLabel, roundLabel } from '@/lib/football';
 import { topPlayerStat } from '@/lib/worldCupStats';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Mundial 2026' };
+export const metadata = {
+  title: { absolute: 'Mundial 2026: resultados, calendario y goleadores | FutStats' },
+  description:
+    'Copa Mundial de la FIFA 2026: grupos, resultados, eliminatorias y estadísticas individuales y por selección, actualizados automáticamente.',
+  alternates: { canonical: '/mundial-2026' },
+};
 
 function formatKickoff(d: Date) {
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -73,8 +78,23 @@ export default async function WorldCupPage() {
       ? new Date(Math.max(...season.standings.map((s) => s.updatedAt.getTime())))
       : null;
 
+  const eventsJsonLd = upcoming.slice(0, 5).map((m) => {
+    const home = m.teams.find((t) => t.isHome)?.team.name;
+    const away = m.teams.find((t) => !t.isHome)?.team.name;
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'SportsEvent',
+      name: `${home ?? '?'} - ${away ?? '?'} (Copa Mundial de la FIFA 2026)`,
+      startDate: m.kickoffAt.toISOString(),
+      sport: 'https://es.wikipedia.org/wiki/F%C3%BAtbol',
+    };
+  });
+
   return (
     <div className="space-y-10">
+      {eventsJsonLd.length > 0 && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(eventsJsonLd) }} />
+      )}
       <section className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">En juego · Canadá · México · EE. UU.</p>
         <h1 className="text-2xl font-bold sm:text-3xl">{competition.name}</h1>
@@ -218,7 +238,7 @@ export default async function WorldCupPage() {
             >
               {t.crestUrl != null ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={t.crestUrl} alt="" className="h-6 w-6 object-contain" />
+                <img width={40} height={40} loading="lazy" decoding="async" src={t.crestUrl} alt="" className="h-6 w-6 object-contain" />
               ) : (
                 <span className="h-6 w-6 rounded-full bg-pitch-border" />
               )}

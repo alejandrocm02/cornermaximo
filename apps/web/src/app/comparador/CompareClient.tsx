@@ -271,7 +271,8 @@ export function CompareClient() {
             </p>
           )}
 
-          <div className="overflow-x-auto rounded-xl border border-pitch-border">
+          <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">Desliza la tabla lateralmente para ver todas las columnas →</p>
+        <div className="overflow-x-auto rounded-xl border border-pitch-border">
             <table className="w-full min-w-[520px] bg-pitch-card text-sm">
               <caption className="sr-only">
                 Comparación de {data.players[0]!.name} y {data.players[1]!.name} — {periodLabel}
@@ -324,6 +325,7 @@ function SimpleRow({ label, values, highlightMax = false }: { label: string; val
       {values.map((v, i) => (
         <td key={i} className={`px-4 py-2 text-center font-medium ${best != null && v === best ? 'text-pitch-accent' : ''}`}>
           {fmt(v)}
+          {best != null && v === best && <span className="sr-only"> (mejor)</span>}
         </td>
       ))}
     </tr>
@@ -353,6 +355,7 @@ function MetricRow({
       {values.map((v, i) => (
         <td key={i} className={`px-4 py-2 text-center ${best != null && v?.total === best ? 'text-pitch-accent' : ''}`}>
           <span className="font-semibold">{fmt(v?.total)}</span>
+          {best != null && v?.total === best && <span className="sr-only"> (mejor)</span>}
           {(v?.perMatch != null || v?.per90 != null) && (
             <span className="block text-[11px] text-pitch-muted">
               {v?.perMatch != null ? `${fmt(v.perMatch)}/partido` : ''}

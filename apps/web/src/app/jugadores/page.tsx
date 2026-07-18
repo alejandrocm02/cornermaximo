@@ -3,7 +3,12 @@ import Link from 'next/link';
 import { SearchBox } from '@/components/SearchBox';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Jugadores' };
+export const metadata = {
+  title: { absolute: 'Estadísticas de futbolistas por liga y posición | FutStats' },
+  description:
+    'Directorio de futbolistas de las 5 grandes ligas: busca por nombre y filtra por posición, liga y equipo, con orden por goles o minutos.',
+  alternates: { canonical: '/jugadores' },
+};
 
 const PAGE_SIZE = 24;
 
@@ -187,7 +192,7 @@ export default async function PlayersPage({
             name="q"
             defaultValue={q}
             placeholder="p. ej. Mbappé"
-            className="w-44 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 outline-none focus:border-pitch-accent focus:ring-2 focus:ring-pitch-accent/40"
+            className="w-full min-w-0 rounded-lg sm:w-44 border border-pitch-border bg-pitch-card px-3 py-2 outline-none focus:border-pitch-accent focus:ring-2 focus:ring-pitch-accent/40"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -210,7 +215,7 @@ export default async function PlayersPage({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Equipo</span>
-          <select name="equipo" defaultValue={equipo} className="max-w-44 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="equipo" defaultValue={equipo} className="w-full rounded-lg sm:max-w-44 border border-pitch-border bg-pitch-card px-3 py-2">
             <option value="">Todos</option>
             {teams.map((t) => (
               <option key={t.slug} value={t.slug}>{t.name}</option>
@@ -249,7 +254,7 @@ export default async function PlayersPage({
           >
             {p.photoUrl != null ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+              <img width={40} height={40} loading="lazy" decoding="async" src={p.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
             ) : (
               <span className="h-10 w-10 rounded-full bg-pitch-border" />
             )}
@@ -283,7 +288,7 @@ export default async function PlayersPage({
       {totalPages > 1 && (
         <nav aria-label="Paginación de jugadores" className="flex items-center justify-center gap-4 text-sm">
           {pagina > 1 ? (
-            <Link rel="prev" className="rounded px-2 py-1 text-pitch-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-pitch-accent" href={pageHref(pagina - 1)}>
+            <Link rel="prev" className="rounded px-3 py-2 text-pitch-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-pitch-accent" href={pageHref(pagina - 1)}>
               ← Anterior
             </Link>
           ) : (
@@ -293,7 +298,7 @@ export default async function PlayersPage({
             Página {pagina} de {totalPages}
           </span>
           {pagina < totalPages ? (
-            <Link rel="next" className="rounded px-2 py-1 text-pitch-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-pitch-accent" href={pageHref(pagina + 1)}>
+            <Link rel="next" className="rounded px-3 py-2 text-pitch-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-pitch-accent" href={pageHref(pagina + 1)}>
               Siguiente →
             </Link>
           ) : (

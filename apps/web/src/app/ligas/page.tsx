@@ -2,7 +2,11 @@ import { prisma } from '@futstats/db';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Ligas' };
+export const metadata = {
+  title: 'Ligas',
+  description: 'Las 5 grandes ligas europeas con clasificación, jornadas y plantillas: LaLiga, Premier League, Serie A, Bundesliga y Ligue 1.',
+  alternates: { canonical: '/ligas' },
+};
 
 export default async function LeaguesPage() {
   const leagues = await prisma.competition.findMany({

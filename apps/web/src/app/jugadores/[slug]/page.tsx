@@ -25,8 +25,15 @@ const TREND_LABEL: Record<string, string> = {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const p = await prisma.player.findUnique({ where: { slug } });
-  return { title: p != null ? (p.knownAs ?? p.fullName) : 'Jugador' };
+  const p = await prisma.player.findUnique({ where: { slug }, include: { currentTeam: { select: { name: true } } } });
+  if (p == null) return { title: 'Jugador' };
+  const name = p.knownAs ?? p.fullName;
+  return {
+    title: `${name}: estadísticas y últimos partidos`,
+    description: `Rendimiento de ${name}${p.currentTeam != null ? ` (${p.currentTeam.name})` : ''}: goles, asistencias, minutos y tendencia en sus últimos partidos.`,
+    alternates: { canonical: `/jugadores/${slug}` },
+    openGraph: { title: `${name} | FutStats`, ...(p.photoUrl != null ? { images: [p.photoUrl] } : {}) },
+  };
 }
 
 export default async function PlayerPage({
@@ -77,14 +84,25 @@ export default async function PlayerPage({
     penaltiesSaved: 'Penaltis parados',
   };
 
+  const personJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: player.knownAs ?? player.fullName,
+    url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/jugadores/${player.slug}`,
+    ...(player.photoUrl != null ? { image: player.photoUrl } : {}),
+    ...(player.currentTeam != null ? { affiliation: { '@type': 'SportsTeam', name: player.currentTeam.name } } : {}),
+    ...(player.nationality != null ? { nationality: player.nationality.name } : {}),
+  };
+
   return (
     <div className="space-y-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }} />
       {/* Cabecera */}
       <Breadcrumbs items={[{ label: 'Jugadores', href: backHref }, { label: player.knownAs ?? player.fullName }]} />
       <section className="flex flex-wrap items-center gap-5 rounded-2xl border border-pitch-border bg-pitch-card p-6">
         {player.photoUrl != null ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={player.photoUrl} alt="" className="h-24 w-24 rounded-full object-cover" />
+          <img width={96} height={96} loading="lazy" decoding="async" src={player.photoUrl} alt="" className="h-24 w-24 rounded-full object-cover" />
         ) : (
           <span className="h-24 w-24 rounded-full bg-pitch-border" />
         )}

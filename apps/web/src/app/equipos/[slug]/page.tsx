@@ -49,7 +49,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
       <section className="flex flex-wrap items-center gap-5 rounded-2xl border border-pitch-border bg-pitch-card p-6">
         {team.crestUrl != null ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={team.crestUrl} alt="" className="h-20 w-20 object-contain" />
+          <img width={80} height={80} loading="lazy" decoding="async" src={team.crestUrl} alt="" className="h-20 w-20 object-contain" />
         ) : (
           <span className="h-20 w-20 rounded-full bg-pitch-border" />
         )}

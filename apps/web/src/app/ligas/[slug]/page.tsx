@@ -116,6 +116,9 @@ export default async function LeaguePage({
             })}
           </p>
         )}
+        {season != null && season.standings.length > 0 && (
+          <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">Desliza la tabla lateralmente para ver todas las columnas →</p>
+        )}
         {season != null && season.standings.length > 0 ? (
           <div className="overflow-x-auto rounded-xl border border-pitch-border">
             <table className="w-full min-w-[560px] bg-pitch-card text-sm">

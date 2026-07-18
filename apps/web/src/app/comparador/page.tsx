@@ -1,7 +1,12 @@
 import { Suspense } from 'react';
 import { CompareClient } from './CompareClient';
 
-export const metadata = { title: 'Comparador' };
+export const metadata = {
+  title: { absolute: 'Comparador de futbolistas y rendimiento | FutStats' },
+  description:
+    'Compara el rendimiento reciente de dos futbolistas por goles, asistencias, minutos y otras métricas disponibles.',
+  alternates: { canonical: '/comparador' },
+};
 
 export default function ComparePage() {
   return (

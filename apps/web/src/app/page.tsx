@@ -9,6 +9,13 @@ import { topPlayerStat } from '@/lib/worldCupStats';
 
 export const dynamic = 'force-dynamic';
 
+export const metadata = {
+  title: { absolute: 'Estadísticas de jugadores, rankings y resultados | FutStats' },
+  description:
+    'Consulta estadísticas, rankings y rendimiento de más de 4.000 futbolistas. Compara jugadores y sigue el Mundial 2026.',
+  alternates: { canonical: '/' },
+};
+
 /** Redondea hacia abajo a la centena para un claim veraz ("más de X"). */
 function roundedCount(n: number): string {
   const rounded = Math.max(100, Math.floor(n / 100) * 100);
@@ -115,7 +122,7 @@ export default async function HomePage() {
             >
               {p.photoUrl != null ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.photoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+                <img width={48} height={48} loading="lazy" decoding="async" src={p.photoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
               ) : (
                 <span className="h-12 w-12 rounded-full bg-pitch-border" />
               )}

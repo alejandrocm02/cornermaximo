@@ -122,6 +122,7 @@ export function SearchBox({
   return (
     <div className="relative w-full max-w-xl">
       <input
+        aria-label={placeholder}
         role="combobox"
         aria-expanded={open}
         aria-controls="global-search-list"
@@ -167,7 +168,7 @@ export function SearchBox({
                 >
                   {item.img != null ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.img} alt="" className={item.kind === 'team' ? 'h-8 w-8 object-contain' : 'h-8 w-8 rounded-full object-cover'} />
+                    <img width={32} height={32} loading="lazy" decoding="async" src={item.img} alt="" className={item.kind === 'team' ? 'h-8 w-8 object-contain' : 'h-8 w-8 rounded-full object-cover'} />
                   ) : (
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pitch-border text-[10px] text-pitch-muted">
                       {item.kind === 'league' ? '🏆' : '·'}
