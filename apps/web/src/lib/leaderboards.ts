@@ -1,83 +1,50 @@
+/**
+ * Rankings agregados de las ligas de clubes (excluye competiciones de selecciones),
+ * agrupando por el club actual del jugador. Usado en la home.
+ */
 import { prisma } from '@futstats/db';
 
-type MetricSource = 'field' | 'gk';
+const FIELD_METRICS = { goals: 'goals', assists: 'assists' } as const;
+const GK_METRICS = { saves: 'saves' } as const;
 
-export type LeaderboardMetric = {
-  key: string;
-  label: string;
-  source: MetricSource;
-  column: string;
-};
+export type LeaderboardMetric = keyof typeof FIELD_METRICS | keyof typeof GK_METRICS;
 
-export type LeaderboardRow = {
-  rank: number;
+export interface LeaderRow {
   slug: string;
   name: string;
+  photoUrl: string | null;
   team: string | null;
   total: number;
-  minutes: number;
-};
+}
 
-export const FIELD_LEADERBOARD_METRICS: LeaderboardMetric[] = [
-  { key: 'goals', label: 'Goles', source: 'field', column: 'goals' },
-  { key: 'assists', label: 'Asistencias', source: 'field', column: 'assists' },
-  { key: 'shotsOnTarget', label: 'Tiros a puerta', source: 'field', column: '"shotsOnTarget"' },
-  { key: 'keyPasses', label: 'Pases clave', source: 'field', column: '"keyPasses"' },
-  { key: 'tacklesAttempted', label: 'Entradas', source: 'field', column: '"tacklesAttempted"' },
-  { key: 'interceptions', label: 'Intercepciones', source: 'field', column: 'interceptions' },
-  { key: 'duelsWon', label: 'Duelos ganados', source: 'field', column: '"duelsWon"' },
-  { key: 'yellowCards', label: 'Amarillas', source: 'field', column: '"yellowCards"' },
-];
+interface RawRow { slug: string; name: string; photoUrl: string | null; team: string | null; total: bigint }
 
-export const GK_LEADERBOARD_METRICS: LeaderboardMetric[] = [
-  { key: 'saves', label: 'Paradas', source: 'gk', column: 'saves' },
-  { key: 'goalsConceded', label: 'Goles encajados', source: 'gk', column: '"goalsConceded"' },
-  { key: 'penaltiesSaved', label: 'Penaltis parados', source: 'gk', column: '"penaltiesSaved"' },
-];
+export async function topLeaguePlayers(metric: LeaderboardMetric, limit = 5): Promise<LeaderRow[]> {
+  const isGk = metric in GK_METRICS;
+  const column = isGk ? GK_METRICS[metric as keyof typeof GK_METRICS] : FIELD_METRICS[metric as keyof typeof FIELD_METRICS];
+  const table = isGk ? '"GoalkeeperMatchStatistics"' : '"PlayerMatchStatistics"';
 
-export const ALL_LEADERBOARD_METRICS = [...FIELD_LEADERBOARD_METRICS, ...GK_LEADERBOARD_METRICS];
-
-export async function getCompetitionLeaderboard(
-  competitionSlug: string,
-  season: number,
-  metric: LeaderboardMetric,
-  limit = 8,
-): Promise<LeaderboardRow[]> {
-  const table = metric.source === 'gk' ? '"GoalkeeperMatchStatistics"' : '"PlayerMatchStatistics"';
-  const rows = await prisma.$queryRawUnsafe<
-    Array<{ slug: string; name: string; team: string | null; total: bigint; minutes: bigint }>
-  >(
+  const rows = await prisma.$queryRawUnsafe<RawRow[]>(
     `
-      SELECT p.slug,
-             COALESCE(p."knownAs", p."fullName") AS name,
-             t.name                              AS team,
-             SUM(s.${metric.column})             AS total,
-             SUM(mp."minutesPlayed")             AS minutes
-      FROM ${table} s
-      JOIN "MatchPlayer" mp ON mp.id = s."matchPlayerId"
-      JOIN "Player" p       ON p.id = mp."playerId"
-      LEFT JOIN "Team" t    ON t.id = mp."teamId"
-      JOIN "Match" m        ON m.id = mp."matchId"
-      JOIN "Season" se      ON se.id = m."seasonId"
-      JOIN "Competition" c  ON c.id = se."competitionId"
-      WHERE c.slug = $1
-        AND se.year = $2
-        AND s.${metric.column} IS NOT NULL
-      GROUP BY p.slug, p."knownAs", p."fullName", t.name
-      ORDER BY total DESC, minutes ASC
-      LIMIT $3
+    SELECT p.slug,
+           COALESCE(p."knownAs", p."fullName") AS name,
+           p."photoUrl" AS "photoUrl",
+           t.name AS team,
+           SUM(s.${column}) AS total
+    FROM ${table} s
+    JOIN "MatchPlayer" mp ON mp.id = s."matchPlayerId"
+    JOIN "Player" p       ON p.id = mp."playerId"
+    LEFT JOIN "Team" t    ON t.id = p."currentTeamId"
+    JOIN "Match" m        ON m.id = mp."matchId"
+    JOIN "Season" se      ON se.id = m."seasonId"
+    JOIN "Competition" c  ON c.id = se."competitionId"
+    WHERE c.type = 'LEAGUE' AND s.${column} IS NOT NULL
+    GROUP BY p.slug, p."knownAs", p."fullName", p."photoUrl", t.name
+    ORDER BY total DESC
+    LIMIT $1
     `,
-    competitionSlug,
-    season,
     limit,
   );
 
-  return rows.map((row, index) => ({
-    rank: index + 1,
-    slug: row.slug,
-    name: row.name,
-    team: row.team,
-    total: Number(row.total),
-    minutes: Number(row.minutes),
-  }));
+  return rows.map((r) => ({ ...r, total: Number(r.total) }));
 }
