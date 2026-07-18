@@ -1,6 +1,7 @@
 import { prisma } from '@futstats/db';
 import { WORLD_CUP_2026 } from '@futstats/shared';
 import Link from 'next/link';
+import { groupLabel, roundLabel } from '@/lib/football';
 import { topPlayerStat } from '@/lib/worldCupStats';
 
 export const dynamic = 'force-dynamic';
@@ -67,6 +68,10 @@ export default async function WorldCupPage() {
     group: g,
     rows: season.standings.filter((s) => (s.group ?? 'Clasificación') === g),
   }));
+  const standingsUpdatedAt =
+    season.standings.length > 0
+      ? new Date(Math.max(...season.standings.map((s) => s.updatedAt.getTime())))
+      : null;
 
   return (
     <div className="space-y-10">
@@ -91,7 +96,7 @@ export default async function WorldCupPage() {
             const away = m.teams.find((t) => !t.isHome);
             return (
               <div key={m.id} className="rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm">
-                <p className="mb-1 text-xs text-pitch-muted">{m.round ?? 'Mundial 2026'} · {formatKickoff(m.kickoffAt)}</p>
+                <p className="mb-1 text-xs text-pitch-muted">{roundLabel(m.round) ?? 'Mundial 2026'} · {formatKickoff(m.kickoffAt)}</p>
                 <p className="font-medium">
                   {home?.team.name} <span className="text-pitch-accent">{home?.goals}–{away?.goals}</span> {away?.team.name}
                 </p>
@@ -111,7 +116,7 @@ export default async function WorldCupPage() {
             return (
               <div key={m.id} className="rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm">
                 <p className="mb-1 text-xs text-pitch-muted">
-                  {m.round ?? 'Mundial 2026'} · {m.status === 'LIVE' ? <span className="text-pitch-accent">EN JUEGO</span> : formatKickoff(m.kickoffAt)}
+                  {roundLabel(m.round) ?? 'Mundial 2026'} · {m.status === 'LIVE' ? <span className="text-pitch-accent">EN JUEGO</span> : formatKickoff(m.kickoffAt)}
                 </p>
                 <p className="font-medium">
                   {home?.team.name} {m.status === 'LIVE' && <span className="text-pitch-accent">{home?.goals}–{away?.goals}</span>} — {away?.team.name}
@@ -125,12 +130,17 @@ export default async function WorldCupPage() {
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Clasificación por grupo</h2>
+        {standingsUpdatedAt != null && (
+          <p className="-mt-2 mb-3 text-xs text-pitch-muted">
+            Última actualización: {standingsUpdatedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}
+          </p>
+        )}
         {standingsByGroup.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {standingsByGroup.map(({ group, rows }) => (
               <div key={group} className="overflow-hidden rounded-xl border border-pitch-border">
                 <p className="border-b border-pitch-border bg-pitch-card px-3 py-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">
-                  {group}
+                  {groupLabel(group)}
                 </p>
                 <table className="w-full bg-pitch-card text-xs">
                   <thead className="text-left text-[10px] uppercase text-pitch-muted">
@@ -162,7 +172,7 @@ export default async function WorldCupPage() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-pitch-muted">Clasificación aún no sincronizada.</p>
+          <p className="text-sm text-pitch-muted">La clasificación por grupos todavía no está disponible. Los datos se incorporarán automáticamente cuando la fuente los publique.</p>
         )}
       </section>
 
@@ -215,7 +225,7 @@ export default async function WorldCupPage() {
               <span className="truncate">{t.name}</span>
             </Link>
           ))}
-          {teams.length === 0 && <p className="col-span-full text-sm text-pitch-muted">Selecciones aún no sincronizadas.</p>}
+          {teams.length === 0 && <p className="col-span-full text-sm text-pitch-muted">Las selecciones todavía no están disponibles. Se incorporarán automáticamente en la próxima sincronización.</p>}
         </div>
       </section>
     </div>

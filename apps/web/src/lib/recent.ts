@@ -45,7 +45,9 @@ export interface LastMatchesResponse {
 
 type Mp = Awaited<ReturnType<typeof fetchPlayed>>[number];
 
-function fetchPlayed(playerId: number, take: number) {
+export type ComparisonWindow = number | 'season';
+
+function fetchPlayed(playerId: number, take?: number) {
   return prisma.matchPlayer.findMany({
     where: {
       playerId,
@@ -64,7 +66,7 @@ function fetchPlayed(playerId: number, take: number) {
       },
     },
     orderBy: { match: { kickoffAt: 'desc' } },
-    take,
+    ...(take != null ? { take } : {}),
   });
 }
 
@@ -137,10 +139,15 @@ const sumOrNull = (values: Array<number | null>): number | null => {
   return present.length > 0 ? present.reduce((a, b) => a + b, 0) : null;
 };
 
-export async function getLastMatches(playerId: number, isGoalkeeper: boolean): Promise<LastMatchesResponse> {
-  const played = await fetchPlayed(playerId, RECENT_MATCHES_WINDOW * 2);
-  const recent = played.slice(0, RECENT_MATCHES_WINDOW);
-  const previous = played.slice(RECENT_MATCHES_WINDOW);
+export async function getLastMatches(
+  playerId: number,
+  isGoalkeeper: boolean,
+  window: ComparisonWindow = RECENT_MATCHES_WINDOW,
+): Promise<LastMatchesResponse> {
+  // 'season' = todos los partidos jugados disponibles (sin ventana previa para tendencias)
+  const played = await fetchPlayed(playerId, window === 'season' ? undefined : window * 2);
+  const recent = window === 'season' ? played : played.slice(0, window);
+  const previous = window === 'season' ? [] : played.slice(window);
 
   // Convocados sin minutos dentro del rango temporal reciente (informativos)
   const newestDate = recent[0]?.match.kickoffAt;

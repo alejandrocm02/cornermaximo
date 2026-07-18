@@ -107,15 +107,23 @@ export default async function PlayerPage({
             {player.heightCm != null ? `· ${player.heightCm} cm` : ''}
           </p>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-medium ${
-            player.status === 'AVAILABLE'
-              ? 'bg-pitch-accent/15 text-pitch-accent'
-              : 'bg-pitch-danger/15 text-pitch-danger'
-          }`}
-        >
-          {STATUS_LABEL[player.status] ?? player.status}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              player.status === 'AVAILABLE'
+                ? 'bg-pitch-accent/15 text-pitch-accent'
+                : 'bg-pitch-danger/15 text-pitch-danger'
+            }`}
+          >
+            {STATUS_LABEL[player.status] ?? player.status}
+          </span>
+          <Link
+            href={`/comparador?p1=${player.slug}`}
+            className="rounded-lg bg-pitch-accent px-4 py-2 text-sm font-semibold text-black outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-pitch-accent"
+          >
+            Comparar con otro jugador
+          </Link>
+        </div>
       </section>
 
       {/* Tendencias */}

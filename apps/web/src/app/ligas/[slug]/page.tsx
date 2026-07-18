@@ -107,6 +107,15 @@ export default async function LeaguePage({
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Clasificación</h2>
+        {season != null && season.standings.length > 0 && (
+          <p className="-mt-2 mb-3 text-xs text-pitch-muted">
+            Última actualización:{' '}
+            {new Date(Math.max(...season.standings.map((r) => r.updatedAt.getTime()))).toLocaleString('es-ES', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}
+          </p>
+        )}
         {season != null && season.standings.length > 0 ? (
           <div className="overflow-x-auto rounded-xl border border-pitch-border">
             <table className="w-full min-w-[560px] bg-pitch-card text-sm">
@@ -148,7 +157,8 @@ export default async function LeaguePage({
           </div>
         ) : (
           <p className="text-sm text-pitch-muted">
-            Clasificación aún no sincronizada para esta temporada (se actualiza automáticamente cada pocas horas).
+            La clasificación de esta temporada todavía no está disponible. Los datos se incorporarán
+            automáticamente cuando la fuente los publique.
           </p>
         )}
       </section>
@@ -198,7 +208,7 @@ export default async function LeaguePage({
           </div>
         ) : (
           <p className="text-sm text-pitch-muted">
-            El calendario de esta temporada aún no está sincronizado.
+            El calendario de esta temporada todavía no está disponible. Se incorporará automáticamente cuando la fuente lo publique.
           </p>
         )}
       </section>

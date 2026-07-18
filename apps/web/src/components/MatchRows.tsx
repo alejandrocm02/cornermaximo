@@ -1,6 +1,6 @@
 import type { MatchStatus } from '@futstats/shared';
 import Link from 'next/link';
-import { formatMatchDate, statusLabel } from '@/lib/football';
+import { formatMatchDate, roundLabel, statusLabel } from '@/lib/football';
 
 type MatchRow = {
   id: number;
@@ -31,7 +31,7 @@ export function MatchRows({ matches, empty }: { matches: MatchRow[]; empty: stri
             <div key={match.id} className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[150px_1fr_auto] sm:items-center">
               <div className="text-xs text-pitch-muted">
                 <p>{formatMatchDate(match.kickoffAt)}</p>
-                <p>{match.round ?? statusLabel(match.status)}</p>
+                <p>{roundLabel(match.round) ?? statusLabel(match.status)}</p>
               </div>
               <div className="min-w-0">
                 <p className="truncate font-medium">
