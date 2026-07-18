@@ -58,7 +58,21 @@ export default async function PlayerPage({
   if (player == null) notFound();
 
   const isGoalkeeper = player.positions.some((p) => p.isPrimary && p.group === 'GK');
-  const data = await getLastMatches(player.id, isGoalkeeper);
+  const [data, playerNews, playerTransfers] = await Promise.all([
+    getLastMatches(player.id, isGoalkeeper),
+    prisma.newsItem.findMany({
+      where: { OR: [{ playerId: player.id }, ...(player.currentTeamId != null ? [{ teamId: player.currentTeamId }] : [])] },
+      orderBy: { publishedAt: 'desc' },
+      take: 3,
+      select: { id: true, title: true, url: true, source: true, publishedAt: true, category: true },
+    }),
+    prisma.transfer.findMany({
+      where: { playerId: player.id },
+      orderBy: { date: 'desc' },
+      take: 3,
+      select: { id: true, type: true, fee: true, date: true, fromName: true, toName: true },
+    }),
+  ]);
   const age =
     player.birthDate != null
       ? Math.floor((Date.now() - player.birthDate.getTime()) / (365.25 * 24 * 3_600_000))
@@ -207,6 +221,39 @@ export default async function PlayerPage({
           </p>
         )}
       </section>
+      {(playerNews.length > 0 || playerTransfers.length > 0) && (
+        <section className="grid gap-6 lg:grid-cols-2">
+          {playerNews.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Últimas noticias</h2>
+              <ul className="space-y-2 text-sm">
+                {playerNews.map((n) => (
+                  <li key={n.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+                    <a href={n.url} rel="noopener noreferrer" target="_blank" className="hover:text-pitch-accent">{n.title}</a>
+                    <span className="mt-0.5 block text-xs text-pitch-muted">{n.source} · {n.publishedAt.toLocaleDateString('es-ES')}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {playerTransfers.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Mercado</h2>
+              <ul className="space-y-2 text-sm">
+                {playerTransfers.map((t) => (
+                  <li key={t.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+                    <span className="mr-2 rounded-full bg-pitch-accent/15 px-2 py-0.5 text-xs font-medium text-pitch-accent">✓ Confirmado</span>
+                    {t.fromName ?? '—'} → {t.toName ?? '—'}
+                    <span className="mt-0.5 block text-xs text-pitch-muted">
+                      {t.date.toLocaleDateString('es-ES')} · {t.fee ?? 'No revelado'} · Fuente: API-Football
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

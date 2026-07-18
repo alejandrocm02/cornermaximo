@@ -68,6 +68,29 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
 
   const injured = team.players.filter((p) => p.status === 'INJURED' || p.status === 'DOUBT');
 
+  const [teamNews, altas, bajas] = team.isNational
+    ? [[], [], []]
+    : await Promise.all([
+        prisma.newsItem.findMany({
+          where: { teamId: team.id },
+          orderBy: { publishedAt: 'desc' },
+          take: 3,
+          select: { id: true, title: true, url: true, source: true, publishedAt: true },
+        }),
+        prisma.transfer.findMany({
+          where: { toTeamId: team.id },
+          orderBy: { date: 'desc' },
+          take: 5,
+          select: { id: true, playerName: true, fromName: true, fee: true, date: true, type: true, player: { select: { slug: true } } },
+        }),
+        prisma.transfer.findMany({
+          where: { fromTeamId: team.id },
+          orderBy: { date: 'desc' },
+          take: 5,
+          select: { id: true, playerName: true, toName: true, fee: true, date: true, type: true, player: { select: { slug: true } } },
+        }),
+      ]);
+
   return (
     <div className="space-y-8">
       <Breadcrumbs
@@ -125,6 +148,47 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
               </Link>
             </span>
           ))}
+        </section>
+      )}
+
+      {!team.isNational && (altas.length > 0 || bajas.length > 0 || teamNews.length > 0) && (
+        <section className="grid gap-6 lg:grid-cols-3" aria-label="Mercado y actualidad del club">
+          <div>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Altas confirmadas</h2>
+            <ul className="space-y-2 text-sm">
+              {altas.map((t) => (
+                <li key={t.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+                  {t.player != null ? <Link href={`/jugadores/${t.player.slug}`} className="font-medium hover:text-pitch-accent">{t.playerName}</Link> : <span className="font-medium">{t.playerName}</span>}
+                  <span className="block text-xs text-pitch-muted">desde {t.fromName ?? '—'} · {t.fee ?? 'No revelado'} · {t.date.toLocaleDateString('es-ES')}</span>
+                </li>
+              ))}
+              {altas.length === 0 && <li className="text-xs text-pitch-muted">Sin altas registradas desde junio de 2025.</li>}
+            </ul>
+          </div>
+          <div>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Bajas confirmadas</h2>
+            <ul className="space-y-2 text-sm">
+              {bajas.map((t) => (
+                <li key={t.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+                  {t.player != null ? <Link href={`/jugadores/${t.player.slug}`} className="font-medium hover:text-pitch-accent">{t.playerName}</Link> : <span className="font-medium">{t.playerName}</span>}
+                  <span className="block text-xs text-pitch-muted">hacia {t.toName ?? '—'} · {t.fee ?? 'No revelado'} · {t.date.toLocaleDateString('es-ES')}</span>
+                </li>
+              ))}
+              {bajas.length === 0 && <li className="text-xs text-pitch-muted">Sin bajas registradas desde junio de 2025.</li>}
+            </ul>
+          </div>
+          <div>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Noticias del club</h2>
+            <ul className="space-y-2 text-sm">
+              {teamNews.map((n) => (
+                <li key={n.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+                  <a href={n.url} rel="noopener noreferrer" target="_blank" className="hover:text-pitch-accent">{n.title}</a>
+                  <span className="block text-xs text-pitch-muted">{n.source} · {n.publishedAt.toLocaleDateString('es-ES')}</span>
+                </li>
+              ))}
+              {teamNews.length === 0 && <li className="text-xs text-pitch-muted">Sin noticias vinculadas todavía.</li>}
+            </ul>
+          </div>
         </section>
       )}
 

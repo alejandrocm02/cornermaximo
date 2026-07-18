@@ -382,3 +382,35 @@ export function mapStandings(raw: RawStandingsResponse): ProviderStandingRow[] {
   }
   return out;
 }
+
+interface RawTransferEntry {
+  player: { id: number; name: string };
+  transfers: Array<{
+    date: string;
+    type: string | null;
+    teams: {
+      in: { id: number | null; name: string | null } | null;
+      out: { id: number | null; name: string | null } | null;
+    };
+  }>;
+}
+
+export function mapTransfers(raws: RawTransferEntry[]): import('../types').ProviderTransfer[] {
+  const out: import('../types').ProviderTransfer[] = [];
+  for (const entry of raws) {
+    for (const t of entry.transfers ?? []) {
+      if (t.date == null) continue;
+      out.push({
+        playerExternalId: String(entry.player.id),
+        playerName: entry.player.name,
+        date: t.date,
+        typeRaw: t.type ?? null,
+        teamInExternalId: t.teams.in?.id != null ? String(t.teams.in.id) : null,
+        teamInName: t.teams.in?.name ?? null,
+        teamOutExternalId: t.teams.out?.id != null ? String(t.teams.out.id) : null,
+        teamOutName: t.teams.out?.name ?? null,
+      });
+    }
+  }
+  return out;
+}

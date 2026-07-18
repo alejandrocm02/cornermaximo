@@ -12,6 +12,7 @@
 import { TRACKED_COMPETITIONS } from '@futstats/shared';
 import type { FootballDataProvider } from '../FootballDataProvider';
 import type {
+  ProviderTransfer,
   ProviderCompetition,
   ProviderFixture,
   ProviderInjury,
@@ -23,6 +24,7 @@ import type {
 } from '../types';
 import type { ApiFootballClient } from './client';
 import {
+  mapTransfers,
   mapFixture,
   mapFixturePlayers,
   mapInjury,
@@ -103,5 +105,12 @@ export class ApiFootballProvider implements FootballDataProvider {
       season,
     });
     return raws[0] != null ? mapStandings(raws[0]) : [];
+  }
+
+  async getTransfers(teamExternalId: string): Promise<ProviderTransfer[]> {
+    const raws = await this.client.get<Parameters<typeof mapTransfers>[0][number]>('/transfers', {
+      team: teamExternalId,
+    });
+    return mapTransfers(raws);
   }
 }

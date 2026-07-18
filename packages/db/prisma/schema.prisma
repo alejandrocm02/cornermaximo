@@ -90,6 +90,8 @@ enum SyncEntity {
   PLAYER_MATCH_STATS
   INJURIES
   STANDINGS
+  NEWS
+  TRANSFERS
 }
 
 enum SyncStatus {
@@ -139,6 +141,7 @@ model Competition {
   country  Country    @relation(fields: [countryId], references: [id])
   provider DataProvider @relation(fields: [providerId], references: [id])
   seasons  Season[]
+  news     NewsItem[]
 
   @@unique([providerId, externalId])
 }
@@ -214,6 +217,9 @@ model Team {
   matchPlayers   MatchPlayer[]
   standings      Standing[]
   favoriteOf     FavoriteTeam[]
+  news           NewsItem[]
+  transfersOut   Transfer[]     @relation("TransferFrom")
+  transfersIn    Transfer[]     @relation("TransferTo")
 
   @@unique([providerId, externalId])
   @@index([countryId])
@@ -268,6 +274,8 @@ model Player {
   injuries     Injury[]
   suspensions  Suspension[]
   favoriteOf   FavoritePlayer[]
+  news         NewsItem[]
+  transfers    Transfer[]
 
   @@unique([providerId, externalId])
   @@index([currentTeamId])
@@ -689,4 +697,68 @@ model SyncLog {
   syncJob SyncJob? @relation(fields: [syncJobId], references: [id])
 
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------
+// Actualidad: noticias agregadas (RSS de medios) y traspasos confirmados
+// ---------------------------------------------------------------------
+
+/// Titular agregado desde un feed RSS. Solo titular + resumen corto + enlace
+/// a la fuente original; la categoría se deriva de las palabras del propio
+/// titular (un rumor solo se etiqueta como rumor, nunca como confirmado).
+model NewsItem {
+  id            Int      @id @default(autoincrement())
+  guid          String   @unique // guid o enlace del feed: deduplicación
+  title         String
+  summary       String?
+  url           String
+  source        String // nombre del medio
+  sourceRank    Int      @default(3) // 1 oficial ... 5 agregador
+  imageUrl      String?
+  category      String   @default("ultima-hora")
+  publishedAt   DateTime
+  playerId      Int?
+  teamId        Int?
+  competitionId Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  player      Player?      @relation(fields: [playerId], references: [id])
+  team        Team?        @relation(fields: [teamId], references: [id])
+  competition Competition? @relation(fields: [competitionId], references: [id])
+
+  @@index([publishedAt])
+  @@index([category, publishedAt])
+  @@index([teamId, publishedAt])
+  @@index([playerId, publishedAt])
+}
+
+/// Movimiento de mercado registrado por el proveedor (hechos, no rumores).
+model Transfer {
+  id               Int      @id @default(autoincrement())
+  externalKey      String   @unique // provider|jugador|fecha|equipos
+  playerId         Int?
+  playerExternalId String?
+  playerName       String
+  fromTeamId       Int?
+  toTeamId         Int?
+  fromName         String?
+  toName           String?
+  type             String // TRASPASO | CESION | AGENTE_LIBRE | REGRESO_CESION | DESCONOCIDO
+  fee              String? // texto literal del proveedor; null => "No revelado"
+  status           String   @default("CONFIRMADO")
+  date             DateTime
+  source           String   @default("api-football")
+  history          Json? // reservado: evolución de estado si en el futuro hay fuentes de rumores estructurados
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  player   Player? @relation(fields: [playerId], references: [id])
+  fromTeam Team?   @relation("TransferFrom", fields: [fromTeamId], references: [id])
+  toTeam   Team?   @relation("TransferTo", fields: [toTeamId], references: [id])
+
+  @@index([date])
+  @@index([toTeamId, date])
+  @@index([fromTeamId, date])
+  @@index([playerId, date])
 }

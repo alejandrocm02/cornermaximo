@@ -470,3 +470,70 @@ export async function syncInjuries(
   }
   return count;
 }
+
+// ---------- traspasos (mercado) ----------
+
+/** Fecha desde la que interesan los movimientos (mercado 2025 en adelante). */
+const TRANSFERS_SINCE = new Date('2025-06-01');
+
+function transferType(typeRaw: string | null): { type: string; fee: string | null } {
+  if (typeRaw == null || typeRaw === 'N/A') return { type: 'DESCONOCIDO', fee: null };
+  const t = typeRaw.trim();
+  if (/^loan$/i.test(t)) return { type: 'CESION', fee: null };
+  if (/loan/i.test(t)) return { type: 'REGRESO_CESION', fee: null };
+  if (/^free$/i.test(t)) return { type: 'AGENTE_LIBRE', fee: null };
+  // Cualquier importe ("€ 40M", "$ 12M"...) es un traspaso con cifra reportada por el proveedor
+  if (/[€$£]|\d/.test(t)) return { type: 'TRASPASO', fee: t };
+  return { type: 'DESCONOCIDO', fee: t };
+}
+
+export async function syncTransfers(
+  db: PrismaClient,
+  provider: FootballDataProvider,
+  providerDbId: number,
+  teamDbId: number,
+  teamExternalId: string,
+): Promise<number> {
+  const transfers = await provider.getTransfers(teamExternalId);
+  const recent = transfers.filter((t) => new Date(t.date) >= TRANSFERS_SINCE);
+  if (recent.length === 0) return 0;
+
+  const externalIds = [
+    ...new Set(
+      recent
+        .flatMap((t) => [t.teamInExternalId, t.teamOutExternalId, t.playerExternalId])
+        .filter((x): x is string => x != null),
+    ),
+  ];
+  const [teams, players] = await Promise.all([
+    db.team.findMany({ where: { providerId: providerDbId, externalId: { in: externalIds } }, select: { id: true, externalId: true } }),
+    db.player.findMany({ where: { providerId: providerDbId, externalId: { in: externalIds } }, select: { id: true, externalId: true } }),
+  ]);
+  const teamId = new Map(teams.map((t) => [t.externalId, t.id]));
+  const playerId = new Map(players.map((p) => [p.externalId, p.id]));
+
+  let count = 0;
+  for (const t of recent) {
+    const { type, fee } = transferType(t.typeRaw);
+    const externalKey = `api-football|${t.playerExternalId}|${t.date}|${t.teamOutExternalId ?? '-'}|${t.teamInExternalId ?? '-'}`;
+    await db.transfer.upsert({
+      where: { externalKey },
+      update: { type, fee, playerName: t.playerName },
+      create: {
+        externalKey,
+        playerExternalId: t.playerExternalId,
+        playerId: playerId.get(t.playerExternalId) ?? null,
+        playerName: t.playerName,
+        fromTeamId: t.teamOutExternalId != null ? (teamId.get(t.teamOutExternalId) ?? null) : null,
+        toTeamId: t.teamInExternalId != null ? (teamId.get(t.teamInExternalId) ?? null) : null,
+        fromName: t.teamOutName,
+        toName: t.teamInName,
+        type,
+        fee,
+        date: new Date(t.date),
+      },
+    });
+    count++;
+  }
+  return count;
+}

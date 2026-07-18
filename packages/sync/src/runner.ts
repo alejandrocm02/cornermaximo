@@ -23,7 +23,9 @@ import {
 } from '@futstats/providers';
 import { TRACKED_COMPETITIONS } from '@futstats/shared';
 import { PrismaBudgetGuard } from './budget';
+import { syncNews } from './news';
 import {
+  syncTransfers,
   syncCompetitions,
   syncFixtures,
   syncInjuries,
@@ -251,6 +253,25 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       if (hoursAgo(await lastSuccessAt(db, 'STANDINGS', key(comp, season))) > standingsStaleHours) {
         await unit('STANDINGS', key(comp, season), `clasificacion:${comp.slug}:${season.year}`, 5, () =>
           syncStandings(db, provider, providerRow.id, comp.externalId, season.year),
+        );
+      }
+    }
+
+    // 7.5 Noticias (RSS, sin coste de API): máx. 1 vez cada 50 minutos
+    if (hoursAgo(await lastSuccessAt(db, 'NEWS', null)) > 0.83) {
+      await unit('NEWS', null, 'noticias', 5, () => syncNews(db));
+    }
+
+    // 7.6 Traspasos por club (1 req/club, máx. 1 vez cada 24h)
+    const clubTeams = await db.team.findMany({
+      where: { isNational: false, seasons: { some: {} } },
+      select: { id: true, externalId: true, slug: true },
+      orderBy: { id: 'asc' },
+    });
+    for (const club of clubTeams) {
+      if (hoursAgo(await lastSuccessAt(db, 'TRANSFERS', club.externalId)) > 24) {
+        await unit('TRANSFERS', club.externalId, `traspasos:${club.slug}`, 5, () =>
+          syncTransfers(db, provider, providerRow.id, club.id, club.externalId),
         );
       }
     }

@@ -23,6 +23,7 @@ function roundedCount(n: number): string {
 }
 
 const QUICK_ACTIONS = [
+  { href: '/noticias', title: 'Noticias y mercado', desc: 'Última hora, rumores etiquetados y fichajes confirmados.' },
   { href: '/jugadores', title: 'Buscar jugadores', desc: 'Directorio completo con filtros por posición y liga.' },
   { href: '/comparador', title: 'Comparar futbolistas', desc: 'Dos jugadores frente a frente en sus últimos 5 partidos.' },
   { href: '/rankings', title: 'Rankings', desc: 'Goles, asistencias, paradas y más, por liga y temporada.' },
@@ -30,12 +31,13 @@ const QUICK_ACTIONS = [
 ];
 
 export default async function HomePage() {
-  const [playersCount, topScorers, topAssists, topSaves, recentMatches, upcomingMatches, wcScorers] =
+  const [playersCount, topScorers, topAssists, topSaves, latestNews, recentMatches, upcomingMatches, wcScorers] =
     await Promise.all([
       prisma.player.count(),
       topLeaguePlayers('goals', 6),
       topLeaguePlayers('assists', 5),
       topLeaguePlayers('saves', 5),
+      prisma.newsItem.findMany({ orderBy: { publishedAt: 'desc' }, take: 4, select: { id: true, title: true, url: true, source: true, publishedAt: true } }),
       prisma.match.findMany({
         where: { status: 'FINISHED' },
         include: {
@@ -106,6 +108,26 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* 2.5 Actualidad */}
+      {latestNews.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-pitch-muted">Actualidad</h2>
+            <Link href="/noticias" className="text-sm text-pitch-accent hover:underline">Todas las noticias →</Link>
+          </div>
+          <ul className="space-y-1 rounded-xl border border-pitch-border bg-pitch-card p-4 text-sm">
+            {latestNews.map((n) => (
+              <li key={n.id}>
+                <a href={n.url} rel="noopener noreferrer" target="_blank" className="hover:text-pitch-accent hover:underline">
+                  {n.title}
+                </a>{' '}
+                <span className="text-xs text-pitch-muted">— {n.source}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* 3. Jugadores destacados */}
       <section>

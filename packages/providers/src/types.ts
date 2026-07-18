@@ -139,3 +139,17 @@ export interface ProviderStandingRow {
   points: number;
   form: string | null;
 }
+
+/** Movimiento de mercado registrado por el proveedor (hecho consumado, no rumor). */
+export interface ProviderTransfer {
+  playerExternalId: string;
+  playerName: string;
+  /** Fecha del movimiento (ISO yyyy-mm-dd). */
+  date: string;
+  /** Texto literal del proveedor: "Loan", "Free", "€ 40M", "N/A"... */
+  typeRaw: string | null;
+  teamInExternalId: string | null;
+  teamInName: string | null;
+  teamOutExternalId: string | null;
+  teamOutName: string | null;
+}

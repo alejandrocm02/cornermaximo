@@ -10,6 +10,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/ligas',
     '/rankings',
     '/comparador',
+    '/noticias',
+    '/fichajes',
     '/mundial-2026',
     '/mundial-2026/goleadores',
     '/sobre',

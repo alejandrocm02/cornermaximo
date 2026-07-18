@@ -4,6 +4,7 @@
  * (API-Football -> Sportmonks -> Opta) = escribir un nuevo adaptador.
  */
 import type {
+  ProviderTransfer,
   ProviderCompetition,
   ProviderFixture,
   ProviderInjury,
@@ -27,6 +28,8 @@ export interface FootballDataProvider {
   getPlayerMatchStatistics(fixtureExternalId: string): Promise<ProviderPlayerMatchStats[]>;
   getInjuries(competitionExternalId: string, season: number): Promise<ProviderInjury[]>;
   getStandings(competitionExternalId: string, season: number): Promise<ProviderStandingRow[]>;
+  /** Traspasos registrados de un equipo (histórico completo del proveedor). */
+  getTransfers(teamExternalId: string): Promise<ProviderTransfer[]>;
 }
 
 /** Control de presupuesto diario de requests (plan Pro: 7 500/día). */
