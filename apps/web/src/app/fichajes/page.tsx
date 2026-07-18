@@ -112,33 +112,37 @@ export default async function TransfersPage({
       </div>
 
       {/* Filtros */}
-      <form method="GET" action="/fichajes" className="flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex flex-col gap-1">
+      <form method="GET" action="/fichajes" className="grid grid-cols-2 items-end gap-3 text-sm sm:flex sm:flex-wrap">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-xs text-pitch-muted">Liga</span>
-          <select name="liga" defaultValue={liga} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="liga" defaultValue={liga} className="w-full rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 sm:w-auto">
             <option value="">Todas</option>
             {leagues.map((l) => <option key={l.id} value={l.slug}>{l.name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-xs text-pitch-muted">Club</span>
-          <select name="club" defaultValue={club} className="max-w-40 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="club" defaultValue={club} className="w-full rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 sm:max-w-40">
             <option value="">Todos</option>
             {clubs.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-xs text-pitch-muted">Tipo de operación</span>
-          <select name="tipo" defaultValue={tipo} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="tipo" defaultValue={tipo} className="w-full rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 sm:w-auto">
             <option value="">Todos</option>
             {Object.entries(TRANSFER_TYPE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </label>
-        <button type="submit" className="rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black">Filtrar</button>
+        <button type="submit" className="w-full rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black sm:w-auto">
+          Filtrar
+        </button>
         {hasFilters && (
-          <Link href="/fichajes" className="rounded-lg border border-pitch-border px-4 py-2 text-pitch-muted hover:text-white">Limpiar</Link>
+          <Link href="/fichajes" className="col-span-2 w-full rounded-lg border border-pitch-border px-4 py-2 text-center text-pitch-muted hover:text-white sm:col-auto sm:w-auto">
+            Limpiar
+          </Link>
         )}
       </form>
 
@@ -163,7 +167,7 @@ export default async function TransfersPage({
                 <time dateTime={t.date.toISOString()} className="text-xs text-pitch-muted">
                   {t.date.toLocaleDateString('es-ES', { dateStyle: 'medium' })}
                 </time>
-                <span className="ml-auto text-xs text-pitch-muted">Fuente: API-Football · act. {timeAgo(t.updatedAt)}</span>
+                <span className="w-full text-xs text-pitch-muted sm:ml-auto sm:w-auto">Fuente: API-Football · act. {timeAgo(t.updatedAt)}</span>
               </div>
               <p className="mt-2 font-semibold">
                 {t.player != null ? (

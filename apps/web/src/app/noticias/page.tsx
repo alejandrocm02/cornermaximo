@@ -134,42 +134,44 @@ export default async function NewsPage({
       )}
 
       {/* Filtros */}
-      <form method="GET" action="/noticias" className="flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex flex-col gap-1">
+      <form method="GET" action="/noticias" className="grid grid-cols-2 items-end gap-3 text-sm sm:flex sm:flex-wrap">
+        <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-auto">
           <span className="text-xs text-pitch-muted">Buscar</span>
           <input type="search" name="q" defaultValue={q} placeholder="palabra clave"
             className="w-full min-w-0 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 outline-none focus:border-pitch-accent focus:ring-2 focus:ring-pitch-accent/40 sm:w-44" />
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-xs text-pitch-muted">Categoría</span>
-          <select name="categoria" defaultValue={categoria} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="categoria" defaultValue={categoria} className="w-full rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 sm:w-auto">
             <option value="">Todas</option>
             {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-xs text-pitch-muted">Liga</span>
-          <select name="liga" defaultValue={liga} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="liga" defaultValue={liga} className="w-full rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 sm:w-auto">
             <option value="">Todas</option>
             {leagues.map((l) => <option key={l.id} value={l.slug}>{l.name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-xs text-pitch-muted">Club</span>
-          <select name="club" defaultValue={club} className="max-w-40 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="club" defaultValue={club} className="w-full rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 sm:max-w-40">
             <option value="">Todos</option>
             {clubs.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-xs text-pitch-muted">Fecha</span>
-          <input type="date" name="fecha" defaultValue={fecha} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2" />
+          <input type="date" name="fecha" defaultValue={fecha} className="w-full rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 sm:w-auto" />
         </label>
-        <button type="submit" className="rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black">Filtrar</button>
+        <button type="submit" className={`${hasFilters ? '' : 'col-span-2 '}w-full rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black sm:w-auto`}>
+          Filtrar
+        </button>
         {hasFilters && (
-          <Link href="/noticias" className="rounded-lg border border-pitch-border px-4 py-2 text-pitch-muted hover:text-white">
+          <Link href="/noticias" className="w-full rounded-lg border border-pitch-border px-4 py-2 text-center text-pitch-muted hover:text-white sm:w-auto">
             Limpiar
           </Link>
         )}
@@ -183,11 +185,11 @@ export default async function NewsPage({
       {/* Feed */}
       <div className="space-y-3">
         {items.map((n) => (
-          <article key={n.id} className="flex gap-4 rounded-xl border border-pitch-border bg-pitch-card p-4">
+          <article key={n.id} className="flex gap-3 rounded-xl border border-pitch-border bg-pitch-card p-4 sm:gap-4">
             {n.imageUrl != null && (
               // eslint-disable-next-line @next/next/no-img-element
               <img width={96} height={64} loading="lazy" decoding="async" src={n.imageUrl} alt=""
-                className="hidden h-16 w-24 shrink-0 rounded-lg object-cover sm:block" />
+                className="h-14 w-20 shrink-0 rounded-lg object-cover sm:h-16 sm:w-24" />
             )}
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
@@ -213,12 +215,12 @@ export default async function NewsPage({
               {(n.team != null || n.player != null) && (
                 <p className="mt-2 flex flex-wrap gap-2 text-xs">
                   {n.player != null && (
-                    <Link href={`/jugadores/${n.player.slug}`} className="rounded-full border border-pitch-border px-2 py-0.5 text-pitch-muted hover:border-pitch-accent hover:text-white">
+                    <Link href={`/jugadores/${n.player.slug}`} className="rounded-full border border-pitch-border px-2.5 py-1 text-pitch-muted hover:border-pitch-accent hover:text-white">
                       {n.player.knownAs ?? n.player.fullName}
                     </Link>
                   )}
                   {n.team != null && (
-                    <Link href={`/equipos/${n.team.slug}`} className="rounded-full border border-pitch-border px-2 py-0.5 text-pitch-muted hover:border-pitch-accent hover:text-white">
+                    <Link href={`/equipos/${n.team.slug}`} className="rounded-full border border-pitch-border px-2.5 py-1 text-pitch-muted hover:border-pitch-accent hover:text-white">
                       {n.team.name}
                     </Link>
                   )}
