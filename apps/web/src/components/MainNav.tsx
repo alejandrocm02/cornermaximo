@@ -18,6 +18,7 @@ const NAV = [
   { href: '/comparador', label: 'Comparador' },
   { href: '/noticias', label: 'Noticias' },
   { href: '/fichajes', label: 'Fichajes' },
+  { href: '/apuestas', label: 'Apuestas' },
   { href: '/mundial-2026', label: 'Mundial 2026' },
 ];
 
