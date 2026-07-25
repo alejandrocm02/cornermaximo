@@ -19,6 +19,7 @@ const NAV = [
   { href: '/noticias', label: 'Noticias' },
   { href: '/fichajes', label: 'Fichajes' },
   { href: '/apuestas', label: 'Apuestas' },
+  { href: '/modo-carrera', label: 'Mi Carrera' },
   { href: '/mundial-2026', label: 'Mundial 2026' },
 ];
 
