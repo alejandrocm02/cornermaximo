@@ -705,15 +705,66 @@ function applyWeeklyTraining(state: CareerState, rng: Rng, minutes: number, note
 function narrativePool(state: CareerState, rng: Rng): NarrativeEvent[] {
   const p = state.player;
   const events: NarrativeEvent[] = [];
+  const pressQuestion = pick(rng, [
+    {
+      question: `El ${state.club.name} ocupa ahora la ${state.leaguePos}ª posición. ¿Hasta dónde puede llegar este equipo?`,
+      formal: 'Nuestro objetivo es competir cada jornada y respetar el proceso.',
+      picante: 'Si mantenemos este nivel, más de uno tendrá que empezar a preocuparse.',
+      humilde: 'Queda muchísimo trabajo; todavía no hemos conseguido nada.',
+      neutro: 'La clasificación se mira al final de la temporada.',
+    },
+    {
+      question: 'La afición espera más goles y protagonismo por tu parte. ¿Sientes esa presión?',
+      formal: 'Acepto la responsabilidad y trabajo para responder en el campo.',
+      picante: 'Los goles llegarán; quizá conviene preguntar quién está creando las ocasiones.',
+      humilde: 'Solo intento ayudar. El mérito siempre pertenece al equipo.',
+      neutro: 'Estoy tranquilo y centrado en el próximo partido.',
+    },
+    {
+      question: '¿Crees que deberías tener un papel más importante en el once?',
+      formal: 'Las decisiones corresponden al entrenador y yo debo estar preparado.',
+      picante: 'Mi rendimiento habla bastante claro; el resto no depende de mí.',
+      humilde: 'Hay grandes compañeros y todos merecemos una oportunidad.',
+      neutro: 'Juego cuando me toca y no pienso más allá.',
+    },
+    {
+      question: 'Han aparecido rumores sobre otros clubes interesados. ¿Dónde estará tu futuro?',
+      formal: `Tengo contrato con el ${state.club.name} y mantengo un compromiso profesional.`,
+      picante: 'En el fútbol nunca se sabe; los grandes proyectos siempre llaman la atención.',
+      humilde: 'Me siento afortunado de estar aquí y aún tengo mucho que demostrar.',
+      neutro: 'Mi agente se ocupa de eso. Yo solo pienso en jugar.',
+    },
+  ]);
 
   events.push({
     id: 'prensa',
-    title: 'La prensa te busca',
-    text: 'Un periodista te pregunta en zona mixta por el nivel del equipo y tu papel en él.',
+    title: 'Rueda de prensa',
+    text: pressQuestion.question,
     options: [
-      { id: 'humilde', label: 'Responder con humildad', hint: 'Seguro', effects: { coachTrust: 4, reputacion: 1, text: 'Tus palabras gustaron dentro del vestuario.' } },
-      { id: 'ambicioso', label: 'Reivindicarte con ambición', hint: 'Arriesgado', effects: { reputacion: 4, coachTrust: -4, moral: 3, text: 'Titulares por todas partes: presión extra, pero tu nombre suena.' } },
-      { id: 'callar', label: 'Evitar la pregunta', hint: 'Neutro', effects: { text: 'Sin titulares. A veces el silencio es la mejor respuesta.' } },
+      {
+        id: 'formal',
+        label: pressQuestion.formal,
+        hint: 'Formal',
+        effects: { coachTrust: 4, reputacion: 2, text: 'Respuesta profesional. El club valora tu madurez ante los medios.' },
+      },
+      {
+        id: 'picante',
+        label: pressQuestion.picante,
+        hint: 'Picante',
+        effects: { reputacion: 6, coachTrust: -5, moral: 5, text: 'La frase incendia las redes y abre todos los programas deportivos.' },
+      },
+      {
+        id: 'humilde',
+        label: pressQuestion.humilde,
+        hint: 'Humilde',
+        effects: { coachTrust: 3, reputacion: 1, moral: 3, text: 'El vestuario agradece que hayas puesto al equipo por delante.' },
+      },
+      {
+        id: 'neutro',
+        label: pressQuestion.neutro,
+        hint: 'Neutro',
+        effects: { moral: 1, text: 'No dejas ningún titular y la rueda de prensa termina sin polémica.' },
+      },
     ],
   });
   if (p.coachTrust >= 70 && state.jornada >= 10) {
