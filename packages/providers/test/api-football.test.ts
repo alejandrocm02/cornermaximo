@@ -225,4 +225,32 @@ describe('mapStandings', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.group).toBeNull();
   });
+
+  it('conserva el tercero en su grupo y descarta su duplicado de mejores terceros', () => {
+    const third = {
+      team: { id: 3 },
+      points: 4,
+      all: { played: 3, win: 1, draw: 1, lose: 1, goals: { for: 3, against: 3 } },
+      form: 'WDL',
+    };
+    const raw = {
+      league: {
+        standings: [
+          [
+            { ...third, rank: 3, group: 'Group A' },
+            { ...third, rank: 4, team: { id: 4 }, group: 'Group A' },
+          ],
+          [{ ...third, rank: 1, group: 'Group Stage' }],
+        ],
+      },
+    };
+
+    const rows = mapStandings(raw);
+
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.teamExternalId === '3')).toMatchObject({
+      group: 'Group A',
+      position: 3,
+    });
+  });
 });
