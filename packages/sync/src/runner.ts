@@ -239,11 +239,17 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       }
     }
 
-    // 3. Calendario: competición-temporada sin partidos, o con resultados pendientes y sync antiguo
+    // 3. Calendario: competición-temporada sin partidos, o con resultados pendientes y sync antiguo.
+    // Incluye LIVE: si el proceso deja de consultar fixtures durante un partido,
+    // ese estado puede quedar congelado para siempre aunque el encuentro termine.
     for (const { comp, season } of compSeasons) {
       const needsBootstrap = season._count.matches === 0;
       const pendingResults = await db.match.count({
-        where: { seasonId: season.id, status: 'SCHEDULED', kickoffAt: { lt: new Date() } },
+        where: {
+          seasonId: season.id,
+          status: { in: ['SCHEDULED', 'LIVE'] },
+          kickoffAt: { lt: new Date() },
+        },
       });
       // El Mundial 2026 está en juego: refrescamos su calendario más a menudo (2h) que las ligas (6h).
       const staleHours = comp.slug === 'mundial-2026' ? 2 : 6;
