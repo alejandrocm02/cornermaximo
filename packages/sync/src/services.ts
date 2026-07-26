@@ -437,6 +437,17 @@ export async function syncStandings(
 
 // ---------- lesiones ----------
 
+/**
+ * Ventana de vigencia de un parte de lesión.
+ *
+ * `/injuries?league&season` devuelve el HISTÓRICO de la temporada completa, no
+ * las bajas vigentes hoy: un jugador lesionado en septiembre sigue apareciendo
+ * en julio. Sin esta ventana, el estado del jugador se convierte en un pestillo
+ * de un solo sentido y acaba habiendo plantillas enteras marcadas como
+ * lesionadas.
+ */
+const INJURY_ACTIVE_DAYS = 14;
+
 export async function syncInjuries(
   db: PrismaClient,
   provider: FootballDataProvider,
@@ -445,7 +456,25 @@ export async function syncInjuries(
   season: number,
 ): Promise<number> {
   const injuries = await provider.getInjuries(competitionExternalId, season);
+  const cutoff = new Date(Date.now() - INJURY_ACTIVE_DAYS * 86_400_000);
+
+  /** Jugadores de esta competición-temporada, para poder reconciliar las altas. */
+  const squadRows: Array<{ id: number }> = await db.player.findMany({
+    where: {
+      providerId: providerDbId,
+      currentTeam: {
+        seasons: {
+          some: { season: { year: season, competition: { externalId: competitionExternalId } } },
+        },
+      },
+    },
+    select: { id: true },
+  });
+  const squadPlayerIds = new Set<number>(squadRows.map((p) => p.id));
+
+  const stillInjured = new Map<number, 'INJURED' | 'DOUBT'>();
   let count = 0;
+
   for (const inj of injuries) {
     const player = await db.player.findUnique({
       where: { providerId_externalId: { providerId: providerDbId, externalId: inj.playerExternalId } },
@@ -453,6 +482,9 @@ export async function syncInjuries(
     if (player == null) continue;
 
     const startDate = inj.date != null ? new Date(inj.date) : new Date();
+
+    // Se registra siempre el parte (sirve de historial), pero solo los recientes
+    // determinan el estado actual del jugador.
     const existing = await db.injury.findFirst({
       where: { playerId: player.id, startDate, type: inj.type },
     });
@@ -461,13 +493,43 @@ export async function syncInjuries(
         data: { playerId: player.id, type: inj.type, reason: inj.reason, startDate },
       });
     }
-    // Estado del jugador: "Duda" si el proveedor lo marca como cuestionable, si no lesionado.
+
+    if (startDate < cutoff) continue;
+
+    // "Duda" si el proveedor lo marca como cuestionable; si no, lesionado.
     const status = inj.type?.toLowerCase().includes('question') ? 'DOUBT' : 'INJURED';
-    if (!player.manuallyEdited) {
-      await db.player.update({ where: { id: player.id }, data: { status } });
-    }
+    // Si hay varios partes vigentes, la lesión pesa más que la duda.
+    if (stillInjured.get(player.id) !== 'INJURED') stillInjured.set(player.id, status);
     count++;
   }
+
+  // --- Altas: aplicar el estado vigente ---
+  for (const [playerId, status] of stillInjured) {
+    await db.player.updateMany({
+      where: { id: playerId, manuallyEdited: false },
+      data: { status },
+    });
+    await db.injury.updateMany({
+      where: { playerId, resolvedAt: { not: null }, startDate: { gte: cutoff } },
+      data: { resolvedAt: null },
+    });
+  }
+
+  // Jugadores de la competición marcados como baja pero SIN parte vigente:
+  // se les da el alta y se cierran sus lesiones abiertas. Sin este paso los
+  // estados nunca vuelven atrás.
+  const recovered = [...squadPlayerIds].filter((id) => !stillInjured.has(id));
+  if (recovered.length > 0) {
+    await db.player.updateMany({
+      where: { id: { in: recovered }, manuallyEdited: false, status: { in: ['INJURED', 'DOUBT'] } },
+      data: { status: 'AVAILABLE' },
+    });
+    await db.injury.updateMany({
+      where: { playerId: { in: recovered }, resolvedAt: null },
+      data: { resolvedAt: new Date() },
+    });
+  }
+
   return count;
 }
 

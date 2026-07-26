@@ -55,6 +55,10 @@ export interface SyncRunOptions {
 
 export interface SyncRunResult {
   executed: string[];
+  /** Unidades que fallaron en esta tanda sin detener el resto de la cola. */
+  failed: string[];
+  /** Unidades aparcadas por fallar de forma repetida; se reintentan a las 24h. */
+  skipped: string[];
   requestsUsedThisRun: number;
   stopped: 'completed' | 'budget_exhausted' | 'time_budget_exhausted';
 }
@@ -106,7 +110,41 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
   const executed: string[] = [];
   const startedAtMs = Date.now();
 
-  /** Ejecuta una unidad de trabajo con registro en SyncJob/SyncLog. */
+  const failed: string[] = [];
+  const skipped: string[] = [];
+
+  /**
+   * Nº de fallos consecutivos a partir del cual se aparca una unidad.
+   * Un elemento roto de forma permanente (p.ej. un partido cuyas estadísticas
+   * el proveedor nunca entrega) no debe consumir presupuesto en cada tanda.
+   */
+  const MAX_ATTEMPTS = 5;
+  /** Tras este tiempo se vuelve a intentar una unidad aparcada. */
+  const RETRY_AFTER_HOURS = 24;
+
+  /** ¿Esta unidad ha fallado tantas veces seguidas que conviene aparcarla? */
+  async function isQuarantined(entity: SyncEntity, entityExternalId: string | null): Promise<boolean> {
+    const last = await db.syncJob.findFirst({
+      where: { entity, entityExternalId },
+      orderBy: { finishedAt: 'desc' },
+      select: { status: true, attempts: true, finishedAt: true },
+    });
+    if (last == null || last.status !== 'FAILED') return false;
+    if (last.attempts < MAX_ATTEMPTS) return false;
+    return hoursAgo(last.finishedAt) < RETRY_AFTER_HOURS;
+  }
+
+  /**
+   * Ejecuta una unidad de trabajo con registro en SyncJob/SyncLog.
+   *
+   * Los errores de una unidad NO abortan la ejecución: se registran y se pasa
+   * a la siguiente. Antes cualquier fallo se propagaba hasta arriba, de modo
+   * que un único elemento problemático dejaba congelada toda la cola —y con
+   * ella los resultados y las estadísticas— en cada tanda horaria.
+   *
+   * Solo el agotamiento de presupuesto (requests o tiempo) detiene la
+   * ejecución, porque son condiciones globales y no fallos de la unidad.
+   */
   async function unit(
     entity: SyncEntity,
     entityExternalId: string | null,
@@ -116,6 +154,10 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
   ): Promise<void> {
     if (Date.now() - startedAtMs > TIME_BUDGET_MS) {
       throw new TimeBudgetExceededError();
+    }
+    if (await isQuarantined(entity, entityExternalId)) {
+      skipped.push(label);
+      return;
     }
     const job = await db.syncJob.create({
       data: { providerId: providerRow.id, entity, entityExternalId, status: 'RUNNING', priority, startedAt: new Date() },
@@ -129,21 +171,38 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       executed.push(label);
     } catch (err) {
       const isBudget = err instanceof BudgetExceededError;
+      const isTime = err instanceof TimeBudgetExceededError;
+
+      // Fallos anteriores de esta misma unidad, para el contador de intentos.
+      const previousAttempts =
+        isBudget || isTime
+          ? 0
+          : (
+              await db.syncJob.findFirst({
+                where: { entity, entityExternalId, status: 'FAILED' },
+                orderBy: { finishedAt: 'desc' },
+                select: { attempts: true },
+              })
+            )?.attempts ?? 0;
+
       await db.syncJob.update({
         where: { id: job.id },
         data: {
-          status: isBudget ? 'PENDING' : 'FAILED', // budget agotado => se reintenta en la próxima tanda
+          // Presupuesto agotado => PENDING, se reintenta en la próxima tanda.
+          status: isBudget || isTime ? 'PENDING' : 'FAILED',
           finishedAt: new Date(),
           error: String(err instanceof Error ? err.message : err).slice(0, 1000),
-          attempts: { increment: 1 },
+          attempts: isBudget || isTime ? 0 : previousAttempts + 1,
         },
       });
-      if (!isBudget) {
-        await db.syncLog.create({
-          data: { syncJobId: job.id, level: 'error', message: `${label}: ${String(err)}`.slice(0, 900) },
-        });
-      }
-      throw err;
+
+      // Presupuesto y tiempo son globales: sí detienen la ejecución.
+      if (isBudget || isTime) throw err;
+
+      await db.syncLog.create({
+        data: { syncJobId: job.id, level: 'error', message: `${label}: ${String(err)}`.slice(0, 900) },
+      });
+      failed.push(label);
     }
   }
 
@@ -290,13 +349,13 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
     }
   } catch (err) {
     if (err instanceof BudgetExceededError) {
-      return { executed, requestsUsedThisRun: budget.usedThisRun, stopped: 'budget_exhausted' };
+      return { executed, failed, skipped, requestsUsedThisRun: budget.usedThisRun, stopped: 'budget_exhausted' };
     }
     if (err instanceof TimeBudgetExceededError) {
-      return { executed, requestsUsedThisRun: budget.usedThisRun, stopped: 'time_budget_exhausted' };
+      return { executed, failed, skipped, requestsUsedThisRun: budget.usedThisRun, stopped: 'time_budget_exhausted' };
     }
     throw err;
   }
 
-  return { executed, requestsUsedThisRun: budget.usedThisRun, stopped: 'completed' };
+  return { executed, failed, skipped, requestsUsedThisRun: budget.usedThisRun, stopped: 'completed' };
 }
