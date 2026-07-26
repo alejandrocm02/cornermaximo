@@ -8,10 +8,17 @@
  *   desplegable resulta más legible que una fila comprimida.
  * - Menú móvil: botón con etiqueta accesible, cierre con Escape, foco visible,
  *   bloqueo de scroll del body mientras está abierto y trampa de foco básica.
+ *
+ * El panel móvil se monta con un portal en <body> y NO dentro de <header>.
+ * La cabecera usa `backdrop-blur`, y un `backdrop-filter` crea un bloque
+ * contenedor para los descendientes `position: fixed`: dentro de ella el
+ * panel se posicionaría respecto a la cabecera (64 px de alto) en lugar del
+ * viewport, quedando recortado a un único elemento de menú.
  */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const NAV = [
   { href: '/', label: 'Inicio' },
@@ -36,8 +43,14 @@ const linkBase = 'rounded-lg outline-none transition-colors duration-150';
 export function MainNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // `createPortal` necesita el DOM: en el render del servidor no existe.
+  const [mounted, setMounted] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Cerrar al navegar
   useEffect(() => {
@@ -48,8 +61,29 @@ export function MainNav() {
   useEffect(() => {
     if (!open) return;
 
-    const previousOverflow = document.body.style.overflow;
+    /*
+     * Bloqueo de scroll del fondo — SIN `position: fixed` en <body>.
+     *
+     * WebKit trata los descendientes `position: fixed` como `absolute` cuando
+     * un ancestro es `position: fixed`. Como el panel se monta en <body> con
+     * un portal, fijar el body hacía que el panel se anclase al documento en
+     * lugar de al viewport y acabase fuera de pantalla: en iOS el menú se
+     * abría "detrás" de la página. En escritorio no ocurre porque ese
+     * comportamiento es específico de WebKit.
+     *
+     * `overflow: hidden` en <html> y <body> es menos estricto (iOS puede
+     * seguir permitiendo algo de rebote elástico), pero no rompe el anclaje.
+     * Se prefiere un bloqueo imperfecto a un menú invisible; el rebote lo
+     * contiene además `overscroll-contain` en el propio panel.
+     */
+    const html = document.documentElement;
+    const previous = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: document.body.style.overflow,
+    };
+    html.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
+
     panelRef.current?.querySelector<HTMLElement>('a')?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
@@ -76,7 +110,8 @@ export function MainNav() {
 
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      html.style.overflow = previous.htmlOverflow;
+      document.body.style.overflow = previous.bodyOverflow;
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open]);
@@ -146,49 +181,76 @@ export function MainNav() {
         )}
       </button>
 
-      {open && (
-        <div
-          id="menu-movil"
-          ref={panelRef}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Menú de navegación"
-          className="fixed inset-0 top-16 z-40 overflow-y-auto bg-pitch-bg/95 p-4 backdrop-blur-xl lg:hidden"
-        >
-          <ul className="mx-auto grid max-w-md gap-1.5 pb-8">
-            {NAV.map((item) => {
-              const active = isActive(pathname, item.href);
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={`flex min-h-[3rem] items-center justify-between rounded-xl border px-4 py-3 text-base outline-none transition ${
-                      active
-                        ? 'border-pitch-accent/50 bg-pitch-accent/10 font-semibold text-white shadow-glow-soft'
-                        : 'border-pitch-border bg-pitch-card/60 text-pitch-subtle hover:border-pitch-border-strong hover:text-white'
-                    }`}
-                  >
-                    {item.label}
-                    <svg
-                      aria-hidden="true"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className={active ? 'text-pitch-accent' : 'text-pitch-muted'}
+      {/*
+        El panel se monta en <body> mediante portal para escapar del bloque
+        contenedor que crea el `backdrop-filter` de la cabecera.
+
+        Además, su altura la fija `100dvh` (viewport) en lugar de combinar
+        `top-16` con `bottom-0`, que se resuelven contra el bloque contenedor:
+        así ocupa la pantalla completa aunque algún ancestro con
+        `backdrop-filter` o `transform` vuelva a capturarlo, y `dvh` absorbe
+        el colapso de la barra de direcciones en iOS. El `pt-16` reserva el
+        hueco de la cabecera.
+      */}
+      {open &&
+        mounted &&
+        createPortal(
+          <div
+            id="menu-movil"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menú de navegación"
+            className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-pitch-bg pt-16 lg:hidden"
+          >
+            <ul className="mx-auto grid max-w-md gap-1.5 p-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
+              {NAV.map((item) => {
+                const active = isActive(pathname, item.href);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={`flex min-h-[3rem] items-center justify-between rounded-xl border px-4 py-3 text-base outline-none transition ${
+                        active
+                          ? 'border-pitch-accent/50 bg-pitch-accent/10 font-semibold text-white shadow-glow-soft'
+                          : 'border-pitch-border bg-pitch-card/60 text-pitch-subtle hover:border-pitch-border-strong hover:text-white'
+                      }`}
                     >
-                      <path d="M7 4l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+                      <span className="flex items-center gap-2.5">
+                        {/* Marca visual de la sección activa, además del color. */}
+                        <span
+                          aria-hidden="true"
+                          className={`h-5 w-1 rounded-full ${active ? 'bg-grad-brand' : 'bg-transparent'}`}
+                        />
+                        {item.label}
+                      </span>
+                      {active ? (
+                        <span className="fs-chip border-pitch-accent/40 bg-pitch-accent/10 text-pitch-accent">
+                          Estás aquí
+                        </span>
+                      ) : (
+                        <svg
+                          aria-hidden="true"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className="text-pitch-muted"
+                        >
+                          <path d="M7 4l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>,
+          document.body,
+        )}
     </nav>
   );
 }

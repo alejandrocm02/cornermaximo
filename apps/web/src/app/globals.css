@@ -32,17 +32,33 @@
 
 @layer base {
   html {
+    @apply bg-pitch-bg;
     scroll-behavior: smooth;
     /* Evita que el contenido quede bajo la cabecera fija al saltar a un ancla. */
     scroll-padding-top: calc(var(--header-height) + 1rem);
   }
 
   body {
-    @apply bg-pitch-bg font-sans text-slate-100 antialiased;
+    @apply font-sans text-slate-100 antialiased;
     font-feature-settings: 'tnum'; /* números tabulares para las estadísticas */
-    /* Malla ambiental fija: da profundidad sin repintados al hacer scroll. */
+  }
+
+  /*
+   * Malla ambiental en una capa fija propia.
+   *
+   * NO usar `background-attachment: fixed` en <body>: Safari iOS dimensiona
+   * el fondo al documento completo y repinta en cada frame, y Chrome Android
+   * saca el scroll de la ruta rápida del compositor. En ambos casos el
+   * desplazamiento en móvil se vuelve entrecortado. Una capa `position: fixed`
+   * independiente la compone la GPU y no interfiere con el scroll.
+   */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background-image: theme('backgroundImage.grad-mesh');
-    background-attachment: fixed;
     background-repeat: no-repeat;
   }
 
