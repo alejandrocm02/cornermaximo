@@ -272,7 +272,7 @@ export function createCareer(config: CareerConfig): CareerState {
 // Simulación de partido
 // ---------------------------------------------------------------------------
 
-export type MatchApproach = 'seguro' | 'riesgo' | 'energia';
+export type MatchApproach = 'seguro' | 'riesgo' | 'energia' | 'protagonista';
 
 interface SimContext {
   rng: Rng;
@@ -317,7 +317,7 @@ function simulateTeamGoals(rng: Rng, attack: number, defense: number): number {
   return goals;
 }
 
-function makeMoment(state: CareerState, rng: Rng): MatchMoment | null {
+function makeMoment(state: CareerState, rng: Rng, approach: MatchApproach): MatchMoment | null {
   const p = state.player;
   const group = positionGroup(p.position);
   const minute = randInt(rng, 55, 88);
@@ -370,6 +370,26 @@ function makeMoment(state: CareerState, rng: Rng): MatchMoment | null {
         opt('ceder', 'Cederla al especialista', 0.85, { text: 'Decisión madura: el especialista rozó el gol.', rating: 0.2, moral: 1 }, { text: 'El lanzamiento se perdió sin peligro.', rating: 0, moral: 0 }),
       ],
     });
+    situations.push({
+      id: 'mano-a-mano',
+      minute,
+      text: `Minuto ${minute}: rompes el fuera de juego y te plantas solo ante el portero.`,
+      options: [
+        opt('colocar', 'Colocarla al palo largo', 0.2 + skill('disparo') * 0.55, { text: 'Definición perfecta al palo largo. ¡Gol!', goles: 1, tiros: 1, rating: 1.6, moral: 11, reputacion: 2 }, { text: 'El portero sacó una pierna milagrosa.', tiros: 1, rating: -0.25, moral: -3 }),
+        opt('vaselina', 'Intentar una vaselina', 0.08 + skill('tecnica') * 0.48, { text: 'La vaselina fue exquisita. Gol para repetir mil veces.', goles: 1, tiros: 1, rating: 1.9, moral: 13, reputacion: 4 }, { text: 'La vaselina cayó en las manos del portero.', tiros: 1, rating: -0.5, moral: -5 }),
+        opt('regate-portero', 'Regatear al portero', 0.1 + skill('regate') * 0.5, { text: 'Sentaste al portero y marcaste a puerta vacía.', goles: 1, tiros: 1, rating: 1.8, moral: 12, reputacion: 3 }, { text: 'El portero te adivinó y se quedó el balón.', rating: -0.55, moral: -5 }),
+      ],
+    });
+    situations.push({
+      id: 'disparo-lejano',
+      minute,
+      text: `Minuto ${minute}: recibes a veinticinco metros. Hay espacio para armar la pierna.`,
+      options: [
+        opt('potencia', 'Disparar con potencia', 0.08 + skill('disparo') * 0.42 + skill('fisico') * 0.08, { text: '¡Misil imparable desde fuera del área!', goles: 1, tiros: 1, rating: 1.8, moral: 12, reputacion: 3 }, { text: 'El disparo se marchó alto.', tiros: 1, rating: -0.2, moral: -2 }),
+        opt('rosca', 'Buscar la escuadra con rosca', 0.06 + skill('tecnica') * 0.42 + skill('disparo') * 0.12, { text: 'La rosca encontró la escuadra. Golazo.', goles: 1, tiros: 1, rating: 2, moral: 13, reputacion: 4 }, { text: 'Rozó el poste por fuera.', tiros: 1, rating: 0, moral: -1 }),
+        opt('pared', 'Jugar una pared y entrar al área', 0.3 + skill('pase') * 0.35, { text: 'La pared rompió la defensa y acabaste asistiendo.', asistencias: 1, rating: 1.1, moral: 7 }, { text: 'El central leyó la devolución.', rating: -0.2, moral: -2 }),
+      ],
+    });
   }
   if (group === 'def' || group === 'mid') {
     situations.push({
@@ -380,6 +400,16 @@ function makeMoment(state: CareerState, rng: Rng): MatchMoment | null {
         opt('entrada', 'Ir fuerte a la entrada', 0.25 + skill('defensa') * 0.45, { text: 'Cortaste el contragolpe con una entrada perfecta.', recuperaciones: 1, rating: 1.2, moral: 7 }, { text: 'Llegaste tarde: tarjeta y peligro.', rating: -0.7, moral: -5, tarjetaP: 0.8 }),
         opt('contener', 'Contener y ganar tiempo', 0.55 + skill('concentracion') * 0.3, { text: 'Le frenaste hasta que llegó la ayuda.', rating: 0.6, moral: 3 }, { text: 'Te hizo un caño y generó una ocasión clara.', rating: -0.5, moral: -4 }),
         opt('anticipar', 'Anticipar el pase', 0.2 + skill('vision') * 0.4, { text: 'Leíste el pase y saliste jugando con clase.', recuperaciones: 1, rating: 1.0, moral: 6, reputacion: 1 }, { text: 'La anticipación falló y quedaron 2 contra 1.', rating: -0.6, moral: -4 }),
+      ],
+    });
+    situations.push({
+      id: 'corner-favor',
+      minute,
+      text: `Minuto ${minute}: córner a favor. Subes al área y el balón viene hacia tu zona.`,
+      options: [
+        opt('primer-palo', 'Atacar el primer palo', 0.08 + skill('fisico') * 0.22 + skill('concentracion') * 0.18, { text: 'Te anticipaste y cabeceaste a la red.', goles: 1, tiros: 1, rating: 1.7, moral: 11, reputacion: 3 }, { text: 'El remate salió desviado.', tiros: 1, rating: -0.1, moral: -1 }),
+        opt('segundo-palo', 'Esperar en el segundo palo', 0.15 + skill('concentracion') * 0.3, { text: 'El balón quedó muerto y lo empujaste dentro.', goles: 1, tiros: 1, rating: 1.5, moral: 10, reputacion: 2 }, { text: 'La defensa despejó antes de que llegara.', rating: 0, moral: -1 }),
+        opt('bloqueo', 'Bloquear para liberar a un compañero', 0.55 + skill('vision') * 0.25, { text: 'Tu movimiento liberó al goleador. Gran trabajo sin balón.', asistencias: 1, rating: 0.9, moral: 6 }, { text: 'El árbitro señaló falta en ataque.', rating: -0.2, moral: -2 }),
       ],
     });
   }
@@ -393,7 +423,21 @@ function makeMoment(state: CareerState, rng: Rng): MatchMoment | null {
     ],
   });
 
-  if (!chance(rng, 0.55)) return null;
+  if (state.jornada === 24 && state.division === 1) {
+    const cup = `Copa Nacional ${state.year}`;
+    return {
+      id: 'final-copa',
+      minute: randInt(rng, 72, 88),
+      text: `Final de Copa, minuto decisivo: el marcador está igualado y tienes la jugada que puede dar el título al ${state.club.name}.`,
+      options: [
+        opt('finalizar-copa', 'Asumir el disparo decisivo', 0.15 + skill('disparo') * 0.5 + skill('concentracion') * 0.12, { text: '¡Gol! Tu disparo decide la final y levantas la Copa.', goles: 1, tiros: 1, rating: 2, moral: 15, reputacion: 7, trophy: cup }, { text: 'El portero salvó la final. El rival ganó después en la prórroga.', tiros: 1, rating: -0.7, moral: -10 }),
+        opt('crear-copa', 'Filtrar el último pase', 0.2 + skill('vision') * 0.48 + skill('pase') * 0.12, { text: 'Pase imposible y gol de tu compañero. ¡Campeones!', asistencias: 1, rating: 1.8, moral: 14, reputacion: 6, trophy: cup }, { text: 'El pase no encontró destino y la Copa se escapó.', rating: -0.4, moral: -8 }),
+        opt('forzar-penaltis', 'Proteger el balón y llegar a penaltis', 0.45 + skill('concentracion') * 0.25, { text: 'Resististeis y ganasteis la tanda. ¡Copa conquistada!', rating: 1.2, moral: 12, reputacion: 4, trophy: cup }, { text: 'El rival robó y marcó a la contra.', rating: -0.6, moral: -9 }),
+      ],
+    };
+  }
+
+  if (!chance(rng, approach === 'protagonista' ? 0.88 : 0.55)) return null;
   const moment = pick(rng, situations);
   return { ...moment, minute };
 }
@@ -436,7 +480,7 @@ function baseMatch(state: CareerState, ctx: SimContext): MatchResult {
   const group = positionGroup(p.position);
   const skill = (k: keyof Attributes) => p.attributes[k];
   const minFactor = minutos / 90;
-  const riskMult = ctx.approach === 'riesgo' ? 1.3 : ctx.approach === 'seguro' ? 0.8 : 1;
+  const riskMult = ctx.approach === 'protagonista' ? 1.55 : ctx.approach === 'riesgo' ? 1.3 : ctx.approach === 'seguro' ? 0.8 : 1;
 
   let goles = 0;
   let asistencias = 0;
@@ -451,7 +495,10 @@ function baseMatch(state: CareerState, ctx: SimContext): MatchResult {
     } else {
       const shotBase = group === 'att' ? 3 : group === 'mid' ? 1.6 : 0.4;
       tiros = Math.max(0, Math.round(shotBase * minFactor * riskMult) + randInt(rng, -1, 1));
-      const finishing = (skill('disparo') / 100) * 0.32 * (ctx.approach === 'riesgo' ? 1.15 : 1);
+      const finishing =
+        (skill('disparo') / 100) *
+        0.32 *
+        (ctx.approach === 'protagonista' ? 1.22 : ctx.approach === 'riesgo' ? 1.15 : 1);
       for (let i = 0; i < tiros; i++) if (chance(rng, clamp(finishing - rivalStrength / 600, 0.03, 0.5))) goles += 1;
       goles = Math.min(goles, golesFavor);
       const assistP = clamp(((skill('pase') + skill('vision')) / 260) * minFactor * (group === 'mid' ? 1.25 : 1), 0.02, 0.5);
@@ -669,6 +716,30 @@ function narrativePool(state: CareerState, rng: Rng): NarrativeEvent[] {
       { id: 'callar', label: 'Evitar la pregunta', hint: 'Neutro', effects: { text: 'Sin titulares. A veces el silencio es la mejor respuesta.' } },
     ],
   });
+  if (p.coachTrust >= 70 && state.jornada >= 10) {
+    events.push({
+      id: 'liderazgo',
+      title: 'El brazalete está en juego',
+      text: 'El entrenador busca un nuevo líder para los partidos importantes y quiere saber si estás preparado.',
+      options: [
+        { id: 'aceptar', label: 'Asumir el liderazgo', hint: 'Más presión y prestigio', effects: { reputacion: 5, coachTrust: 5, moral: 4, fitness: -3, text: 'Das un paso al frente: el vestuario empieza a verte como capitán.' } },
+        { id: 'equipo', label: 'Proponer una capitanía compartida', hint: 'Une al vestuario', effects: { coachTrust: 3, moral: 7, reputacion: 2, text: 'Tu decisión fortaleció al grupo y evitó egos.' } },
+        { id: 'rechazar', label: 'Centrarte solo en jugar', hint: 'Menos presión', effects: { fitness: 4, coachTrust: -3, text: 'Prefieres hablar en el campo. El técnico respeta tu sinceridad.' } },
+      ],
+    });
+  }
+  if (state.jornada >= 16 && p.reputacion >= 30) {
+    events.push({
+      id: 'vestuario',
+      title: 'Crisis en el vestuario',
+      text: 'Dos referentes se enfrentan antes del tramo decisivo. Tu postura puede cambiar la temporada.',
+      options: [
+        { id: 'mediar', label: 'Reunir al grupo y mediar', hint: 'Decisión de líder', effects: { moral: 8, coachTrust: 6, reputacion: 3, text: 'La plantilla sale unida de la reunión.' } },
+        { id: 'entrenador', label: 'Respaldar públicamente al entrenador', hint: 'Mejora tu jerarquía', effects: { coachTrust: 10, moral: -3, reputacion: 2, text: 'El técnico gana el pulso, aunque parte del vestuario se distancia.' } },
+        { id: 'mantenerse', label: 'No tomar partido', hint: 'Evita riesgos', effects: { moral: -2, text: 'El conflicto continúa, pero quedas fuera del foco.' } },
+      ],
+    });
+  }
   events.push({
     id: 'extra',
     title: 'Sesión extra',
@@ -945,9 +1016,13 @@ export function playJornada(prev: CareerState, approach: MatchApproach, interact
 
   const ctx: SimContext = { rng, approach, interactive };
   const result = baseMatch(state, ctx);
+  if (approach === 'protagonista' && result.minutos > 0) {
+    state.player.fitness = clamp(state.player.fitness - 4, 0, 100);
+    notes.push('Buscaste ser protagonista durante todo el partido: generaste más peligro, pero gastaste más energía.');
+  }
 
   if (interactive && result.minutos >= 45 && !state.retired) {
-    const moment = makeMoment(state, rng);
+    const moment = makeMoment(state, rng, approach);
     if (moment != null) {
       state.screen = { type: 'momento', moment, partial: result };
       saveRng(state, rng);
@@ -979,6 +1054,11 @@ export function resolveMoment(prev: CareerState, optionId: string): CareerState 
   if (effect.tarjetaP != null && chance(rng, effect.tarjetaP)) partial.amarilla = true;
   state.player.moral = clamp(state.player.moral + effect.moral, 0, 100);
   state.player.reputacion = clamp(state.player.reputacion + (effect.reputacion ?? 0), 0, 100);
+  if (effect.trophy != null && !state.trophies.includes(effect.trophy)) {
+    state.trophies.push(effect.trophy);
+    addAchievement(state, 'Héroe de una final');
+    log(state, `Título conquistado: ${effect.trophy}`, 'logro');
+  }
   if (effect.lesionP != null && state.injury == null && chance(rng, effect.lesionP)) {
     rollInjury(state, rng, true);
     notes.push('La jugada acabó con problemas físicos.');

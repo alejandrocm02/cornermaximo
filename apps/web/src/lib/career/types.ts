@@ -192,6 +192,8 @@ export interface MomentEffect {
   reputacion?: number;
   lesionP?: number;
   tarjetaP?: number;
+  /** Trofeo obtenido al resolver con éxito una situación decisiva. */
+  trophy?: string;
 }
 
 export interface MatchResult {
