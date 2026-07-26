@@ -380,7 +380,22 @@ export function mapStandings(raw: RawStandingsResponse): ProviderStandingRow[] {
       });
     }
   }
-  return out;
+
+  /*
+   * En el Mundial el proveedor añade al final una tabla auxiliar `Group Stage`
+   * con el ranking de mejores terceros. Esas selecciones ya existen en su
+   * grupo real y Standing tiene una única fila por (temporada, equipo), por lo
+   * que guardar la tabla auxiliar sobrescribiría la posición 3 y dejaría cada
+   * grupo visible con 1, 2 y 4. Solo descartamos filas auxiliares duplicadas:
+   * una competición cuya única tabla se llame `Group Stage` sigue funcionando.
+   */
+  const appearances = new Map<string, number>();
+  for (const row of out) {
+    appearances.set(row.teamExternalId, (appearances.get(row.teamExternalId) ?? 0) + 1);
+  }
+  return out.filter(
+    (row) => row.group !== 'Group Stage' || appearances.get(row.teamExternalId) === 1,
+  );
 }
 
 interface RawTransferEntry {
