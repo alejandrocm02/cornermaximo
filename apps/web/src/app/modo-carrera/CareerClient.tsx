@@ -681,6 +681,8 @@ function GameView({
 
       {/* Panel lateral: estado, objetivos e historial */}
       <aside className="space-y-4">
+        <CareerStatsPanel career={career} />
+
         <section className={`${card} space-y-3`} aria-label="Estado del jugador">
           <h3 className="text-sm font-bold">Estado</h3>
           <StatBar label="Forma" value={p.forma} />
@@ -758,6 +760,100 @@ function ResultStat({ label, value, highlight }: { label: string; value: string;
   );
 }
 
+function CareerStatsPanel({ career }: { career: CareerState }) {
+  const currentAlreadyCommitted =
+    career.screen.type === 'finTemporada' ||
+    career.history.some((season) => season.year === career.year);
+  const totals = { ...career.careerTotals };
+  if (!currentAlreadyCommitted) {
+    for (const key of Object.keys(totals) as Array<keyof typeof totals>) {
+      totals[key] += career.stats[key];
+    }
+  }
+
+  const seasonAvg =
+    career.stats.ratingCount > 0 ? career.stats.ratingSum / career.stats.ratingCount : 0;
+  const careerAvg = totals.ratingCount > 0 ? totals.ratingSum / totals.ratingCount : 0;
+  const goalRate = totals.pj > 0 ? totals.goles / totals.pj : 0;
+  const goalConversion = totals.tiros > 0 ? (totals.goles / totals.tiros) * 100 : 0;
+
+  return (
+    <section className={`${card} space-y-3`} aria-label="Estadísticas de la carrera">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold">Tus estadísticas</h3>
+        <span className="fs-chip">{career.history.length + (currentAlreadyCommitted ? 0 : 1)}ª temporada</span>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-pitch-muted">Temporada actual</p>
+        <dl className="grid grid-cols-3 gap-2 text-center">
+          <ResultStat label="PJ" value={String(career.stats.pj)} />
+          <ResultStat label="Goles" value={String(career.stats.goles)} highlight />
+          <ResultStat label="Asist." value={String(career.stats.asistencias)} />
+          <ResultStat label="Minutos" value={String(career.stats.minutos)} />
+          <ResultStat label="Tiros" value={String(career.stats.tiros)} />
+          <ResultStat label="Nota" value={seasonAvg > 0 ? seasonAvg.toFixed(2) : '—'} />
+        </dl>
+      </div>
+
+      <div className="border-t border-pitch-border pt-3">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-pitch-muted">Total de la carrera</p>
+        <dl className="grid grid-cols-3 gap-2 text-center">
+          <ResultStat label="Partidos" value={String(totals.pj)} />
+          <ResultStat label="Goles" value={String(totals.goles)} highlight />
+          <ResultStat label="Asist." value={String(totals.asistencias)} />
+          <ResultStat label="Goles/PJ" value={goalRate.toFixed(2)} />
+          <ResultStat label="Eficacia" value={totals.tiros > 0 ? `${goalConversion.toFixed(0)}%` : '—'} />
+          <ResultStat label="Nota media" value={careerAvg > 0 ? careerAvg.toFixed(2) : '—'} />
+        </dl>
+      </div>
+
+      <div className="border-t border-pitch-border pt-3">
+        <p className="text-xs font-semibold">
+          🏆 {career.trophies.length} {career.trophies.length === 1 ? 'título' : 'títulos'}
+        </p>
+        <p className="mt-1 text-xs text-pitch-muted">
+          {career.trophies.length > 0 ? career.trophies.slice(-3).join(' · ') : 'Tu vitrina todavía está vacía.'}
+        </p>
+      </div>
+
+      {career.history.length > 0 && (
+        <details>
+          <summary className="cursor-pointer text-xs font-semibold text-pitch-accent outline-none focus-visible:ring-2 focus-visible:ring-pitch-accent">
+            Ver trayectoria por temporadas
+          </summary>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[280px] text-left text-xs">
+              <thead className="text-pitch-muted">
+                <tr>
+                  <th className="py-1 pr-2">Año</th>
+                  <th className="px-2 py-1">Club</th>
+                  <th className="px-2 py-1 text-right">PJ</th>
+                  <th className="px-2 py-1 text-right">G</th>
+                  <th className="px-2 py-1 text-right">A</th>
+                  <th className="pl-2 py-1 text-right">Nota</th>
+                </tr>
+              </thead>
+              <tbody>
+                {career.history.map((season) => (
+                  <tr key={season.year} className="border-t border-pitch-border/60">
+                    <td className="py-1.5 pr-2">{season.year}</td>
+                    <td className="max-w-24 truncate px-2 py-1.5">{season.clubName}</td>
+                    <td className="px-2 py-1.5 text-right">{season.stats.pj}</td>
+                    <td className="px-2 py-1.5 text-right">{season.stats.goles}</td>
+                    <td className="px-2 py-1.5 text-right">{season.stats.asistencias}</td>
+                    <td className="pl-2 py-1.5 text-right">{season.avgRating.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+    </section>
+  );
+}
+
 function JornadaView({ career, apply }: { career: CareerState; apply: (c: CareerState) => void }) {
   const [approach, setApproach] = useState<MatchApproach>('seguro');
   const injured = career.injury != null && career.injury.weeksOut > 0;
@@ -773,11 +869,12 @@ function JornadaView({ career, apply }: { career: CareerState; apply: (c: Career
         <>
           <fieldset className="space-y-2">
             <legend className="text-xs text-pitch-muted">Planteamiento del partido</legend>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2">
               {(
                 [
                   ['seguro', 'Jugar seguro', 'Menos errores, menos brillo'],
                   ['riesgo', 'Asumir riesgos', 'Más ocasiones… y más fallos'],
+                  ['protagonista', 'Buscar el gol', 'Más tiros y momentos decisivos; exige más'],
                   ['energia', 'Conservar energía', 'Rinde algo menos, fatiga menos'],
                 ] as Array<[MatchApproach, string, string]>
               ).map(([id, label, hint]) => (
