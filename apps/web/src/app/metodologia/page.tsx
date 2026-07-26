@@ -6,7 +6,7 @@ export const metadata = {
 export default function MethodologyPage() {
   return (
     <article className="max-w-2xl space-y-4">
-      <h1 className="text-2xl font-bold">Fuente y metodología</h1>
+      <h1 className="text-3xl font-bold sm:text-4xl">Fuente y metodología</h1>
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Fuente de los datos</h2>
         <p className="text-sm leading-relaxed text-pitch-muted">

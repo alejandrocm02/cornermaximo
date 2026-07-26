@@ -56,7 +56,7 @@ const btnPrimary =
   'rounded-lg bg-pitch-accent px-4 py-3 font-medium text-black outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-50';
 const btnSecondary =
   'rounded-lg border border-pitch-border px-4 py-3 text-sm text-pitch-muted outline-none hover:border-pitch-accent hover:text-white focus-visible:ring-2 focus-visible:ring-pitch-accent';
-const card = 'rounded-xl border border-pitch-border bg-pitch-card p-4';
+const card = 'fs-panel p-4';
 
 function StatBar({ label, value, tone }: { label: string; value: number; tone?: 'ok' | 'warn' }) {
   const color = tone === 'warn' || value < 35 ? 'bg-pitch-danger' : value < 60 ? 'bg-yellow-400' : 'bg-pitch-accent';

@@ -7,7 +7,7 @@ export const metadata = {
 export default function LegalPage() {
   return (
     <article className="max-w-2xl space-y-4">
-      <h1 className="text-2xl font-bold">Aviso legal</h1>
+      <h1 className="text-3xl font-bold sm:text-4xl">Aviso legal</h1>
       <p className="text-sm leading-relaxed text-pitch-muted">
         FutStats es un proyecto de análisis estadístico de fútbol. Los datos deportivos proceden de
         API-Football. Los nombres de competiciones y clubes, sus escudos y las fotografías de

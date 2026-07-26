@@ -113,7 +113,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
           <span className="h-20 w-20 rounded-full bg-pitch-border" />
         )}
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-3xl font-bold sm:text-4xl">
             {team.name}
             {team.isNational && (
               <span className="ml-2 rounded-full bg-pitch-accent/15 px-2 py-0.5 align-middle text-xs font-medium text-pitch-accent">

@@ -1,10 +1,19 @@
 /**
  * Países y territorios futbolísticos del Modo Carrera.
- * - Códigos estables ISO 3166-1 alpha-2 (con códigos extendidos para las
- *   naciones británicas: GB-ENG, GB-SCT, GB-WLS, GB-NIR).
+ *
+ * Cobertura: las 211 asociaciones miembro de la FIFA, agrupadas por
+ * confederación. Cualquiera de ellas puede elegirse como selección nacional
+ * sin restricciones — no hay lista corta ni países "bloqueados".
+ *
+ * - Códigos estables ISO 3166-1 alpha-2, con códigos extendidos para las
+ *   naciones británicas (GB-ENG, GB-SCT, GB-WLS, GB-NIR) y XK para Kosovo.
  * - La nacionalidad solo determina el contexto internacional (selección,
  *   confederación, torneos, narrativa): nunca el potencial ni la calidad
- *   inicial del futbolista.
+ *   inicial del futbolista. Elegir una selección modesta cambia la historia,
+ *   no la dificultad de progresar como jugador.
+ * - `natLevel` (1-5) describe la competitividad histórica de la selección y
+ *   solo se usa para simular resultados internacionales. El valor por defecto
+ *   para asociaciones sin tradición reciente es 1.
  * - Las selecciones y torneos se simulan internamente: no usan datos reales
  *   de FutStats.
  */
@@ -71,6 +80,13 @@ export const FOOTBALL_COUNTRIES: FootballCountry[] = [
   { code: 'LT', name: 'Lituania', confederation: 'UEFA', natLevel: 1 },
   { code: 'MT', name: 'Malta', confederation: 'UEFA', natLevel: 1 },
   { code: 'AD', name: 'Andorra', confederation: 'UEFA', natLevel: 1 },
+  { code: 'BY', name: 'Bielorrusia', confederation: 'UEFA', natLevel: 1 },
+  { code: 'MD', name: 'Moldavia', confederation: 'UEFA', natLevel: 1 },
+  { code: 'XK', name: 'Kosovo', confederation: 'UEFA', natLevel: 1 },
+  { code: 'FO', name: 'Islas Feroe', confederation: 'UEFA', natLevel: 1 },
+  { code: 'GI', name: 'Gibraltar', confederation: 'UEFA', natLevel: 1 },
+  { code: 'LI', name: 'Liechtenstein', confederation: 'UEFA', natLevel: 1 },
+  { code: 'SM', name: 'San Marino', confederation: 'UEFA', natLevel: 1 },
   // CONMEBOL
   { code: 'AR', name: 'Argentina', confederation: 'CONMEBOL', natLevel: 5 },
   { code: 'BR', name: 'Brasil', confederation: 'CONMEBOL', natLevel: 5 },
@@ -96,6 +112,28 @@ export const FOOTBALL_COUNTRIES: FootballCountry[] = [
   { code: 'HT', name: 'Haití', confederation: 'CONCACAF', natLevel: 1 },
   { code: 'CU', name: 'Cuba', confederation: 'CONCACAF', natLevel: 1 },
   { code: 'DO', name: 'República Dominicana', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'NI', name: 'Nicaragua', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'SR', name: 'Surinam', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'GY', name: 'Guyana', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'CW', name: 'Curazao', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'PR', name: 'Puerto Rico', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'BB', name: 'Barbados', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'BS', name: 'Bahamas', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'BZ', name: 'Belice', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'BM', name: 'Bermudas', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'AW', name: 'Aruba', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'AG', name: 'Antigua y Barbuda', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'AI', name: 'Anguila', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'VG', name: 'Islas Vírgenes Británicas', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'VI', name: 'Islas Vírgenes de EE. UU.', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'KY', name: 'Islas Caimán', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'TC', name: 'Islas Turcas y Caicos', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'DM', name: 'Dominica', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'GD', name: 'Granada', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'KN', name: 'San Cristóbal y Nieves', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'LC', name: 'Santa Lucía', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'VC', name: 'San Vicente y las Granadinas', confederation: 'CONCACAF', natLevel: 1 },
+  { code: 'MS', name: 'Montserrat', confederation: 'CONCACAF', natLevel: 1 },
   // CAF
   { code: 'MA', name: 'Marruecos', confederation: 'CAF', natLevel: 4 },
   { code: 'SN', name: 'Senegal', confederation: 'CAF', natLevel: 3 },
@@ -118,6 +156,39 @@ export const FOOTBALL_COUNTRIES: FootballCountry[] = [
   { code: 'AO', name: 'Angola', confederation: 'CAF', natLevel: 1 },
   { code: 'MZ', name: 'Mozambique', confederation: 'CAF', natLevel: 1 },
   { code: 'GQ', name: 'Guinea Ecuatorial', confederation: 'CAF', natLevel: 1 },
+  { code: 'UG', name: 'Uganda', confederation: 'CAF', natLevel: 1 },
+  { code: 'TZ', name: 'Tanzania', confederation: 'CAF', natLevel: 1 },
+  { code: 'ET', name: 'Etiopía', confederation: 'CAF', natLevel: 1 },
+  { code: 'SD', name: 'Sudán', confederation: 'CAF', natLevel: 1 },
+  { code: 'SS', name: 'Sudán del Sur', confederation: 'CAF', natLevel: 1 },
+  { code: 'LY', name: 'Libia', confederation: 'CAF', natLevel: 1 },
+  { code: 'BJ', name: 'Benín', confederation: 'CAF', natLevel: 1 },
+  { code: 'TG', name: 'Togo', confederation: 'CAF', natLevel: 1 },
+  { code: 'NE', name: 'Níger', confederation: 'CAF', natLevel: 1 },
+  { code: 'GM', name: 'Gambia', confederation: 'CAF', natLevel: 1 },
+  { code: 'GW', name: 'Guinea-Bisáu', confederation: 'CAF', natLevel: 1 },
+  { code: 'SL', name: 'Sierra Leona', confederation: 'CAF', natLevel: 1 },
+  { code: 'LR', name: 'Liberia', confederation: 'CAF', natLevel: 1 },
+  { code: 'MR', name: 'Mauritania', confederation: 'CAF', natLevel: 1 },
+  { code: 'CG', name: 'Congo', confederation: 'CAF', natLevel: 1 },
+  { code: 'CF', name: 'República Centroafricana', confederation: 'CAF', natLevel: 1 },
+  { code: 'TD', name: 'Chad', confederation: 'CAF', natLevel: 1 },
+  { code: 'BI', name: 'Burundi', confederation: 'CAF', natLevel: 1 },
+  { code: 'RW', name: 'Ruanda', confederation: 'CAF', natLevel: 1 },
+  { code: 'KM', name: 'Comoras', confederation: 'CAF', natLevel: 1 },
+  { code: 'DJ', name: 'Yibuti', confederation: 'CAF', natLevel: 1 },
+  { code: 'ER', name: 'Eritrea', confederation: 'CAF', natLevel: 1 },
+  { code: 'SO', name: 'Somalia', confederation: 'CAF', natLevel: 1 },
+  { code: 'MG', name: 'Madagascar', confederation: 'CAF', natLevel: 1 },
+  { code: 'MU', name: 'Mauricio', confederation: 'CAF', natLevel: 1 },
+  { code: 'SC', name: 'Seychelles', confederation: 'CAF', natLevel: 1 },
+  { code: 'MW', name: 'Malaui', confederation: 'CAF', natLevel: 1 },
+  { code: 'ZW', name: 'Zimbabue', confederation: 'CAF', natLevel: 1 },
+  { code: 'BW', name: 'Botsuana', confederation: 'CAF', natLevel: 1 },
+  { code: 'NA', name: 'Namibia', confederation: 'CAF', natLevel: 1 },
+  { code: 'LS', name: 'Lesoto', confederation: 'CAF', natLevel: 1 },
+  { code: 'SZ', name: 'Esuatini', confederation: 'CAF', natLevel: 1 },
+  { code: 'ST', name: 'Santo Tomé y Príncipe', confederation: 'CAF', natLevel: 1 },
   // AFC
   { code: 'JP', name: 'Japón', confederation: 'AFC', natLevel: 3 },
   { code: 'KR', name: 'Corea del Sur', confederation: 'AFC', natLevel: 3 },
@@ -137,6 +208,34 @@ export const FOOTBALL_COUNTRIES: FootballCountry[] = [
   { code: 'MY', name: 'Malasia', confederation: 'AFC', natLevel: 1 },
   { code: 'PS', name: 'Palestina', confederation: 'AFC', natLevel: 1 },
   { code: 'SY', name: 'Siria', confederation: 'AFC', natLevel: 1 },
+  { code: 'KP', name: 'Corea del Norte', confederation: 'AFC', natLevel: 2 },
+  { code: 'BH', name: 'Baréin', confederation: 'AFC', natLevel: 1 },
+  { code: 'KW', name: 'Kuwait', confederation: 'AFC', natLevel: 1 },
+  { code: 'OM', name: 'Omán', confederation: 'AFC', natLevel: 1 },
+  { code: 'LB', name: 'Líbano', confederation: 'AFC', natLevel: 1 },
+  { code: 'YE', name: 'Yemen', confederation: 'AFC', natLevel: 1 },
+  { code: 'AF', name: 'Afganistán', confederation: 'AFC', natLevel: 1 },
+  { code: 'PK', name: 'Pakistán', confederation: 'AFC', natLevel: 1 },
+  { code: 'BD', name: 'Bangladés', confederation: 'AFC', natLevel: 1 },
+  { code: 'NP', name: 'Nepal', confederation: 'AFC', natLevel: 1 },
+  { code: 'BT', name: 'Bután', confederation: 'AFC', natLevel: 1 },
+  { code: 'LK', name: 'Sri Lanka', confederation: 'AFC', natLevel: 1 },
+  { code: 'MV', name: 'Maldivas', confederation: 'AFC', natLevel: 1 },
+  { code: 'KG', name: 'Kirguistán', confederation: 'AFC', natLevel: 1 },
+  { code: 'TJ', name: 'Tayikistán', confederation: 'AFC', natLevel: 1 },
+  { code: 'TM', name: 'Turkmenistán', confederation: 'AFC', natLevel: 1 },
+  { code: 'MN', name: 'Mongolia', confederation: 'AFC', natLevel: 1 },
+  { code: 'HK', name: 'Hong Kong', confederation: 'AFC', natLevel: 1 },
+  { code: 'MO', name: 'Macao', confederation: 'AFC', natLevel: 1 },
+  { code: 'TW', name: 'Taipéi Chino', confederation: 'AFC', natLevel: 1 },
+  { code: 'GU', name: 'Guam', confederation: 'AFC', natLevel: 1 },
+  { code: 'PH', name: 'Filipinas', confederation: 'AFC', natLevel: 1 },
+  { code: 'SG', name: 'Singapur', confederation: 'AFC', natLevel: 1 },
+  { code: 'MM', name: 'Myanmar', confederation: 'AFC', natLevel: 1 },
+  { code: 'KH', name: 'Camboya', confederation: 'AFC', natLevel: 1 },
+  { code: 'LA', name: 'Laos', confederation: 'AFC', natLevel: 1 },
+  { code: 'BN', name: 'Brunéi', confederation: 'AFC', natLevel: 1 },
+  { code: 'TL', name: 'Timor Oriental', confederation: 'AFC', natLevel: 1 },
   // OFC
   { code: 'NZ', name: 'Nueva Zelanda', confederation: 'OFC', natLevel: 2 },
   { code: 'FJ', name: 'Fiyi', confederation: 'OFC', natLevel: 1 },
@@ -144,6 +243,11 @@ export const FOOTBALL_COUNTRIES: FootballCountry[] = [
   { code: 'SB', name: 'Islas Salomón', confederation: 'OFC', natLevel: 1 },
   { code: 'NC', name: 'Nueva Caledonia', confederation: 'OFC', natLevel: 1 },
   { code: 'PF', name: 'Tahití (Polinesia Francesa)', confederation: 'OFC', natLevel: 1 },
+  { code: 'VU', name: 'Vanuatu', confederation: 'OFC', natLevel: 1 },
+  { code: 'WS', name: 'Samoa', confederation: 'OFC', natLevel: 1 },
+  { code: 'AS', name: 'Samoa Americana', confederation: 'OFC', natLevel: 1 },
+  { code: 'TO', name: 'Tonga', confederation: 'OFC', natLevel: 1 },
+  { code: 'CK', name: 'Islas Cook', confederation: 'OFC', natLevel: 1 },
 ];
 
 /** Accesos rápidos mostrados antes de la lista completa. */
@@ -194,13 +298,52 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
-/** Búsqueda tolerante a mayúsculas y acentos por nombre o código. */
+/** Nombre legible de cada confederación, para agrupar y buscar. */
+export const CONFEDERATION_LABEL: Record<Confederation, string> = {
+  UEFA: 'Europa (UEFA)',
+  CONMEBOL: 'Sudamérica (CONMEBOL)',
+  CONCACAF: 'Norteamérica y Caribe (CONCACAF)',
+  CAF: 'África (CAF)',
+  AFC: 'Asia (AFC)',
+  OFC: 'Oceanía (OFC)',
+};
+
+/** Orden estable en el que se muestran las confederaciones. */
+export const CONFEDERATION_ORDER: Confederation[] = ['UEFA', 'CONMEBOL', 'CONCACAF', 'CAF', 'AFC', 'OFC'];
+
+/**
+ * Países agrupados por confederación y ordenados alfabéticamente dentro de
+ * cada grupo. Con 211 asociaciones, una lista plana es inmanejable.
+ */
+export function countriesByConfederation(): Array<{ confederation: Confederation; countries: FootballCountry[] }> {
+  return CONFEDERATION_ORDER.map((confederation) => ({
+    confederation,
+    countries: FOOTBALL_COUNTRIES.filter((c) => c.confederation === confederation).sort((a, b) =>
+      a.name.localeCompare(b.name, 'es'),
+    ),
+  }));
+}
+
+/**
+ * Búsqueda tolerante a mayúsculas y acentos por nombre, código o
+ * confederación (así "africa" o "CAF" devuelven todo el continente).
+ */
 export function searchCountries(query: string): FootballCountry[] {
   const q = normalizeText(query);
   if (q === '') return FOOTBALL_COUNTRIES;
   return FOOTBALL_COUNTRIES.filter(
-    (c) => normalizeText(c.name).includes(q) || normalizeText(c.code).includes(q),
-  );
+    (c) =>
+      normalizeText(c.name).includes(q) ||
+      normalizeText(c.code).includes(q) ||
+      normalizeText(c.confederation).includes(q) ||
+      normalizeText(CONFEDERATION_LABEL[c.confederation]).includes(q),
+  ).sort((a, b) => {
+    // Prioriza las coincidencias que empiezan por el término buscado.
+    const aStarts = normalizeText(a.name).startsWith(q);
+    const bStarts = normalizeText(b.name).startsWith(q);
+    if (aStarts !== bStarts) return aStarts ? -1 : 1;
+    return a.name.localeCompare(b.name, 'es');
+  });
 }
 
 /** Nombre del torneo continental simulado según confederación. */

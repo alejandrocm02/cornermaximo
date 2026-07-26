@@ -17,13 +17,13 @@ export default async function LeaguesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Ligas</h1>
+      <h1 className="text-3xl font-bold sm:text-4xl">Ligas</h1>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {leagues.map((l) => (
           <Link
             key={l.id}
             href={`/ligas/${l.slug}`}
-            className="rounded-xl border border-pitch-border bg-pitch-card p-5 hover:border-pitch-accent"
+            className="fs-panel-interactive p-5"
           >
             <p className="font-semibold">{l.name}</p>
             <p className="text-sm text-pitch-muted">{l.country.name}</p>

@@ -23,7 +23,7 @@ function MatchCard({ match }: { match: UpcomingMatch }) {
   const slip = useBetSlip();
   const label = `${match.home} – ${match.away}`;
   return (
-    <article className="rounded-xl border border-pitch-border bg-pitch-card p-4 text-sm">
+    <article className="fs-panel p-4 text-sm">
       <p className="text-xs text-pitch-muted">
         {match.competition}
         {match.round != null && ` · ${match.round}`} ·{' '}

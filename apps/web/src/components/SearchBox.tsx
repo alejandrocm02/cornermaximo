@@ -121,34 +121,50 @@ export function SearchBox({
 
   return (
     <div className="relative w-full max-w-xl">
-      <input
-        aria-label={placeholder}
-        role="combobox"
-        aria-expanded={open}
-        aria-controls="global-search-list"
-        aria-activedescendant={active >= 0 ? `search-item-${active}` : undefined}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => items.length > 0 && setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm outline-none placeholder:text-pitch-muted focus:border-pitch-accent focus:ring-2 focus:ring-pitch-accent/40"
-      />
-      {loading && <span className="absolute right-4 top-3 animate-pulse text-xs text-pitch-muted">…</span>}
+      {/* Halo de foco: se ilumina cuando el campo recibe el foco. */}
+      <div className="group relative">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-pitch-muted transition-colors group-focus-within:text-pitch-accent"
+        >
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="9" cy="9" r="6" />
+            <path d="M13.5 13.5L17 17" strokeLinecap="round" />
+          </svg>
+        </span>
+        <input
+          aria-label={placeholder}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="global-search-list"
+          aria-activedescendant={active >= 0 ? `search-item-${active}` : undefined}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => items.length > 0 && setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          className="w-full rounded-2xl border border-pitch-border bg-pitch-card/80 py-3.5 pl-11 pr-11 text-sm text-white shadow-panel outline-none backdrop-blur transition placeholder:text-pitch-muted focus:border-pitch-accent/60 focus:shadow-glow"
+        />
+        {loading && (
+          <span className="absolute right-4 top-1/2 -translate-y-1/2" role="status" aria-label="Buscando">
+            <span className="block h-4 w-4 animate-spin rounded-full border-2 border-pitch-border border-t-pitch-accent" />
+          </span>
+        )}
+      </div>
 
       {open && items.length > 0 && (
         <ul
           id="global-search-list"
           role="listbox"
-          className="absolute z-20 mt-2 max-h-96 w-full overflow-auto rounded-xl border border-pitch-border bg-pitch-card shadow-xl"
+          className="absolute z-20 mt-2 max-h-96 w-full overflow-auto rounded-2xl border border-pitch-border bg-pitch-card/95 shadow-float backdrop-blur-xl"
         >
           {items.map((item, i) => {
             const isFirstOfKind = i === 0 || items[i - 1]!.kind !== item.kind;
             return (
               <li key={`${item.kind}-${item.slug}`}>
                 {isFirstOfKind && onSelect == null && (
-                  <p className="border-b border-pitch-border/50 bg-pitch-bg/40 px-4 py-1 text-[10px] font-semibold uppercase tracking-wide text-pitch-muted">
+                  <p className="sticky top-0 z-10 border-b border-pitch-border/50 bg-pitch-elevated/90 px-4 py-1.5 text-2xs font-semibold uppercase tracking-[0.18em] text-pitch-muted backdrop-blur">
                     {KIND_LABEL[item.kind]}
                   </p>
                 )}
@@ -162,8 +178,10 @@ export function SearchBox({
                     choose(item);
                   }}
                   onMouseEnter={() => setActive(i)}
-                  className={`flex w-full items-center gap-3 px-4 py-2 text-left ${
-                    i === active ? 'bg-pitch-accent/15' : 'hover:bg-pitch-border/40'
+                  className={`flex w-full items-center gap-3 border-l-2 px-4 py-2.5 text-left transition-colors ${
+                    i === active
+                      ? 'border-pitch-accent bg-pitch-accent/10'
+                      : 'border-transparent hover:bg-pitch-elevated/70'
                   }`}
                 >
                   {item.img != null ? (
@@ -184,7 +202,7 @@ export function SearchBox({
       )}
 
       {showNoResults && (
-        <div className="absolute z-20 mt-2 w-full rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm text-pitch-muted">
+        <div className="absolute z-20 mt-2 w-full rounded-2xl border border-pitch-border bg-pitch-card/95 px-4 py-3 text-sm text-pitch-muted shadow-float backdrop-blur-xl">
           Sin resultados para «{query.trim()}». Prueba con otro nombre.
         </div>
       )}

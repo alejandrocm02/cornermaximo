@@ -157,7 +157,7 @@ export function MisApuestasClient() {
     <div className="space-y-6">
       {/* Estadísticas personales */}
       {bets.length > 0 && (
-        <section aria-label="Estadísticas personales" className="rounded-xl border border-pitch-border bg-pitch-card p-4 text-sm">
+        <section aria-label="Estadísticas personales" className="fs-panel p-4 text-sm">
           <h2 className="text-base font-bold">Tus números</h2>
           <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <div><dt className="text-xs text-pitch-muted">Apuestas guardadas</dt><dd className="font-semibold">{bets.length}</dd></div>
@@ -220,7 +220,7 @@ export function MisApuestasClient() {
           const profit = settledProfit(bet);
           const open = openId === bet.id;
           return (
-            <article key={bet.id} className="rounded-xl border border-pitch-border bg-pitch-card p-4 text-sm">
+            <article key={bet.id} className="fs-panel p-4 text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>
                   {status.prefix} {status.label}

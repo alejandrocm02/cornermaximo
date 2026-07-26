@@ -7,7 +7,7 @@ export const metadata = {
 export default function PrivacyPage() {
   return (
     <article className="max-w-2xl space-y-4">
-      <h1 className="text-2xl font-bold">Política de privacidad</h1>
+      <h1 className="text-3xl font-bold sm:text-4xl">Política de privacidad</h1>
       <p className="text-sm leading-relaxed text-pitch-muted">
         FutStats no requiere registro y no recopila datos personales de sus visitantes. No se
         utilizan cookies propias de seguimiento ni herramientas de analítica en esta versión.

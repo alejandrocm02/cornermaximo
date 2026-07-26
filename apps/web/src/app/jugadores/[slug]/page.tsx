@@ -121,7 +121,7 @@ export default async function PlayerPage({
           <span className="h-24 w-24 rounded-full bg-pitch-border" />
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold">{player.knownAs ?? player.fullName}</h1>
+          <h1 className="text-3xl font-bold sm:text-4xl">{player.knownAs ?? player.fullName}</h1>
           <p className="text-sm text-pitch-muted">
             {player.positions.find((p) => p.isPrimary)?.group ?? '—'}
             {player.currentTeam != null && (
@@ -190,7 +190,7 @@ export default async function PlayerPage({
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Partido a partido</h2>
         <div className="space-y-2">
           {data.matches.map((m) => (
-            <div key={m.matchId} className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm">
+            <div key={m.matchId} className="flex flex-wrap items-center gap-x-4 gap-y-1 fs-panel px-4 py-3 text-sm">
               <span className="w-20 text-xs text-pitch-muted">{new Date(m.date).toLocaleDateString('es-ES')}</span>
               <span className="min-w-0 flex-1 truncate">
                 {m.isHome ? 'vs' : '@'} {m.rival} <span className="text-pitch-muted">({m.result})</span>
@@ -260,7 +260,7 @@ export default async function PlayerPage({
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-pitch-border bg-pitch-card p-3 text-center">
+    <div className="fs-panel p-3 text-center">
       <p className="text-lg font-bold">{value}</p>
       <p className="text-xs text-pitch-muted">{label}</p>
       {sub != null && <p className="text-[10px] text-pitch-muted">{sub}</p>}

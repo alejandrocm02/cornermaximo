@@ -14,7 +14,7 @@ export default function ModoCarreraPage() {
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Mi Carrera' }]} />
       <div>
-        <h1 className="text-2xl font-bold">Mi Carrera</h1>
+        <h1 className="text-3xl font-bold sm:text-4xl">Mi Carrera</h1>
         <p className="mt-1 max-w-2xl text-sm text-pitch-muted">
           De promesa a leyenda: simula una carrera completa con decisiones, partidos, contratos, lesiones y selección. Se juega
           en sesiones cortas y se guarda automáticamente en tu dispositivo.

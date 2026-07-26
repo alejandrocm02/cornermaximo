@@ -37,7 +37,7 @@ export default async function WorldCupTopStatsPage({
       <Breadcrumbs items={[{ label: 'Mundial 2026', href: '/mundial-2026' }, { label: 'Estadísticas individuales' }]} />
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">Mundial 2026</p>
-        <h1 className="text-2xl font-bold">Estadísticas individuales</h1>
+        <h1 className="text-3xl font-bold sm:text-4xl">Estadísticas individuales</h1>
         <p className="text-sm text-pitch-muted">Acumulado real de todos los partidos disputados en el torneo, por jugador y selección.</p>
       </div>
 

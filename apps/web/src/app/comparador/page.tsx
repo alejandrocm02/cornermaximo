@@ -11,7 +11,7 @@ export const metadata = {
 export default function ComparePage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Comparador de jugadores</h1>
+      <h1 className="text-3xl font-bold sm:text-4xl">Comparador de jugadores</h1>
       <p className="max-w-2xl text-sm text-pitch-muted">
         Compara el rendimiento reciente de dos futbolistas por goles, asistencias, minutos y otras
         métricas disponibles. El enlace de la comparación se puede compartir.

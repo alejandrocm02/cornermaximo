@@ -16,54 +16,120 @@ type MatchRow = {
   }>;
 };
 
+/** Color del indicador de estado. En directo destaca; finalizado es neutro. */
+function statusTone(status: MatchStatus): string {
+  switch (status) {
+    case 'LIVE':
+      return 'border-pitch-danger/40 bg-pitch-danger/10 text-pitch-danger';
+    case 'SCHEDULED':
+      return 'border-pitch-accent2/30 bg-pitch-accent2/10 text-pitch-accent2';
+    case 'POSTPONED':
+    case 'SUSPENDED':
+    case 'ABANDONED':
+    case 'CANCELLED':
+      return 'border-pitch-warning/30 bg-pitch-warning/10 text-pitch-warning';
+    case 'FINISHED':
+    default:
+      return 'border-pitch-border bg-pitch-elevated text-pitch-muted';
+  }
+}
+
 export function MatchRows({ matches, empty }: { matches: MatchRow[]; empty: string }) {
   if (matches.length === 0) {
-    return <p className="text-sm text-pitch-muted">{empty}</p>;
+    return (
+      <div className="fs-panel grid place-items-center px-4 py-10 text-center">
+        <p className="max-w-xs text-sm text-pitch-muted">{empty}</p>
+      </div>
+    );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-pitch-border">
-      <div className="divide-y divide-pitch-border/70 bg-pitch-card">
+    <div className="fs-panel overflow-hidden">
+      <ul className="divide-y divide-pitch-border/60">
         {matches.map((match) => {
           const home = match.teams.find((team) => team.isHome);
           const away = match.teams.find((team) => !team.isHome);
+          const played = home?.goals != null && away?.goals != null;
+          const homeWon = played && home!.goals! > away!.goals!;
+          const awayWon = played && away!.goals! > home!.goals!;
+
           return (
-            <div key={match.id} className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[150px_1fr_auto] sm:items-center">
-              <div className="text-xs text-pitch-muted">
-                <p>{formatMatchDate(match.kickoffAt)}</p>
-                <p>{roundLabel(match.round) ?? statusLabel(match.status)}</p>
-              </div>
+            <li
+              key={match.id}
+              className="grid gap-2 px-4 py-3.5 transition-colors hover:bg-pitch-elevated/40 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4"
+            >
               <div className="min-w-0">
-                <p className="truncate font-medium">
-                  {home?.team.slug != null ? (
-                    <Link href={`/equipos/${home.team.slug}`} className="hover:text-pitch-accent">
-                      {home.team.name}
-                    </Link>
-                  ) : (
-                    home?.team.name
-                  )}
-                  <span className="px-2 text-pitch-accent">
-                    {home?.goals ?? '-'}-{away?.goals ?? '-'}
+                {/* Marcador: el equipo ganador va en blanco y negrita, de modo
+                    que el resultado se lee sin depender solo del color. */}
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                  <TeamName name={home?.team.name} slug={home?.team.slug} emphasis={homeWon} />
+                  <span className="font-display text-base font-bold tabular-nums text-white">
+                    {home?.goals ?? '·'}
+                    <span className="px-1 text-pitch-muted">–</span>
+                    {away?.goals ?? '·'}
                   </span>
-                  {away?.team.slug != null ? (
-                    <Link href={`/equipos/${away.team.slug}`} className="hover:text-pitch-accent">
-                      {away.team.name}
-                    </Link>
-                  ) : (
-                    away?.team.name
+                  <TeamName name={away?.team.name} slug={away?.team.slug} emphasis={awayWon} />
+                </p>
+
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-pitch-muted">
+                  <span>{formatMatchDate(match.kickoffAt)}</span>
+                  {match.season != null && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <Link
+                        href={`/ligas/${match.season.competition.slug}`}
+                        className="rounded transition-colors hover:text-pitch-accent"
+                      >
+                        {match.season.competition.name}
+                      </Link>
+                    </>
+                  )}
+                  {roundLabel(match.round) != null && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{roundLabel(match.round)}</span>
+                    </>
                   )}
                 </p>
-                {match.season != null && (
-                  <Link href={`/ligas/${match.season.competition.slug}`} className="text-xs text-pitch-muted hover:text-pitch-accent">
-                    {match.season.competition.name}
-                  </Link>
-                )}
               </div>
-              <span className="text-xs text-pitch-muted">{statusLabel(match.status)}</span>
-            </div>
+
+              <span
+                className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-semibold ${statusTone(
+                  match.status,
+                )}`}
+              >
+                {match.status === 'LIVE' && (
+                  <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                )}
+                {statusLabel(match.status)}
+              </span>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
+  );
+}
+
+function TeamName({
+  name,
+  slug,
+  emphasis,
+}: {
+  name: string | undefined;
+  slug: string | null | undefined;
+  emphasis: boolean;
+}) {
+  const className = `truncate rounded transition-colors ${
+    emphasis ? 'font-semibold text-white' : 'text-pitch-subtle'
+  }`;
+
+  if (name == null) return <span className={className}>—</span>;
+  if (slug == null) return <span className={className}>{name}</span>;
+
+  return (
+    <Link href={`/equipos/${slug}`} className={`${className} hover:text-pitch-accent`}>
+      {name}
+    </Link>
   );
 }

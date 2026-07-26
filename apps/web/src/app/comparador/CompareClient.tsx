@@ -248,7 +248,7 @@ export function CompareClient() {
       {loading && (
         <div className="space-y-2" aria-live="polite">
           <p className="text-sm text-pitch-muted">Cargando comparación…</p>
-          <div className="h-40 animate-pulse rounded-xl border border-pitch-border bg-pitch-card" />
+          <div className="h-40 animate-pulse fs-panel" />
         </div>
       )}
       {error != null && (

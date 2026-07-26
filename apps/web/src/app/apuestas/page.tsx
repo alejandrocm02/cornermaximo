@@ -70,7 +70,7 @@ export default async function ApuestasPage({
       <Breadcrumbs items={[{ label: 'Apuestas' }]} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Crea y analiza tu apuesta</h1>
+          <h1 className="text-3xl font-bold sm:text-4xl">Crea y analiza tu apuesta</h1>
           <p className="mt-1 max-w-2xl text-sm text-pitch-muted">
             Combina pronósticos, introduce tus cuotas y calcula el retorno potencial antes de guardar
             una simulación.
@@ -84,7 +84,7 @@ export default async function ApuestasPage({
         </Link>
       </div>
 
-      <p className="rounded-xl border border-pitch-border bg-pitch-card p-4 text-xs text-pitch-muted">
+      <p className="fs-panel p-4 text-xs text-pitch-muted">
         {RESPONSIBLE_NOTICE} Las cuotas las introduces tú manualmente: FutStats no muestra cuotas
         oficiales ni en tiempo real, no procesa pagos y no se conecta a casas de apuestas. Solo se
         ofrecen mercados que pueden verificarse después con el marcador final registrado en FutStats.
@@ -110,7 +110,7 @@ export default async function ApuestasPage({
       <ApuestasClient matches={upcoming} />
 
       {/* Juego responsable */}
-      <section aria-label="Juego responsable" className="rounded-xl border border-pitch-border bg-pitch-card p-4 text-sm">
+      <section aria-label="Juego responsable" className="fs-panel p-4 text-sm">
         <h2 className="text-base font-bold">Juego responsable</h2>
         <div className="mt-2 space-y-2 text-xs text-pitch-muted">
           <p>

@@ -86,7 +86,7 @@ export function BetSlip() {
 
   if (!slip.hydrated) {
     return (
-      <div className="space-y-3 rounded-xl border border-pitch-border bg-pitch-card p-4" aria-hidden="true">
+      <div className="space-y-3 fs-panel p-4" aria-hidden="true">
         <div className="h-4 w-2/3 animate-pulse rounded bg-pitch-border/60" />
         <div className="h-10 animate-pulse rounded bg-pitch-border/40" />
         <div className="h-10 animate-pulse rounded bg-pitch-border/40" />
@@ -95,7 +95,7 @@ export function BetSlip() {
   }
 
   return (
-    <section aria-label="Cupón de apuesta simulada" className="space-y-4 rounded-xl border border-pitch-border bg-pitch-card p-4 text-sm">
+    <section aria-label="Cupón de apuesta simulada" className="space-y-4 fs-panel p-4 text-sm">
       <h2 className="text-base font-bold">Tu cupón</h2>
 
       {savedMessage != null && slip.selections.length === 0 && (
