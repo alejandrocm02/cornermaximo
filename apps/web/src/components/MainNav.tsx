@@ -84,7 +84,7 @@ export function MainNav() {
     html.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
 
-    panelRef.current?.querySelector<HTMLElement>('a')?.focus();
+    panelRef.current?.querySelector<HTMLElement>('button, a')?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -189,8 +189,8 @@ export function MainNav() {
         `top-16` con `bottom-0`, que se resuelven contra el bloque contenedor:
         así ocupa la pantalla completa aunque algún ancestro con
         `backdrop-filter` o `transform` vuelva a capturarlo, y `dvh` absorbe
-        el colapso de la barra de direcciones en iOS. El `pt-16` reserva el
-        hueco de la cabecera.
+        el colapso de la barra de direcciones en iOS. La barra superior y su
+        botón Volver viven dentro del portal para que el panel no los tape.
       */}
       {open &&
         mounted &&
@@ -201,8 +201,32 @@ export function MainNav() {
             role="dialog"
             aria-modal="true"
             aria-label="Menú de navegación"
-            className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-pitch-bg pt-16 lg:hidden"
+            className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-pitch-bg lg:hidden"
           >
+            <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-pitch-border bg-pitch-bg px-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  requestAnimationFrame(() => buttonRef.current?.focus());
+                }}
+                className={`${linkBase} inline-flex min-h-11 items-center gap-2 px-3 text-sm font-semibold text-pitch-subtle hover:bg-pitch-elevated hover:text-white`}
+              >
+                <svg
+                  aria-hidden="true"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M16 10H4m5-5-5 5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Volver
+              </button>
+              <span className="text-sm font-semibold text-white">Menú</span>
+            </div>
             <ul className="mx-auto grid max-w-md gap-1.5 p-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
               {NAV.map((item) => {
                 const active = isActive(pathname, item.href);
