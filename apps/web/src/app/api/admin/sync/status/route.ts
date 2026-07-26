@@ -74,7 +74,12 @@ export async function GET(request: Request) {
   // Partidos ya jugados que siguen sin resultado o sin estadísticas: el síntoma
   // más directo de que la cola no está avanzando.
   const [pendingResults, finishedWithoutStats, nextScheduled] = await Promise.all([
-    prisma.match.count({ where: { status: 'SCHEDULED', kickoffAt: { lt: new Date() } } }),
+    prisma.match.count({
+      where: {
+        status: { in: ['SCHEDULED', 'LIVE'] },
+        kickoffAt: { lt: new Date() },
+      },
+    }),
     prisma.match.count({ where: { status: 'FINISHED', matchPlayers: { none: {} } } }),
     prisma.match.findFirst({
       where: { status: 'SCHEDULED', kickoffAt: { gte: new Date() } },
