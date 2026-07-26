@@ -179,12 +179,22 @@ export default async function PlayersPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold">Jugadores</h1>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="fs-eyebrow">
+            <span aria-hidden="true" className="h-1 w-4 rounded-full bg-grad-brand" />
+            Directorio
+          </p>
+          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">Jugadores</h1>
+        </div>
         <SearchBox placeholder="Ir directo a un jugador, equipo o liga" />
       </div>
 
-      <form method="GET" action="/jugadores" className="flex flex-wrap items-end gap-3 text-sm">
+      <form
+        method="GET"
+        action="/jugadores"
+        className="fs-panel grid grid-cols-2 items-end gap-3 p-4 text-sm sm:flex sm:flex-wrap"
+      >
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Nombre</span>
           <input
@@ -192,12 +202,12 @@ export default async function PlayersPage({
             name="q"
             defaultValue={q}
             placeholder="p. ej. Mbappé"
-            className="w-full min-w-0 rounded-lg sm:w-44 border border-pitch-border bg-pitch-card px-3 py-2 outline-none focus:border-pitch-accent focus:ring-2 focus:ring-pitch-accent/40"
+            className="w-full min-w-0 rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition placeholder:text-pitch-muted focus:border-pitch-accent/60 sm:w-44"
           />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Posición</span>
-          <select name="posicion" defaultValue={posicion} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="posicion" defaultValue={posicion} className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
             <option value="">Todas</option>
             {POSITIONS.map((p) => (
               <option key={p.value} value={p.value}>{p.label}</option>
@@ -206,7 +216,7 @@ export default async function PlayersPage({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Liga</span>
-          <select name="liga" defaultValue={liga} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="liga" defaultValue={liga} className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
             <option value="">Todas</option>
             {leagues.map((l) => (
               <option key={l.id} value={l.slug}>{l.name}</option>
@@ -215,7 +225,11 @@ export default async function PlayersPage({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Equipo</span>
-          <select name="equipo" defaultValue={equipo} className="w-full rounded-lg sm:max-w-44 border border-pitch-border bg-pitch-card px-3 py-2">
+          <select
+            name="equipo"
+            defaultValue={equipo}
+            className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:max-w-44"
+          >
             <option value="">Todos</option>
             {teams.map((t) => (
               <option key={t.slug} value={t.slug}>{t.name}</option>
@@ -224,23 +238,29 @@ export default async function PlayersPage({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Ordenar por</span>
-          <select name="orden" defaultValue={orden} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="orden" defaultValue={orden} className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
             {SORTS.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
         </label>
-        <button type="submit" className="rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black">
+        <button
+          type="submit"
+          className="w-full rounded-lg bg-grad-brand px-4 py-2.5 font-semibold text-black shadow-glow-soft transition hover:brightness-110 sm:w-auto"
+        >
           Aplicar
         </button>
         {hasFilters && (
-          <Link href="/jugadores" className="rounded-lg border border-pitch-border px-4 py-2 text-pitch-muted hover:text-white">
+          <Link
+            href="/jugadores"
+            className="w-full rounded-lg border border-pitch-border px-4 py-2.5 text-center text-pitch-muted transition hover:border-pitch-border-strong hover:text-white sm:w-auto"
+          >
             Limpiar filtros
           </Link>
         )}
       </form>
 
-      <p className="text-sm text-pitch-muted" role="status">
+      <p className="fs-chip" role="status">
         {total.toLocaleString('es-ES')} {total === 1 ? 'jugador encontrado' : 'jugadores encontrados'}
         {totalPages > 1 && ` · página ${pagina} de ${totalPages}`}
       </p>
@@ -250,16 +270,16 @@ export default async function PlayersPage({
           <Link
             key={p.slug}
             href={playerHref(p.slug)}
-            className="flex items-center gap-3 rounded-xl border border-pitch-border bg-pitch-card p-3 hover:border-pitch-accent"
+            className="fs-panel-interactive flex items-center gap-3 p-3"
           >
             {p.photoUrl != null ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img width={40} height={40} loading="lazy" decoding="async" src={p.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+              <img width={40} height={40} loading="lazy" decoding="async" src={p.photoUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-pitch-border" />
             ) : (
-              <span className="h-10 w-10 rounded-full bg-pitch-border" />
+              <span aria-hidden="true" className="h-11 w-11 shrink-0 rounded-full bg-pitch-elevated ring-1 ring-pitch-border" />
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{p.name}</p>
+              <p className="truncate text-sm font-semibold text-white">{p.name}</p>
               <p className="truncate text-xs text-pitch-muted">
                 {p.position != null ? POSITION_LABEL[p.position] ?? p.position : 'Posición desconocida'} · {p.team ?? 'Sin equipo'}
               </p>
@@ -273,12 +293,12 @@ export default async function PlayersPage({
           </Link>
         ))}
         {rows.length === 0 && (
-          <div className="col-span-full rounded-xl border border-dashed border-pitch-border p-8 text-center text-sm text-pitch-muted">
-            <p className="font-medium text-white">Sin resultados con estos filtros.</p>
-            <p className="mt-1">
+          <div className="col-span-full rounded-2xl border border-dashed border-pitch-border-strong p-10 text-center text-sm text-pitch-muted">
+            <p className="font-display text-base font-semibold text-white">Sin resultados con estos filtros.</p>
+            <p className="mx-auto mt-2 max-w-sm">
               Prueba a quitar algún filtro o revisa el nombre —la búsqueda ignora mayúsculas y acentos—.
             </p>
-            <Link href="/jugadores" className="mt-3 inline-block rounded-lg border border-pitch-border px-4 py-2 hover:border-pitch-accent">
+            <Link href="/jugadores" className="fs-btn-ghost mt-5">
               Limpiar filtros
             </Link>
           </div>
@@ -286,23 +306,35 @@ export default async function PlayersPage({
       </div>
 
       {totalPages > 1 && (
-        <nav aria-label="Paginación de jugadores" className="flex items-center justify-center gap-4 text-sm">
+        <nav aria-label="Paginación de jugadores" className="flex items-center justify-center gap-2 text-sm">
           {pagina > 1 ? (
-            <Link rel="prev" className="rounded px-3 py-2 text-pitch-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-pitch-accent" href={pageHref(pagina - 1)}>
-              ← Anterior
+            <Link
+              rel="prev"
+              className="rounded-lg border border-pitch-border bg-pitch-card/60 px-4 py-2.5 font-medium text-pitch-subtle transition hover:border-pitch-accent/50 hover:text-white"
+              href={pageHref(pagina - 1)}
+            >
+              <span aria-hidden="true">←</span> Anterior
             </Link>
           ) : (
-            <span aria-hidden="true" className="px-2 py-1 text-pitch-border">← Anterior</span>
+            <span aria-hidden="true" className="rounded-lg border border-pitch-border/50 px-4 py-2.5 text-pitch-border-strong">
+              ← Anterior
+            </span>
           )}
-          <span aria-current="page" className="text-pitch-muted">
+          <span aria-current="page" className="px-3 text-2xs tabular-nums text-pitch-muted sm:text-sm">
             Página {pagina} de {totalPages}
           </span>
           {pagina < totalPages ? (
-            <Link rel="next" className="rounded px-3 py-2 text-pitch-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-pitch-accent" href={pageHref(pagina + 1)}>
-              Siguiente →
+            <Link
+              rel="next"
+              className="rounded-lg border border-pitch-border bg-pitch-card/60 px-4 py-2.5 font-medium text-pitch-subtle transition hover:border-pitch-accent/50 hover:text-white"
+              href={pageHref(pagina + 1)}
+            >
+              Siguiente <span aria-hidden="true">→</span>
             </Link>
           ) : (
-            <span aria-hidden="true" className="px-2 py-1 text-pitch-border">Siguiente →</span>
+            <span aria-hidden="true" className="rounded-lg border border-pitch-border/50 px-4 py-2.5 text-pitch-border-strong">
+              Siguiente →
+            </span>
           )}
         </nav>
       )}

@@ -3,6 +3,7 @@ import { CURRENT_SEASON, RECENT_SEASON, WORLD_CUP_2026 } from '@futstats/shared'
 import Link from 'next/link';
 import { MatchRows } from '@/components/MatchRows';
 import { SearchBox } from '@/components/SearchBox';
+import { SectionHeader } from '@/components/SectionHeader';
 import { seasonLabel } from '@/lib/football';
 import { topLeaguePlayers } from '@/lib/leaderboards';
 import { topPlayerStat } from '@/lib/worldCupStats';
@@ -60,50 +61,71 @@ export default async function HomePage() {
     ]);
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-14 sm:space-y-20">
       {/* 1. Hero y buscador */}
-      <section className="space-y-5 py-8 text-center">
-        <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">
+      <section className="relative isolate -mt-4 overflow-hidden rounded-4xl border border-pitch-border/70 px-4 py-12 text-center sm:px-8 sm:py-16">
+        {/* Capas decorativas: rejilla técnica + halo de marca. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgb(var(--pitch-border-strong)) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--pitch-border-strong)) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+            maskImage: 'radial-gradient(70% 70% at 50% 30%, black, transparent)',
+            WebkitMaskImage: 'radial-gradient(70% 70% at 50% 30%, black, transparent)',
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-0 -z-10 h-64 w-[42rem] max-w-[120%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-pitch-accent/20 blur-3xl"
+        />
+
+        <p className="fs-eyebrow justify-center">
+          <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-pitch-accent" />
           Temporadas {seasonLabel(RECENT_SEASON)} y {seasonLabel(CURRENT_SEASON)} · Mundial 2026
         </p>
-        <h1 className="mx-auto max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">
-          Compara el rendimiento de más de {roundedCount(playersCount)} futbolistas
+
+        <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+          Compara el rendimiento de más de{' '}
+          <span className="fs-gradient-text">{roundedCount(playersCount)} futbolistas</span>
         </h1>
-        <p className="mx-auto max-w-2xl text-sm text-pitch-muted sm:text-base">
+
+        <p className="mx-auto mt-5 max-w-2xl text-sm text-pitch-muted sm:text-base">
           Consulta estadísticas, rankings y resultados de las principales ligas y del Mundial 2026,
           con datos actualizados automáticamente.
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/jugadores"
-            className="rounded-xl bg-pitch-accent px-6 py-3 text-sm font-semibold text-black hover:opacity-90"
-          >
+
+        <div className="mt-8 flex justify-center">
+          <SearchBox />
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/jugadores" className="fs-btn-primary">
             Buscar jugador
           </Link>
-          <Link
-            href="/comparador"
-            className="rounded-xl border border-pitch-border px-6 py-3 text-sm font-semibold text-white hover:border-pitch-accent"
-          >
+          <Link href="/comparador" className="fs-btn-ghost">
             Comparar futbolistas
           </Link>
-        </div>
-        <div className="flex justify-center pt-2">
-          <SearchBox />
         </div>
       </section>
 
       {/* 2. Acciones rápidas */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Acciones rápidas</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <SectionHeader eyebrow="Empieza por aquí" title="Acciones rápidas" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {QUICK_ACTIONS.map((a) => (
-            <Link
-              key={a.href}
-              href={a.href}
-              className="rounded-xl border border-pitch-border bg-pitch-card p-4 hover:border-pitch-accent"
-            >
-              <p className="font-semibold">{a.title}</p>
-              <p className="mt-1 text-xs text-pitch-muted">{a.desc}</p>
+            <Link key={a.href} href={a.href} className="fs-panel-interactive group flex items-start gap-3 p-4">
+              <div className="min-w-0 flex-1">
+                <p className="font-display font-semibold text-white">{a.title}</p>
+                <p className="mt-1 text-xs text-pitch-muted">{a.desc}</p>
+              </div>
+              <span
+                aria-hidden="true"
+                className="mt-0.5 shrink-0 text-pitch-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-pitch-accent"
+              >
+                →
+              </span>
             </Link>
           ))}
         </div>
@@ -112,17 +134,22 @@ export default async function HomePage() {
       {/* 2.5 Actualidad */}
       {latestNews.length > 0 && (
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-pitch-muted">Actualidad</h2>
-            <Link href="/noticias" className="text-sm text-pitch-accent hover:underline">Todas las noticias →</Link>
-          </div>
-          <ul className="space-y-1 rounded-xl border border-pitch-border bg-pitch-card p-4 text-sm">
+          <SectionHeader eyebrow="Última hora" title="Actualidad" action={{ href: '/noticias', label: 'Todas las noticias' }} />
+          <ul className="fs-panel divide-y divide-pitch-border/60">
             {latestNews.map((n) => (
               <li key={n.id}>
-                <a href={n.url} rel="noopener noreferrer" target="_blank" className="hover:text-pitch-accent hover:underline">
-                  {n.title}
-                </a>{' '}
-                <span className="text-xs text-pitch-muted">— {n.source}</span>
+                <a
+                  href={n.url}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  className="flex items-start gap-3 px-4 py-3 text-sm transition-colors hover:bg-pitch-elevated/40"
+                >
+                  <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-pitch-accent" />
+                  <span className="min-w-0 flex-1">
+                    <span className="text-pitch-subtle transition-colors hover:text-white">{n.title}</span>
+                    <span className="mt-0.5 block text-2xs text-pitch-muted">{n.source}</span>
+                  </span>
+                </a>
               </li>
             ))}
           </ul>
@@ -131,67 +158,96 @@ export default async function HomePage() {
 
       {/* 3. Jugadores destacados */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-pitch-muted">En forma — máximos goleadores</h2>
-          <Link href="/rankings" className="text-sm text-pitch-accent hover:underline">Ver rankings →</Link>
-        </div>
+        <SectionHeader eyebrow="En forma" title="Máximos goleadores" action={{ href: '/rankings', label: 'Ver rankings' }} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {topScorers.map((p, i) => (
-            <Link
-              key={p.slug}
-              href={`/jugadores/${p.slug}`}
-              className="flex items-center gap-3 rounded-xl border border-pitch-border bg-pitch-card p-3 hover:border-pitch-accent"
-            >
-              {p.photoUrl != null ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img width={48} height={48} loading="lazy" decoding="async" src={p.photoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
-              ) : (
-                <span className="h-12 w-12 rounded-full bg-pitch-border" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{i + 1}. {p.name}</p>
-                <p className="truncate text-xs text-pitch-muted">{p.team ?? '—'}</p>
-              </div>
-              <span className="text-lg font-bold text-pitch-accent">{p.total}</span>
+            <Link key={p.slug} href={`/jugadores/${p.slug}`} className="fs-panel-interactive flex items-center gap-3 p-3">
+              <span className="relative shrink-0">
+                {p.photoUrl != null ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    width={52}
+                    height={52}
+                    loading="lazy"
+                    decoding="async"
+                    src={p.photoUrl}
+                    alt=""
+                    className="h-[3.25rem] w-[3.25rem] rounded-full object-cover ring-1 ring-pitch-border"
+                  />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="block h-[3.25rem] w-[3.25rem] rounded-full bg-pitch-elevated ring-1 ring-pitch-border"
+                  />
+                )}
+                {/* Dorsal de posición en el ranking. */}
+                <span className="absolute -bottom-1 -left-1 grid h-5 w-5 place-items-center rounded-full bg-pitch-elevated font-display text-2xs font-bold text-pitch-subtle ring-1 ring-pitch-border">
+                  {i + 1}
+                </span>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-white">{p.name}</span>
+                <span className="block truncate text-xs text-pitch-muted">{p.team ?? '—'}</span>
+              </span>
+              <span className="shrink-0 text-right">
+                <span className="fs-stat block leading-none text-pitch-accent">{p.total}</span>
+                <span className="mt-0.5 block text-2xs uppercase tracking-wide text-pitch-muted">goles</span>
+              </span>
             </Link>
           ))}
           {topScorers.length === 0 && (
-            <p className="col-span-3 text-sm text-pitch-muted">Los destacados aparecerán al sincronizar estadísticas.</p>
+            <p className="fs-panel col-span-full px-4 py-8 text-center text-sm text-pitch-muted">
+              Los destacados aparecerán al sincronizar estadísticas.
+            </p>
           )}
         </div>
       </section>
 
       {/* 4. Rankings principales */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Rankings principales</h2>
-        <div className="grid gap-4 lg:grid-cols-3">
+        <SectionHeader eyebrow="Líderes" title="Rankings principales" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {(
             [
               { title: 'Asistencias', rows: topAssists, metric: 'assists' },
               { title: 'Paradas', rows: topSaves, metric: 'saves' },
-              { title: 'Goles (Mundial 2026)', rows: wcScorers.map((r) => ({ slug: r.slug, name: r.name, team: r.team, total: r.total })), metric: null },
+              {
+                title: 'Goles (Mundial 2026)',
+                rows: wcScorers.map((r) => ({ slug: r.slug, name: r.name, team: r.team, total: r.total })),
+                metric: null,
+              },
             ] as const
           ).map((block) => (
-            <div key={block.title} className="rounded-xl border border-pitch-border bg-pitch-card">
-              <p className="border-b border-pitch-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">
+            <div key={block.title} className="fs-panel flex flex-col overflow-hidden">
+              <p className="border-b border-pitch-border/60 bg-pitch-elevated/40 px-4 py-2.5 text-2xs font-semibold uppercase tracking-[0.18em] text-pitch-muted">
                 {block.title}
               </p>
-              <ul className="divide-y divide-pitch-border/50">
+              <ul className="flex-1 divide-y divide-pitch-border/40">
                 {block.rows.map((r, i) => (
                   <li key={r.slug}>
-                    <Link href={`/jugadores/${r.slug}`} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-pitch-border/30">
-                      <span className="w-4 text-xs text-pitch-muted">{i + 1}</span>
-                      <span className="min-w-0 flex-1 truncate">{r.name}</span>
-                      <span className="truncate text-xs text-pitch-muted">{r.team ?? ''}</span>
-                      <span className="font-semibold text-pitch-accent">{r.total}</span>
+                    <Link
+                      href={`/jugadores/${r.slug}`}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-pitch-elevated/50"
+                    >
+                      <span className="w-4 shrink-0 font-display text-2xs font-bold tabular-nums text-pitch-muted">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-pitch-subtle">{r.name}</span>
+                      <span className="hidden shrink-0 truncate text-2xs text-pitch-muted xs:block">{r.team ?? ''}</span>
+                      <span className="shrink-0 font-display font-bold tabular-nums text-pitch-accent">{r.total}</span>
                     </Link>
                   </li>
                 ))}
-                {block.rows.length === 0 && <li className="px-4 py-3 text-xs text-pitch-muted">Sin datos todavía.</li>}
+                {block.rows.length === 0 && (
+                  <li className="px-4 py-6 text-center text-xs text-pitch-muted">Sin datos todavía.</li>
+                )}
               </ul>
               {block.metric != null && (
-                <Link href={`/rankings?metric=${block.metric}`} className="block px-4 py-2 text-xs text-pitch-accent hover:underline">
-                  Ver completo →
+                <Link
+                  href={`/rankings?metric=${block.metric}`}
+                  className="border-t border-pitch-border/60 px-4 py-2.5 text-2xs font-medium text-pitch-accent transition-colors hover:bg-pitch-elevated/50 hover:text-white"
+                >
+                  Ver completo <span aria-hidden="true">→</span>
                 </Link>
               )}
             </div>
@@ -200,13 +256,13 @@ export default async function HomePage() {
       </section>
 
       {/* 5. Partidos recientes y próximos */}
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-8 lg:grid-cols-2 lg:gap-6">
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Últimos resultados</h2>
+          <SectionHeader eyebrow="Resultados" title="Últimos partidos" />
           <MatchRows matches={recentMatches} empty="Sin partidos sincronizados todavía." />
         </div>
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Próximos partidos</h2>
+          <SectionHeader eyebrow="Calendario" title="Próximos partidos" />
           <MatchRows matches={upcomingMatches} empty="Sin partidos programados en la base de datos." />
         </div>
       </section>
@@ -215,24 +271,42 @@ export default async function HomePage() {
       <section>
         <Link
           href="/mundial-2026"
-          className="block rounded-2xl border border-pitch-accent/40 bg-pitch-accent/10 p-6 hover:border-pitch-accent"
+          className="group relative isolate block overflow-hidden rounded-4xl border border-pitch-accent/30 p-6 transition duration-200 hover:border-pitch-accent/60 sm:p-10"
         >
-          <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">Mundial 2026 · En juego</p>
-          <h2 className="mt-1 text-xl font-semibold">Grupos, eliminatorias y estadísticas del torneo</h2>
-          <p className="mt-2 text-sm text-pitch-muted">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 bg-grad-brand opacity-[0.12] transition-opacity duration-200 group-hover:opacity-[0.18]"
+          />
+          <p className="fs-eyebrow">
+            <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-pitch-accent" />
+            Mundial 2026 · En juego
+          </p>
+          <h2 className="mt-2 max-w-2xl text-2xl font-bold sm:text-3xl">
+            Grupos, eliminatorias y estadísticas del torneo
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm text-pitch-muted">
             48 selecciones con estadísticas individuales y colectivas partido a partido.
             {wcScorers.length > 0 && (
-              <> Pichichi actual: <span className="text-white">{wcScorers[0]!.name}</span> con {wcScorers[0]!.total} goles.</>
+              <>
+                {' '}
+                Pichichi actual: <span className="font-semibold text-white">{wcScorers[0]!.name}</span> con{' '}
+                {wcScorers[0]!.total} goles.
+              </>
             )}
           </p>
-          <p className="mt-3 text-sm font-medium text-pitch-accent">Abrir sección →</p>
+          <p className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-pitch-accent">
+            Abrir sección
+            <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
+              →
+            </span>
+          </p>
         </Link>
       </section>
 
       {/* 7. Cobertura y fuente de datos */}
-      <section className="rounded-xl border border-pitch-border bg-pitch-card p-5 text-sm text-pitch-muted">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide">Cobertura</h2>
-        <p>
+      <section className="fs-panel p-5 sm:p-6">
+        <h2 className="fs-eyebrow">Cobertura</h2>
+        <p className="mt-2 text-sm text-pitch-muted">
           LaLiga, Premier League, Serie A, Bundesliga y Ligue 1 — temporadas {seasonLabel(RECENT_SEASON)} y{' '}
           {seasonLabel(CURRENT_SEASON)} — más el Mundial 2026 completo. Estadísticas por jugador y partido de
           API-Football, sincronizadas automáticamente cada hora.

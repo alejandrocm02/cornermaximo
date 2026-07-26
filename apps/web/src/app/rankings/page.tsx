@@ -73,7 +73,11 @@ export default async function RankingsPage({
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
       <div>
-        <h1 className="text-2xl font-bold">
+        <p className="fs-eyebrow">
+          <span aria-hidden="true" className="h-1 w-4 rounded-full bg-grad-brand" />
+          Rankings
+        </p>
+        <h1 className="mt-1 text-3xl font-bold sm:text-4xl">
           Ranking de {metricDef.label.toLowerCase()} · {leagueName} · {seasonLabel(season)}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-pitch-muted">
@@ -90,7 +94,7 @@ export default async function RankingsPage({
       <form method="GET" action="/rankings" className="flex flex-wrap items-end gap-3 text-sm">
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Tipo de ranking</span>
-          <select name="metric" defaultValue={metricDef.value} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="metric" defaultValue={metricDef.value} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
             {METRICS.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
@@ -98,7 +102,7 @@ export default async function RankingsPage({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Liga</span>
-          <select name="league" defaultValue={league} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="league" defaultValue={league} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
             <option value="">Todas las ligas</option>
             {leagues.map((l) => (
               <option key={l.id} value={l.slug}>{l.name}</option>
@@ -107,7 +111,7 @@ export default async function RankingsPage({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Temporada</span>
-          <select name="temporada" defaultValue={String(season)} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+          <select name="temporada" defaultValue={String(season)} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
             {LEAGUE_SEASONS.map((y) => (
               <option key={y} value={y}>{seasonLabel(y)}</option>
             ))}
@@ -132,12 +136,12 @@ export default async function RankingsPage({
       {rows != null && (
         <>
         <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">Desliza la tabla lateralmente para ver todas las columnas →</p>
-        <div className="overflow-x-auto rounded-xl border border-pitch-border">
-          <table className="w-full min-w-[560px] bg-pitch-card text-sm">
+        <div className="fs-panel overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <caption className="sr-only">
               Ranking de {metricDef.label.toLowerCase()} en {leagueName}, temporada {seasonLabel(season)}
             </caption>
-            <thead className="text-left text-xs uppercase text-pitch-muted">
+            <thead className="border-b border-pitch-border/60 bg-pitch-elevated/40 text-left text-2xs uppercase tracking-[0.14em] text-pitch-muted">
               <tr className="border-b border-pitch-border">
                 <th scope="col" className="px-4 py-2">#</th>
                 <th scope="col" className="px-4 py-2">Jugador</th>

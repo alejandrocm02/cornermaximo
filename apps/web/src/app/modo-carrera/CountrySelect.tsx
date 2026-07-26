@@ -2,16 +2,20 @@
 
 /**
  * Selector de nacionalidad accesible con búsqueda.
- * - Lista completa de países y territorios futbolísticos (countries.ts).
- * - Búsqueda tolerante a mayúsculas y acentos.
+ * - Cobertura completa: las 211 asociaciones miembro de la FIFA, sin
+ *   restricciones. Cualquier país puede elegirse como selección nacional.
+ * - Al ser una lista larga, sin búsqueda se agrupa por confederación; con
+ *   búsqueda se muestra el resultado plano y ordenado por relevancia.
+ * - Búsqueda tolerante a mayúsculas y acentos, también por confederación.
  * - Recientes y populares como acceso rápido antes de la lista completa.
  * - Navegación completa por teclado (flechas, Enter, Escape, Inicio/Fin).
  * - La bandera es apoyo visual: el nombre siempre está presente como texto.
  */
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  FOOTBALL_COUNTRIES,
+  CONFEDERATION_LABEL,
   POPULAR_CODES,
+  countriesByConfederation,
   countryByCode,
   countryFlag,
   searchCountries,
@@ -57,8 +61,12 @@ function buildItems(query: string, recent: string[]): Item[] {
   const popular = POPULAR_CODES.map(countryByCode).filter((c): c is FootballCountry => c != null);
   items.push({ kind: 'header', label: 'Populares' });
   for (const country of popular) items.push({ kind: 'country', country });
-  items.push({ kind: 'header', label: 'Todos los países' });
-  for (const country of FOOTBALL_COUNTRIES) items.push({ kind: 'country', country });
+  // Lista completa agrupada por confederación: 211 países seguidos serían
+  // imposibles de recorrer sin una referencia geográfica.
+  for (const group of countriesByConfederation()) {
+    items.push({ kind: 'header', label: CONFEDERATION_LABEL[group.confederation] });
+    for (const country of group.countries) items.push({ kind: 'country', country });
+  }
   return items;
 }
 
@@ -208,10 +216,10 @@ export function CountrySelect({
             setActive(0);
           }}
           onKeyDown={onKeyDown}
-          className="w-full rounded-lg border border-pitch-border bg-pitch-bg px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-pitch-accent"
+          className="w-full rounded-xl border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition placeholder:text-pitch-muted focus:border-pitch-accent/60"
         />
         {selected != null && (
-          <span aria-hidden="true" className="shrink-0 text-lg">
+          <span aria-hidden="true" className="shrink-0 text-xl">
             {countryFlag(selected.code)}
           </span>
         )}
@@ -221,13 +229,19 @@ export function CountrySelect({
           Seleccionado: {selected.name}
         </p>
       )}
+      {/* Recuento anunciado a lectores de pantalla al filtrar. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {open && query.trim() !== ''
+          ? `${selectableIndexes.length} ${selectableIndexes.length === 1 ? 'país' : 'países'} coinciden con la búsqueda`
+          : ''}
+      </p>
       {open && (
         <ul
           ref={listRef}
           id={`${baseId}-listbox`}
           role="listbox"
           aria-label={label}
-          className="absolute top-full z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-pitch-border bg-pitch-card p-1 shadow-lg"
+          className="absolute top-full z-20 mt-1.5 max-h-72 w-full overflow-y-auto rounded-xl border border-pitch-border bg-pitch-card/95 p-1 shadow-float backdrop-blur-xl"
         >
           {allowEmpty && query.trim() === '' && (
             <li role="option" aria-selected={value == null} id={`${baseId}-opt-empty`}>
@@ -246,7 +260,11 @@ export function CountrySelect({
           ) : (
             items.map((item, i) =>
               item.kind === 'header' ? (
-                <li key={`h-${item.label}`} role="presentation" className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-pitch-muted">
+                <li
+                  key={`h-${item.label}`}
+                  role="presentation"
+                  className="sticky top-0 z-10 bg-pitch-card/95 px-3 pb-1 pt-2 text-2xs font-bold uppercase tracking-[0.18em] text-pitch-muted backdrop-blur"
+                >
                   {item.label}
                 </li>
               ) : (
@@ -256,13 +274,15 @@ export function CountrySelect({
                     tabIndex={-1}
                     onClick={() => selectCountry(item.country.code)}
                     onMouseMove={() => setActive(i)}
-                    className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left ${
-                      i === active ? 'bg-pitch-accent/15 text-pitch-accent' : 'hover:bg-pitch-border/40'
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors ${
+                      i === active ? 'bg-pitch-accent/15 text-pitch-accent' : 'hover:bg-pitch-elevated/70'
                     }`}
                   >
-                    <span aria-hidden="true">{countryFlag(item.country.code)}</span>
+                    <span aria-hidden="true" className="text-base">
+                      {countryFlag(item.country.code)}
+                    </span>
                     <span className="min-w-0 truncate">{item.country.name}</span>
-                    <span className="ml-auto shrink-0 text-[10px] text-pitch-muted">{item.country.code}</span>
+                    <span className="ml-auto shrink-0 font-mono text-2xs text-pitch-muted">{item.country.code}</span>
                   </button>
                 </li>
               ),

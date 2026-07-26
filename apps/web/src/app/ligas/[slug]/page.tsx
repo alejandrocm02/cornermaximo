@@ -83,7 +83,7 @@ export default async function LeaguePage({
     <div className="space-y-8">
       <Breadcrumbs items={[{ label: 'Ligas', href: '/ligas' }, { label: competition.name }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-3xl font-bold sm:text-4xl">
           {competition.name} {season != null && <span className="text-pitch-muted">· {season.year}-{(season.year + 1) % 100}</span>}
         </h1>
         {availableSeasons.length > 1 && (
@@ -173,7 +173,7 @@ export default async function LeaguePage({
         {jornadas.length > 0 ? (
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {jornadas.map((j) => (
-              <div key={j.num} className="rounded-xl border border-pitch-border bg-pitch-card">
+              <div key={j.num} className="fs-panel">
                 <p className="border-b border-pitch-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">
                   Jornada {j.num}
                 </p>
@@ -223,7 +223,7 @@ export default async function LeaguePage({
             const home = m.teams.find((t) => t.isHome);
             const away = m.teams.find((t) => !t.isHome);
             return (
-              <div key={m.id} className="flex items-center gap-4 rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm">
+              <div key={m.id} className="flex items-center gap-4 fs-panel px-4 py-3 text-sm">
                 <span className="w-32 text-xs text-pitch-muted">{formatMatchDate(m.kickoffAt)}</span>
                 <span>{home?.team.name} — {away?.team.name}</span>
               </div>

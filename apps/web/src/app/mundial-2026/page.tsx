@@ -36,7 +36,7 @@ export default async function WorldCupPage() {
   if (competition == null || season == null) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">{WORLD_CUP_2026.name}</h1>
+        <h1 className="text-3xl font-bold sm:text-4xl">{WORLD_CUP_2026.name}</h1>
         <p className="rounded-xl border border-dashed border-pitch-border p-6 text-center text-sm text-pitch-muted">
           Aún no se ha sincronizado el Mundial 2026. Lanza la sincronización (ver README) para cargar grupos,
           calendario y estadísticas.
@@ -115,7 +115,7 @@ export default async function WorldCupPage() {
             const home = m.teams.find((t) => t.isHome);
             const away = m.teams.find((t) => !t.isHome);
             return (
-              <div key={m.id} className="rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm">
+              <div key={m.id} className="fs-panel px-4 py-3 text-sm">
                 <p className="mb-1 text-xs text-pitch-muted">{roundLabel(m.round) ?? 'Mundial 2026'} · {formatKickoff(m.kickoffAt)}</p>
                 <p className="font-medium">
                   {home?.team.name} <span className="text-pitch-accent">{home?.goals}–{away?.goals}</span> {away?.team.name}
@@ -134,7 +134,7 @@ export default async function WorldCupPage() {
             const home = m.teams.find((t) => t.isHome);
             const away = m.teams.find((t) => !t.isHome);
             return (
-              <div key={m.id} className="rounded-xl border border-pitch-border bg-pitch-card px-4 py-3 text-sm">
+              <div key={m.id} className="fs-panel px-4 py-3 text-sm">
                 <p className="mb-1 text-xs text-pitch-muted">
                   {roundLabel(m.round) ?? 'Mundial 2026'} · {m.status === 'LIVE' ? <span className="text-pitch-accent">EN JUEGO</span> : formatKickoff(m.kickoffAt)}
                 </p>
@@ -204,7 +204,7 @@ export default async function WorldCupPage() {
             { title: 'Asistencias', rows: topAssists },
             { title: 'Tarjetas amarillas', rows: topYellow },
           ].map(({ title, rows }) => (
-            <div key={title} className="rounded-xl border border-pitch-border bg-pitch-card p-4">
+            <div key={title} className="fs-panel p-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">{title}</p>
               {rows.length > 0 ? (
                 <ul className="space-y-1.5 text-sm">

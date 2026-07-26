@@ -104,7 +104,7 @@ export default async function TransfersPage({
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Fichajes' }]} />
       <div>
-        <h1 className="text-2xl font-bold">Mercado de fichajes</h1>
+        <h1 className="text-3xl font-bold sm:text-4xl">Mercado de fichajes</h1>
         <p className="mt-1 max-w-2xl text-sm text-pitch-muted">
           Movimientos confirmados registrados por API-Football desde junio de 2025, y rumores de
           medios claramente etiquetados como tales. Nunca se presentan rumores como hechos.
@@ -156,7 +156,7 @@ export default async function TransfersPage({
         {transfers.map((t) => {
           const fee = feeLabel(t.fee);
           return (
-            <article key={t.id} className="rounded-xl border border-pitch-border bg-pitch-card p-4 text-sm">
+            <article key={t.id} className="fs-panel p-4 text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`} title={status.explanation}>
                   {status.prefix} {status.label}
@@ -218,7 +218,7 @@ export default async function TransfersPage({
           <div className="grid gap-2 sm:grid-cols-2">
             {rumors.map((n) => (
               <a key={n.id} href={n.url} rel="noopener noreferrer" target="_blank"
-                className="rounded-xl border border-pitch-border bg-pitch-card p-3 text-sm hover:border-pitch-accent">
+                className="fs-panel p-3 text-sm hover:border-pitch-accent">
                 <span className={`mr-2 rounded-full px-2 py-0.5 text-xs font-medium ${
                   n.category === 'rumores' ? 'bg-yellow-500/15 text-yellow-300' : 'bg-pitch-border/60 text-pitch-muted'
                 }`}>

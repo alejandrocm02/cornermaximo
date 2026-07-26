@@ -2,12 +2,168 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-pitch-bg text-slate-100 antialiased;
-  font-feature-settings: 'tnum'; /* números tabulares para las estadísticas */
+/* =====================================================================
+   TOKENS DE COLOR
+   Formato `<r> <g> <b>` para que Tailwind pueda componer opacidades
+   (`bg-pitch-card/60`). Cambiar solo estas variables basta para redefinir
+   el tema completo o añadir un modo claro en el futuro.
+   ===================================================================== */
+:root {
+  color-scheme: dark;
+
+  --pitch-bg: 7 11 20; /* #070B14 */
+  --pitch-card: 15 22 38; /* #0F1626 */
+  --pitch-elevated: 22 30 48; /* #161E30 */
+  --pitch-border: 35 47 71; /* #232F47 */
+  --pitch-border-strong: 52 68 99; /* #344463 */
+
+  --pitch-accent: 43 227 138; /* #2BE38A — verde eléctrico de marca */
+  --pitch-accent-2: 34 211 238; /* #22D3EE — cian */
+  --pitch-accent-3: 139 92 246; /* #8B5CF6 — violeta */
+
+  --pitch-danger: 255 77 109; /* #FF4D6D */
+  --pitch-warning: 251 191 36; /* #FBBF24 */
+
+  --pitch-muted: 147 164 191; /* #93A4BF — 8.2:1 sobre el fondo base */
+  --pitch-subtle: 195 206 223; /* #C3CEDF */
+
+  --header-height: 4rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Evita que el contenido quede bajo la cabecera fija al saltar a un ancla. */
+    scroll-padding-top: calc(var(--header-height) + 1rem);
+  }
+
+  body {
+    @apply bg-pitch-bg font-sans text-slate-100 antialiased;
+    font-feature-settings: 'tnum'; /* números tabulares para las estadísticas */
+    /* Malla ambiental fija: da profundidad sin repintados al hacer scroll. */
+    background-image: theme('backgroundImage.grad-mesh');
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  /* Jerarquía tipográfica: los titulares usan la fuente display. */
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+
+  h1 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Foco visible coherente en toda la aplicación. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-pitch-accent ring-offset-2 ring-offset-pitch-bg;
+  }
+
+  ::selection {
+    background-color: rgb(var(--pitch-accent) / 0.3);
+    color: white;
+  }
+
+  /* Barra de desplazamiento discreta y acorde al tema oscuro. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--pitch-border-strong)) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--pitch-border-strong));
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+}
+
+/* =====================================================================
+   PRIMITIVAS REUTILIZABLES
+   Clases de composición para no repetir cadenas largas de utilidades.
+   ===================================================================== */
+@layer components {
+  /* Superficie base: borde luminoso + luz cenital + sombra de elevación. */
+  .fs-panel {
+    @apply relative rounded-2xl border border-pitch-border bg-pitch-card shadow-panel;
+    background-image: theme('backgroundImage.grad-surface');
+  }
+
+  /* Superficie interactiva: reacciona al hover y al foco por teclado. */
+  .fs-panel-interactive {
+    @apply relative rounded-2xl border border-pitch-border bg-pitch-card shadow-panel transition duration-200;
+    @apply hover:-translate-y-0.5 hover:border-pitch-accent/50 hover:shadow-glow-soft;
+    @apply focus-visible:-translate-y-0.5 focus-visible:border-pitch-accent/50;
+    background-image: theme('backgroundImage.grad-surface');
+  }
+
+  /* Etiqueta de sección: pequeña, en mayúsculas, con guía cromática. */
+  .fs-eyebrow {
+    @apply inline-flex items-center gap-2 text-2xs font-semibold uppercase tracking-[0.18em] text-pitch-muted;
+  }
+
+  /* Titular con relleno degradado de marca. */
+  .fs-gradient-text {
+    @apply bg-grad-brand bg-clip-text text-transparent;
+  }
+
+  /* Chip / píldora de metadato. */
+  .fs-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-pitch-border bg-pitch-elevated px-3 py-1 text-2xs font-medium text-pitch-subtle;
+  }
+
+  /* Botón principal. */
+  .fs-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-grad-brand px-5 py-3 text-sm font-semibold text-black;
+    @apply shadow-glow-soft transition duration-200 hover:brightness-110 active:brightness-95;
+  }
+
+  /* Botón secundario sobre superficie oscura. */
+  .fs-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-pitch-border-strong bg-pitch-card/60 px-5 py-3 text-sm font-semibold text-white;
+    @apply transition duration-200 hover:border-pitch-accent/60 hover:bg-pitch-elevated;
+  }
+
+  /* Campo de formulario. */
+  .fs-input {
+    @apply w-full rounded-xl border border-pitch-border bg-pitch-card/80 px-4 py-3 text-sm text-white;
+    @apply placeholder:text-pitch-muted focus:border-pitch-accent/60;
+  }
+
+  /* Cifra estadística destacada. */
+  .fs-stat {
+    @apply font-display text-2xl font-bold tabular-nums text-white;
+  }
+
+  /* Placeholder de carga. */
+  .fs-skeleton {
+    @apply animate-pulse rounded-lg bg-pitch-elevated;
+  }
+
+  /* Línea divisoria con desvanecido en los extremos. */
+  .fs-rule {
+    @apply h-px w-full border-0;
+    background: linear-gradient(90deg, transparent, rgb(var(--pitch-border-strong)), transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {
@@ -15,5 +171,11 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Anula los desplazamientos de hover para quien pide menos movimiento. */
+  .fs-panel-interactive:hover,
+  .fs-panel-interactive:focus-visible {
+    transform: none;
   }
 }

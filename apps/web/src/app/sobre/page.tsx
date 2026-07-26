@@ -6,7 +6,7 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <article className="prose-invert max-w-2xl space-y-4">
-      <h1 className="text-2xl font-bold">Sobre FutStats</h1>
+      <h1 className="text-3xl font-bold sm:text-4xl">Sobre FutStats</h1>
       <p className="text-sm leading-relaxed text-pitch-muted">
         FutStats es una plataforma de estadísticas de fútbol centrada en el rendimiento reciente de
         los jugadores: sus últimos partidos, medias por partido y por 90 minutos, rankings y
