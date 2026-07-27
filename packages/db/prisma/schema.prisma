@@ -75,6 +75,13 @@ enum CompetitionType {
   CUP
 }
 
+/// Formato de temporada. SPLIT_YEAR cruza dos años naturales (2025 => "2025/26");
+/// CALENDAR_YEAR cabe en uno solo (2026 => "2026").
+enum SeasonFormat {
+  SPLIT_YEAR
+  CALENDAR_YEAR
+}
+
 enum TeamHistoryType {
   TRANSFER
   LOAN
@@ -133,6 +140,10 @@ model Competition {
   name       String
   slug       String          @unique
   type       CompetitionType @default(LEAGUE)
+  // Determina cómo se etiqueta una temporada y cuál es la "actual".
+  // SPLIT_YEAR (agosto-mayo): 2025 => "2025/26". Europa continental, UEFA.
+  // CALENDAR_YEAR (dentro de un año natural): 2026 => "2026". Nórdicas, América.
+  seasonFormat SeasonFormat  @default(SPLIT_YEAR)
   logoUrl    String?
   countryId  Int
   createdAt  DateTime        @default(now())

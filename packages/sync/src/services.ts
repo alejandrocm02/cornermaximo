@@ -46,15 +46,20 @@ export async function syncCompetitions(
   for (const c of comps) {
     const tracked = TRACKED_COMPETITIONS.find((t) => String(t.apiFootballId) === c.externalId);
     const countryId = await ensureCountry(db, c.country);
+    // El formato de temporada viene de la lista rastreada, no del proveedor:
+    // API-Football devuelve siempre el año de inicio y no distingue entre ligas
+    // de temporada partida y de año natural.
+    const seasonFormat = tracked?.seasonFormat ?? 'SPLIT_YEAR';
     const comp = await db.competition.upsert({
       where: { providerId_externalId: { providerId: providerDbId, externalId: c.externalId } },
-      update: { name: c.name, logoUrl: c.logoUrl, type: c.type },
+      update: { name: c.name, logoUrl: c.logoUrl, type: c.type, seasonFormat },
       create: {
         providerId: providerDbId,
         externalId: c.externalId,
         name: c.name,
         slug: tracked?.slug ?? toSlug(c.name),
         type: c.type,
+        seasonFormat,
         logoUrl: c.logoUrl,
         countryId,
       },

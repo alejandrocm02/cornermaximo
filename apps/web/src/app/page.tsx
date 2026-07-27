@@ -1,5 +1,5 @@
 import { prisma } from '@futstats/db';
-import { CURRENT_SEASON, RECENT_SEASON, WORLD_CUP_2026 } from '@futstats/shared';
+import { BIG_FIVE_CURRENT_SEASON, BIG_FIVE_PREVIOUS_SEASON, WORLD_CUP_2026 } from '@futstats/shared';
 import Link from 'next/link';
 import { MatchRows } from '@/components/MatchRows';
 import { SearchBox } from '@/components/SearchBox';
@@ -83,7 +83,7 @@ export default async function HomePage() {
 
         <p className="fs-eyebrow justify-center">
           <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-pitch-accent" />
-          Temporadas {seasonLabel(RECENT_SEASON)} y {seasonLabel(CURRENT_SEASON)} · Mundial 2026
+          Temporadas {seasonLabel(BIG_FIVE_PREVIOUS_SEASON)} y {seasonLabel(BIG_FIVE_CURRENT_SEASON)} · Mundial 2026
         </p>
 
         <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
@@ -307,8 +307,8 @@ export default async function HomePage() {
       <section className="fs-panel p-5 sm:p-6">
         <h2 className="fs-eyebrow">Cobertura</h2>
         <p className="mt-2 text-sm text-pitch-muted">
-          LaLiga, Premier League, Serie A, Bundesliga y Ligue 1 — temporadas {seasonLabel(RECENT_SEASON)} y{' '}
-          {seasonLabel(CURRENT_SEASON)} — más el Mundial 2026 completo. Estadísticas por jugador y partido de
+          LaLiga, Premier League, Serie A, Bundesliga y Ligue 1 — temporadas {seasonLabel(BIG_FIVE_PREVIOUS_SEASON)} y{' '}
+          {seasonLabel(BIG_FIVE_CURRENT_SEASON)} — más el Mundial 2026 completo. Estadísticas por jugador y partido de
           API-Football, sincronizadas automáticamente cada hora.
         </p>
       </section>

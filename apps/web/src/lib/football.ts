@@ -1,7 +1,15 @@
-import type { MatchStatus } from '@futstats/shared';
+import { formatSeasonLabel, type MatchStatus, type SeasonFormat } from '@futstats/shared';
 
-export function seasonLabel(year: number): string {
-  return `${year}/${String((year + 1) % 100).padStart(2, '0')}`;
+/**
+ * Etiqueta de temporada. El formato depende de la competición: las ligas de
+ * temporada partida se muestran como "2025/26" y las de año natural como "2026".
+ *
+ * Cuando se dispone de la competición (por ejemplo, al renderizar un ranking
+ * filtrado por liga) hay que pasar su `seasonFormat`. Se asume temporada partida
+ * solo cuando el contexto es exclusivamente europeo.
+ */
+export function seasonLabel(year: number, format: SeasonFormat = 'SPLIT_YEAR'): string {
+  return formatSeasonLabel(year, format);
 }
 
 export function formatMatchDate(date: Date): string {

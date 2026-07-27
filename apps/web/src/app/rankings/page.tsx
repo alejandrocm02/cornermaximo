@@ -1,5 +1,5 @@
 import { prisma } from '@futstats/db';
-import { LEAGUE_SEASONS } from '@futstats/shared';
+import { ALL_TRACKED_SEASONS, BIG_FIVE_PREVIOUS_SEASON, seasonsOf, type SeasonFormat } from '@futstats/shared';
 import Link from 'next/link';
 import { seasonLabel } from '@/lib/football';
 import { rankingRows, type RankingMetric } from '@/lib/leaderboards';
@@ -35,10 +35,16 @@ export default async function RankingsPage({
   const sp = await searchParams;
   const metricDef = METRICS.find((m) => m.value === sp.metric) ?? METRICS[0]!;
   const league = (sp.league ?? '').slice(0, 50);
+
+  // Las temporadas disponibles dependen de la competición: una liga de año
+  // natural (Eliteserien, MLS, Brasileirão) no comparte calendario con LaLiga.
+  // Sin liga seleccionada se ofrece la unión de todas las rastreadas.
+  const availableSeasons = league === '' ? ALL_TRACKED_SEASONS : seasonsOf(league);
   const requestedSeason = Number(sp.temporada);
-  const season = (LEAGUE_SEASONS as readonly number[]).includes(requestedSeason)
+  const season = availableSeasons.includes(requestedSeason)
     ? requestedSeason
-    : LEAGUE_SEASONS[0]; // por defecto, la última temporada completada (con datos)
+    : // por defecto, la última temporada completada (la que ya tiene datos)
+      (availableSeasons[0] ?? BIG_FIVE_PREVIOUS_SEASON);
 
   const [leagues, rows, lastSync] = await Promise.all([
     prisma.competition.findMany({ where: { type: 'LEAGUE' }, orderBy: { name: 'asc' } }),
@@ -48,16 +54,22 @@ export default async function RankingsPage({
     prisma.playerMatchStatistics.aggregate({ _max: { syncedAt: true } }),
   ]);
 
-  const leagueName = league === '' ? 'todas las ligas' : leagues.find((l) => l.slug === league)?.name ?? league;
+  const selectedLeague = leagues.find((l) => l.slug === league);
+  const leagueName = league === '' ? 'todas las ligas' : selectedLeague?.name ?? league;
   const updatedAt = lastSync._max.syncedAt;
   const leader = rows?.[0];
+
+  // Formato de etiqueta de temporada. Con una liga seleccionada se usa el suyo;
+  // sin filtro se asume temporada partida, que es el formato mayoritario.
+  const fmt: SeasonFormat = selectedLeague?.seasonFormat ?? 'SPLIT_YEAR';
+  const label = (year: number) => seasonLabel(year, fmt);
 
   const itemListJsonLd =
     rows != null && rows.length > 0
       ? {
           '@context': 'https://schema.org',
           '@type': 'ItemList',
-          name: `Ranking de ${metricDef.label.toLowerCase()} · ${leagueName} · ${seasonLabel(season)}`,
+          name: `Ranking de ${metricDef.label.toLowerCase()} · ${leagueName} · ${label(season)}`,
           itemListElement: rows.slice(0, 10).map((r, i) => ({
             '@type': 'ListItem',
             position: i + 1,
@@ -78,7 +90,7 @@ export default async function RankingsPage({
           Rankings
         </p>
         <h1 className="mt-1 text-3xl font-bold sm:text-4xl">
-          Ranking de {metricDef.label.toLowerCase()} · {leagueName} · {seasonLabel(season)}
+          Ranking de {metricDef.label.toLowerCase()} · {leagueName} · {label(season)}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-pitch-muted">
           Consulta los futbolistas con mejores registros de la temporada seleccionada. Los datos se
@@ -112,8 +124,8 @@ export default async function RankingsPage({
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Temporada</span>
           <select name="temporada" defaultValue={String(season)} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
-            {LEAGUE_SEASONS.map((y) => (
-              <option key={y} value={y}>{seasonLabel(y)}</option>
+            {availableSeasons.map((y) => (
+              <option key={y} value={y}>{label(y)}</option>
             ))}
           </select>
         </label>
@@ -139,7 +151,7 @@ export default async function RankingsPage({
         <div className="fs-panel overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <caption className="sr-only">
-              Ranking de {metricDef.label.toLowerCase()} en {leagueName}, temporada {seasonLabel(season)}
+              Ranking de {metricDef.label.toLowerCase()} en {leagueName}, temporada {label(season)}
             </caption>
             <thead className="border-b border-pitch-border/60 bg-pitch-elevated/40 text-left text-2xs uppercase tracking-[0.14em] text-pitch-muted">
               <tr className="border-b border-pitch-border">
