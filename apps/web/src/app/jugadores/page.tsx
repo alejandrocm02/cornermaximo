@@ -1,25 +1,29 @@
 import { prisma } from '@futstats/db';
+import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { SearchBox } from '@/components/SearchBox';
+import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
   title: { absolute: 'Estadísticas de futbolistas por liga y posición | FutStats' },
   description:
-    'Directorio de futbolistas de las 5 grandes ligas: busca por nombre y filtra por posición, liga y equipo, con orden por goles o minutos.',
+    'Directorio de futbolistas: busca por nombre y filtra por posición, liga y equipo, con orden por goles o minutos.',
   alternates: { canonical: '/jugadores' },
 };
 
 const PAGE_SIZE = 24;
 
-// Nombres completos de las posiciones (sin abreviaturas crípticas)
 const POSITIONS = [
   { value: 'GK', label: 'Portero' },
   { value: 'DF', label: 'Defensa' },
   { value: 'MF', label: 'Centrocampista' },
   { value: 'FW', label: 'Delantero' },
 ] as const;
-const POSITION_LABEL: Record<string, string> = Object.fromEntries(POSITIONS.map((p) => [p.value, p.label]));
+const POSITION_LABEL: Record<string, string> = Object.fromEntries(
+  POSITIONS.map((position) => [position.value, position.label]),
+);
 
 const SORTS = [
   { value: 'nombre', label: 'Nombre (A-Z)' },
@@ -28,12 +32,18 @@ const SORTS = [
 ] as const;
 type SortKey = (typeof SORTS)[number]['value'];
 
-// Tolerancia a acentos sin extensiones: translate() carácter a carácter.
-const ACCENTED = 'áàâäãåéèêëíìîïóòôöõúùûüçñýÁÀÂÄÃÅÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÇÑÝ';
-const PLAIN = 'aaaaaaeeeeiiiiooooouuuucnyAAAAAAEEEEIIIIOOOOOUUUUCNY';
+// lower() se aplica antes de translate(), por lo que solo hacen falta minúsculas.
+const ACCENTED = 'áàâäãåéèêëíìîïóòôöõúùûüçñý';
+const PLAIN = 'aaaaaaeeeeiiiiooooouuuucny';
 
-function normalize(q: string): string {
-  return q.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+function normalizeQuery(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[%_\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 interface DirectoryRow {
@@ -44,41 +54,76 @@ interface DirectoryRow {
   position: string | null;
   minutes: bigint | null;
   goals: bigint | null;
+  total: bigint;
 }
 
-export default async function PlayersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; posicion?: string; liga?: string; equipo?: string; orden?: string; pagina?: string }>;
-}) {
-  const sp = await searchParams;
-  const q = (sp.q ?? '').slice(0, 80).trim();
-  const posicion = POSITIONS.some((p) => p.value === sp.posicion) ? sp.posicion! : '';
-  const liga = (sp.liga ?? '').slice(0, 50);
-  const equipo = (sp.equipo ?? '').slice(0, 60);
-  const orden: SortKey = SORTS.some((s) => s.value === sp.orden) ? (sp.orden as SortKey) : 'nombre';
-  const pagina = Math.max(1, Number(sp.pagina ?? 1) || 1);
+const getLeagueOptions = unstable_cache(
+  async () =>
+    prisma.competition.findMany({
+      where: { type: 'LEAGUE' },
+      select: { id: true, slug: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ['player-directory-league-options-v2'],
+  { revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS, tags: [FOOTBALL_DATA_CACHE_TAG] },
+);
 
-  // Opciones de filtros
-  const [leagues, teams] = await Promise.all([
-    prisma.competition.findMany({ where: { type: 'LEAGUE' }, orderBy: { name: 'asc' } }),
+const getTeamOptions = unstable_cache(
+  async (league: string) =>
     prisma.team.findMany({
       where: {
         isNational: false,
-        ...(liga !== ''
-          ? { seasons: { some: { season: { competition: { slug: liga }, isCurrent: true } } } }
+        ...(league !== ''
+          ? {
+              seasons: {
+                some: {
+                  season: { competition: { slug: league }, isCurrent: true },
+                },
+              },
+            }
           : {}),
       },
       select: { slug: true, name: true },
       orderBy: { name: 'asc' },
     }),
-  ]);
+  ['player-directory-team-options-v2'],
+  { revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS, tags: [FOOTBALL_DATA_CACHE_TAG] },
+);
 
-  // WHERE dinámico parametrizado (los nombres de columna nunca vienen del usuario)
+export default async function PlayersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+    posicion?: string;
+    liga?: string;
+    equipo?: string;
+    orden?: string;
+    pagina?: string;
+  }>;
+}) {
+  const search = await searchParams;
+  const q = (search.q ?? '').slice(0, 80).replace(/\s+/g, ' ').trim();
+  const normalizedQuery = normalizeQuery(q);
+  const posicion = POSITIONS.some((position) => position.value === search.posicion)
+    ? search.posicion!
+    : '';
+  const liga = (search.liga ?? '').slice(0, 50).trim();
+  const equipo = (search.equipo ?? '').slice(0, 60).trim();
+  const orden: SortKey = SORTS.some((sort) => sort.value === search.orden)
+    ? (search.orden as SortKey)
+    : 'nombre';
+  const parsedPage = Number.parseInt(search.pagina ?? '1', 10);
+  const pagina = Number.isSafeInteger(parsedPage)
+    ? Math.min(10_000, Math.max(1, parsedPage))
+    : 1;
+
+  // WHERE dinámico parametrizado. Ningún identificador SQL procede del usuario.
   const conditions: string[] = ['TRUE'];
   const params: unknown[] = [];
-  if (q !== '') {
-    params.push(`%${normalize(q)}%`);
+
+  if (normalizedQuery !== '') {
+    params.push(`%${normalizedQuery}%`);
     conditions.push(
       `(translate(lower(p."fullName"), '${ACCENTED}', '${PLAIN}') LIKE $${params.length}
         OR translate(lower(COALESCE(p."knownAs", '')), '${ACCENTED}', '${PLAIN}') LIKE $${params.length})`,
@@ -87,14 +132,21 @@ export default async function PlayersPage({
   if (posicion !== '') {
     params.push(posicion);
     conditions.push(
-      `EXISTS (SELECT 1 FROM "PlayerPosition" pp WHERE pp."playerId" = p.id AND pp."isPrimary" AND pp."group" = $${params.length}::"PositionGroup")`,
+      `EXISTS (
+         SELECT 1
+         FROM "PlayerPosition" pp
+         WHERE pp."playerId" = p.id
+           AND pp."isPrimary"
+           AND pp."group" = $${params.length}::"PositionGroup"
+       )`,
     );
   }
   if (liga !== '') {
     params.push(liga);
     conditions.push(
       `p."currentTeamId" IN (
-         SELECT st."teamId" FROM "SeasonTeam" st
+         SELECT st."teamId"
+         FROM "SeasonTeam" st
          JOIN "Season" se ON se.id = st."seasonId"
          JOIN "Competition" c ON c.id = se."competitionId"
          WHERE c.slug = $${params.length} AND se."isCurrent"
@@ -103,78 +155,125 @@ export default async function PlayersPage({
   }
   if (equipo !== '') {
     params.push(equipo);
-    conditions.push(`t.slug = $${params.length}`);
+    conditions.push(
+      `p."currentTeamId" = (SELECT team.id FROM "Team" team WHERE team.slug = $${params.length})`,
+    );
   }
+
   const whereSql = conditions.join(' AND ');
+
+  const metricJoin =
+    orden === 'minutos'
+      ? `LEFT JOIN (
+           SELECT mp."playerId", SUM(mp."minutesPlayed")::bigint AS value
+           FROM "MatchPlayer" mp
+           JOIN filtered_players selected ON selected.id = mp."playerId"
+           GROUP BY mp."playerId"
+         ) metric ON metric."playerId" = fp.id`
+      : orden === 'goles'
+        ? `LEFT JOIN (
+             SELECT mp."playerId", SUM(stats.goals)::bigint AS value
+             FROM "PlayerMatchStatistics" stats
+             JOIN "MatchPlayer" mp ON mp.id = stats."matchPlayerId"
+             JOIN filtered_players selected ON selected.id = mp."playerId"
+             GROUP BY mp."playerId"
+           ) metric ON metric."playerId" = fp.id`
+        : '';
+
+  const metricSelect =
+    orden === 'minutos'
+      ? 'metric.value AS minutes, NULL::bigint AS goals'
+      : orden === 'goles'
+        ? 'NULL::bigint AS minutes, metric.value AS goals'
+        : 'NULL::bigint AS minutes, NULL::bigint AS goals';
 
   const orderSql =
     orden === 'minutos'
-      ? 'minutes DESC NULLS LAST, name ASC'
+      ? 'metric.value DESC NULLS LAST, fp.name ASC'
       : orden === 'goles'
-        ? 'goals DESC NULLS LAST, name ASC'
-        : 'name ASC';
+        ? 'metric.value DESC NULLS LAST, fp.name ASC'
+        : 'fp.name ASC';
 
-  const countParams = [...params];
-  const [countRows, rows] = await Promise.all([
-    prisma.$queryRawUnsafe<Array<{ total: bigint }>>(
-      `SELECT count(*)::bigint AS total
-       FROM "Player" p
-       LEFT JOIN "Team" t ON t.id = p."currentTeamId"
-       WHERE ${whereSql}`,
-      ...countParams,
-    ),
-    prisma.$queryRawUnsafe<DirectoryRow[]>(
-      `SELECT p.slug,
+  const limitParam = params.length + 1;
+  const offsetParam = params.length + 2;
+  const rowsPromise = prisma.$queryRawUnsafe<DirectoryRow[]>(
+    `WITH filtered_players AS (
+       SELECT p.id,
+              p.slug,
               COALESCE(p."knownAs", p."fullName") AS name,
               p."photoUrl" AS "photoUrl",
-              t.name AS team,
-              (SELECT pp."group"::text FROM "PlayerPosition" pp WHERE pp."playerId" = p.id AND pp."isPrimary" LIMIT 1) AS position,
-              mm.minutes,
-              gg.goals
+              team.name AS team
        FROM "Player" p
-       LEFT JOIN "Team" t ON t.id = p."currentTeamId"
-       LEFT JOIN (
-         SELECT mp."playerId", SUM(mp."minutesPlayed")::bigint AS minutes
-         FROM "MatchPlayer" mp GROUP BY mp."playerId"
-       ) mm ON mm."playerId" = p.id
-       LEFT JOIN (
-         SELECT mp."playerId", SUM(s.goals)::bigint AS goals
-         FROM "PlayerMatchStatistics" s
-         JOIN "MatchPlayer" mp ON mp.id = s."matchPlayerId"
-         GROUP BY mp."playerId"
-       ) gg ON gg."playerId" = p.id
+       LEFT JOIN "Team" team ON team.id = p."currentTeamId"
        WHERE ${whereSql}
-       ORDER BY ${orderSql}
-       LIMIT ${PAGE_SIZE} OFFSET ${(pagina - 1) * PAGE_SIZE}`,
-      ...params,
-    ),
+     )
+     SELECT fp.slug,
+            fp.name,
+            fp."photoUrl",
+            fp.team,
+            (
+              SELECT pp."group"::text
+              FROM "PlayerPosition" pp
+              WHERE pp."playerId" = fp.id AND pp."isPrimary"
+              LIMIT 1
+            ) AS position,
+            ${metricSelect},
+            COUNT(*) OVER()::bigint AS total
+     FROM filtered_players fp
+     ${metricJoin}
+     ORDER BY ${orderSql}
+     LIMIT $${limitParam} OFFSET $${offsetParam}`,
+    ...params,
+    PAGE_SIZE,
+    (pagina - 1) * PAGE_SIZE,
+  );
+
+  const [leagues, teams, rows] = await Promise.all([
+    getLeagueOptions(),
+    getTeamOptions(liga),
+    rowsPromise,
   ]);
 
-  const total = Number(countRows[0]?.total ?? 0);
+  // COUNT(*) OVER evita una consulta adicional en todas las páginas normales.
+  // Solo se consulta el total por separado ante una página fuera de rango.
+  let total = Number(rows[0]?.total ?? 0);
+  if (rows.length === 0 && pagina > 1) {
+    const countRows = await prisma.$queryRawUnsafe<Array<{ total: bigint }>>(
+      `SELECT COUNT(*)::bigint AS total
+       FROM "Player" p
+       WHERE ${whereSql}`,
+      ...params,
+    );
+    total = Number(countRows[0]?.total ?? 0);
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasFilters = q !== '' || posicion !== '' || liga !== '' || equipo !== '' || orden !== 'nombre';
+  const hasFilters =
+    q !== '' || posicion !== '' || liga !== '' || equipo !== '' || orden !== 'nombre';
 
-  /** Query string actual (sin página) para persistir filtros en enlaces. */
-  const filterQs = new URLSearchParams();
-  if (q !== '') filterQs.set('q', q);
-  if (posicion !== '') filterQs.set('posicion', posicion);
-  if (liga !== '') filterQs.set('liga', liga);
-  if (equipo !== '') filterQs.set('equipo', equipo);
-  if (orden !== 'nombre') filterQs.set('orden', orden);
-  const qsBase = filterQs.toString();
+  const filterParams = new URLSearchParams();
+  if (q !== '') filterParams.set('q', q);
+  if (posicion !== '') filterParams.set('posicion', posicion);
+  if (liga !== '') filterParams.set('liga', liga);
+  if (equipo !== '') filterParams.set('equipo', equipo);
+  if (orden !== 'nombre') filterParams.set('orden', orden);
 
-  const pageHref = (n: number) => {
-    const p = new URLSearchParams(filterQs);
-    if (n > 1) p.set('pagina', String(n));
-    const s = p.toString();
-    return s === '' ? '/jugadores' : `/jugadores?${s}`;
+  const pageHref = (page: number) => {
+    const nextParams = new URLSearchParams(filterParams);
+    if (page > 1) nextParams.set('pagina', String(page));
+    const queryString = nextParams.toString();
+    return queryString === '' ? '/jugadores' : `/jugadores?${queryString}`;
   };
-  /** Enlace al perfil conservando los filtros para el enlace de vuelta. */
+
+  if (total > 0 && pagina > totalPages) redirect(pageHref(totalPages));
+
   const playerHref = (slug: string) => {
-    const p = new URLSearchParams(filterQs);
-    if (pagina > 1) p.set('pagina', String(pagina));
-    const s = p.toString();
-    return s === '' ? `/jugadores/${slug}` : `/jugadores/${slug}?desde=${encodeURIComponent(s)}`;
+    const returnParams = new URLSearchParams(filterParams);
+    if (pagina > 1) returnParams.set('pagina', String(pagina));
+    const queryString = returnParams.toString();
+    return queryString === ''
+      ? `/jugadores/${slug}`
+      : `/jugadores/${slug}?desde=${encodeURIComponent(queryString)}`;
   };
 
   return (
@@ -207,19 +306,31 @@ export default async function PlayersPage({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Posición</span>
-          <select name="posicion" defaultValue={posicion} className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
+          <select
+            name="posicion"
+            defaultValue={posicion}
+            className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto"
+          >
             <option value="">Todas</option>
-            {POSITIONS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
+            {POSITIONS.map((position) => (
+              <option key={position.value} value={position.value}>
+                {position.label}
+              </option>
             ))}
           </select>
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Liga</span>
-          <select name="liga" defaultValue={liga} className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
+          <select
+            name="liga"
+            defaultValue={liga}
+            className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto"
+          >
             <option value="">Todas</option>
-            {leagues.map((l) => (
-              <option key={l.id} value={l.slug}>{l.name}</option>
+            {leagues.map((league) => (
+              <option key={league.id} value={league.slug}>
+                {league.name}
+              </option>
             ))}
           </select>
         </label>
@@ -231,16 +342,24 @@ export default async function PlayersPage({
             className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:max-w-44"
           >
             <option value="">Todos</option>
-            {teams.map((t) => (
-              <option key={t.slug} value={t.slug}>{t.name}</option>
+            {teams.map((team) => (
+              <option key={team.slug} value={team.slug}>
+                {team.name}
+              </option>
             ))}
           </select>
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-pitch-muted">Ordenar por</span>
-          <select name="orden" defaultValue={orden} className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
-            {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
+          <select
+            name="orden"
+            defaultValue={orden}
+            className="w-full rounded-lg border border-pitch-border bg-pitch-bg/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto"
+          >
+            {SORTS.map((sort) => (
+              <option key={sort.value} value={sort.value}>
+                {sort.label}
+              </option>
             ))}
           </select>
         </label>
@@ -266,35 +385,55 @@ export default async function PlayersPage({
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map((p) => (
+        {rows.map((player) => (
           <Link
-            key={p.slug}
-            href={playerHref(p.slug)}
+            key={player.slug}
+            href={playerHref(player.slug)}
             className="fs-panel-interactive flex items-center gap-3 p-3"
           >
-            {p.photoUrl != null ? (
+            {player.photoUrl != null ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img width={40} height={40} loading="lazy" decoding="async" src={p.photoUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-pitch-border" />
+              <img
+                width={40}
+                height={40}
+                loading="lazy"
+                decoding="async"
+                src={player.photoUrl}
+                alt=""
+                className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-pitch-border"
+              />
             ) : (
-              <span aria-hidden="true" className="h-11 w-11 shrink-0 rounded-full bg-pitch-elevated ring-1 ring-pitch-border" />
+              <span
+                aria-hidden="true"
+                className="h-11 w-11 shrink-0 rounded-full bg-pitch-elevated ring-1 ring-pitch-border"
+              />
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">{p.name}</p>
+              <p className="truncate text-sm font-semibold text-white">{player.name}</p>
               <p className="truncate text-xs text-pitch-muted">
-                {p.position != null ? POSITION_LABEL[p.position] ?? p.position : 'Posición desconocida'} · {p.team ?? 'Sin equipo'}
+                {player.position != null
+                  ? POSITION_LABEL[player.position] ?? player.position
+                  : 'Posición desconocida'}{' '}
+                · {player.team ?? 'Sin equipo'}
               </p>
             </div>
-            {orden === 'minutos' && p.minutes != null && (
-              <span className="shrink-0 text-xs text-pitch-muted">{Number(p.minutes).toLocaleString('es-ES')}&apos;</span>
+            {orden === 'minutos' && player.minutes != null && (
+              <span className="shrink-0 text-xs text-pitch-muted">
+                {Number(player.minutes).toLocaleString('es-ES')}&apos;
+              </span>
             )}
-            {orden === 'goles' && p.goals != null && (
-              <span className="shrink-0 text-sm font-semibold text-pitch-accent">{Number(p.goals)}</span>
+            {orden === 'goles' && player.goals != null && (
+              <span className="shrink-0 text-sm font-semibold text-pitch-accent">
+                {Number(player.goals)}
+              </span>
             )}
           </Link>
         ))}
         {rows.length === 0 && (
           <div className="col-span-full rounded-2xl border border-dashed border-pitch-border-strong p-10 text-center text-sm text-pitch-muted">
-            <p className="font-display text-base font-semibold text-white">Sin resultados con estos filtros.</p>
+            <p className="font-display text-base font-semibold text-white">
+              Sin resultados con estos filtros.
+            </p>
             <p className="mx-auto mt-2 max-w-sm">
               Prueba a quitar algún filtro o revisa el nombre —la búsqueda ignora mayúsculas y acentos—.
             </p>
@@ -306,7 +445,10 @@ export default async function PlayersPage({
       </div>
 
       {totalPages > 1 && (
-        <nav aria-label="Paginación de jugadores" className="flex items-center justify-center gap-2 text-sm">
+        <nav
+          aria-label="Paginación de jugadores"
+          className="flex items-center justify-center gap-2 text-sm"
+        >
           {pagina > 1 ? (
             <Link
               rel="prev"
@@ -316,11 +458,17 @@ export default async function PlayersPage({
               <span aria-hidden="true">←</span> Anterior
             </Link>
           ) : (
-            <span aria-hidden="true" className="rounded-lg border border-pitch-border/50 px-4 py-2.5 text-pitch-border-strong">
+            <span
+              aria-hidden="true"
+              className="rounded-lg border border-pitch-border/50 px-4 py-2.5 text-pitch-border-strong"
+            >
               ← Anterior
             </span>
           )}
-          <span aria-current="page" className="px-3 text-2xs tabular-nums text-pitch-muted sm:text-sm">
+          <span
+            aria-current="page"
+            className="px-3 text-2xs tabular-nums text-pitch-muted sm:text-sm"
+          >
             Página {pagina} de {totalPages}
           </span>
           {pagina < totalPages ? (
@@ -332,7 +480,10 @@ export default async function PlayersPage({
               Siguiente <span aria-hidden="true">→</span>
             </Link>
           ) : (
-            <span aria-hidden="true" className="rounded-lg border border-pitch-border/50 px-4 py-2.5 text-pitch-border-strong">
+            <span
+              aria-hidden="true"
+              className="rounded-lg border border-pitch-border/50 px-4 py-2.5 text-pitch-border-strong"
+            >
               Siguiente →
             </span>
           )}
