@@ -7,6 +7,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     '',
     '/jugadores',
+    '/equipos',
     '/ligas',
     '/rankings',
     '/comparador',
