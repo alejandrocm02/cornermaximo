@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 const NAV = [
   { href: '/', label: 'Inicio' },
   { href: '/jugadores', label: 'Jugadores' },
+  { href: '/equipos', label: 'Equipos' },
   { href: '/ligas', label: 'Ligas' },
   { href: '/rankings', label: 'Rankings' },
   { href: '/comparador', label: 'Comparador' },
