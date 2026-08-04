@@ -1,7 +1,7 @@
 /**
  * Adaptador de API-Football que implementa FootballDataProvider.
  * Coste en requests (plan Pro, 7 500/día):
- *  - getCompetitions: 0 (las competiciones rastreadas son constantes conocidas: 5 ligas + Mundial 2026)
+ *  - getCompetitions: 0 (el catálogo rastreado y sus logos se derivan de ids estables)
  *  - getTeamsByCompetition: 1
  *  - getPlayersByTeam: 1 (endpoint /players/squads)
  *  - getFixtures: 1 por competición/temporada
@@ -34,18 +34,22 @@ import {
   mapTeam,
 } from './mappers';
 
+function competitionLogoUrl(apiFootballId: number): string {
+  return `https://media.api-sports.io/football/leagues/${apiFootballId}.png`;
+}
+
 export class ApiFootballProvider implements FootballDataProvider {
   readonly name = 'api-football';
 
   constructor(private readonly client: ApiFootballClient) {}
 
   async getCompetitions(): Promise<ProviderCompetition[]> {
-    // Las competiciones rastreadas (5 ligas + Mundial 2026) son fijas: 0 requests gastadas.
+    // Los ids de competición son estables y permiten construir el logo sin gastar requests.
     return TRACKED_COMPETITIONS.map((c) => ({
       externalId: String(c.apiFootballId),
       name: c.name,
       country: c.country,
-      logoUrl: null,
+      logoUrl: competitionLogoUrl(c.apiFootballId),
       type: c.type,
     }));
   }
