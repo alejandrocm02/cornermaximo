@@ -10,6 +10,10 @@ export const metadata = {
   alternates: { canonical: '/ligas' },
 };
 
+function apiFootballLeagueLogo(externalId: string): string {
+  return `https://media.api-sports.io/football/leagues/${encodeURIComponent(externalId)}.png`;
+}
+
 export default async function LeaguesPage() {
   const leagues = await prisma.competition.findMany({
     where: { type: 'LEAGUE' },
@@ -46,33 +50,32 @@ export default async function LeaguesPage() {
         {leagues.map((league) => {
           const currentSeason =
             league.seasons.find((season) => season.isCurrent) ?? league.seasons[0];
+          const logoUrl = league.logoUrl ?? apiFootballLeagueLogo(league.externalId);
 
           return (
             <Link
               key={league.id}
               href={`/ligas/${league.slug}`}
-              className="fs-panel-interactive group flex min-h-36 flex-col justify-between p-5"
+              className="fs-panel-interactive group flex min-h-40 flex-col justify-between p-5"
             >
               <div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 pt-1">
                     <p className="truncate font-display text-lg font-semibold text-white">{league.name}</p>
                     <p className="mt-1 text-sm text-pitch-muted">{league.country.name}</p>
                   </div>
-                  {league.logoUrl != null ? (
-                    // eslint-disable-next-line @next/next/no-img-element
+                  <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-white/95 p-2 shadow-sm transition-transform duration-200 group-hover:scale-105">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={league.logoUrl}
-                      alt=""
-                      width={40}
-                      height={40}
+                      src={logoUrl}
+                      alt={`Logo de ${league.name}`}
+                      width={52}
+                      height={52}
                       loading="lazy"
                       decoding="async"
-                      className="h-10 w-10 shrink-0 object-contain"
+                      className="h-full w-full object-contain"
                     />
-                  ) : (
-                    <span aria-hidden="true" className="h-10 w-10 shrink-0 rounded-xl bg-pitch-elevated" />
-                  )}
+                  </span>
                 </div>
 
                 {currentSeason != null && (
