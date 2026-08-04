@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { AnalizadorClient } from './AnalizadorClient';
+import { AnalizadorV2Client } from './AnalizadorV2Client';
 
 export const metadata: Metadata = {
   title: { absolute: 'Analizador de bankroll y rendimiento | FutStats' },
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function AnalizadorPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Breadcrumbs items={[{ label: 'Analizador' }]} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -36,7 +37,26 @@ export default function AnalizadorPage() {
         introducidos por ti. Las estadísticas pasadas no garantizan resultados futuros.
       </div>
 
-      <AnalizadorClient />
+      <section aria-labelledby="auditoria-analizador" className="space-y-4">
+        <div>
+          <p className="fs-eyebrow">Control financiero</p>
+          <h2 id="auditoria-analizador" className="mt-1 text-2xl font-bold">Resumen corregido y copias de seguridad</h2>
+          <p className="mt-2 text-sm text-pitch-muted">
+            El ROI utiliza únicamente operaciones ganadas y perdidas. Las anuladas no consumen stake decidido.
+          </p>
+        </div>
+        <AnalizadorV2Client />
+      </section>
+
+      <hr className="fs-rule" />
+
+      <section aria-labelledby="gestion-operaciones" className="space-y-4">
+        <div>
+          <p className="fs-eyebrow">Registro</p>
+          <h2 id="gestion-operaciones" className="mt-1 text-2xl font-bold">Gestión completa de operaciones</h2>
+        </div>
+        <AnalizadorClient />
+      </section>
     </div>
   );
 }
