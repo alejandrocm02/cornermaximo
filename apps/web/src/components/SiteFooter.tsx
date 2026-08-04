@@ -1,9 +1,10 @@
-import { prisma } from '@futstats/db';
 import Link from 'next/link';
+import { getPublicDataHealth, type DataHealthLevel } from '@/lib/dataHealth';
 
 const FOOTER_LINKS = [
   { href: '/sobre', label: 'Sobre FutStats' },
   { href: '/metodologia', label: 'Fuente y metodología' },
+  { href: '/estado-datos', label: 'Estado de los datos' },
   { href: '/privacidad', label: 'Política de privacidad' },
   { href: '/aviso-legal', label: 'Aviso legal' },
 ];
@@ -20,14 +21,21 @@ const SECTIONS = [
   { href: '/mundial-2026', label: 'Mundial 2026' },
 ];
 
+const STATUS: Record<DataHealthLevel, { label: string; dotClass: string }> = {
+  OPERATIONAL: { label: 'Datos actualizados', dotClass: 'bg-pitch-accent' },
+  DEGRADED: { label: 'Actualización con retrasos', dotClass: 'bg-amber-300' },
+  ATTENTION: { label: 'Datos en revisión', dotClass: 'bg-pitch-danger' },
+  UNKNOWN: { label: 'Estado no disponible', dotClass: 'bg-pitch-muted' },
+};
+
 export async function SiteFooter() {
-  let updatedAt: Date | null = null;
+  let health: Awaited<ReturnType<typeof getPublicDataHealth>> | null = null;
   try {
-    const aggregate = await prisma.playerMatchStatistics.aggregate({ _max: { syncedAt: true } });
-    updatedAt = aggregate._max.syncedAt;
+    health = await getPublicDataHealth();
   } catch {
-    // Sin conexión a BD durante el build: se omite la fecha.
+    // Durante builds sin base de datos se conserva el pie sin estado dinámico.
   }
+  const status = STATUS[health?.level ?? 'UNKNOWN'];
 
   return (
     <footer className="relative mt-16 border-t border-pitch-border/70">
@@ -51,17 +59,23 @@ export async function SiteFooter() {
               </a>
               . Actualización automática cada hora. Algunas competiciones pueden presentar retrasos respecto a la fuente original.
             </p>
-            {updatedAt != null && (
-              <p className="mt-3 flex flex-wrap items-center gap-2 text-2xs text-pitch-muted">
-                <span className="fs-chip">
-                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-pitch-accent" />
-                  Última actualización
-                </span>
-                <time dateTime={updatedAt.toISOString()}>
-                  {updatedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-2xs text-pitch-muted">
+              <Link href="/estado-datos" className="fs-chip transition hover:border-pitch-accent/40 hover:text-white">
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${status.dotClass}`} />
+                {status.label}
+              </Link>
+              {health?.lastSuccessfulSync != null && (
+                <time dateTime={health.lastSuccessfulSync}>
+                  Última sincronización correcta:{' '}
+                  {new Date(health.lastSuccessfulSync).toLocaleString('es-ES', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                    timeZone: 'Europe/Madrid',
+                  })}
                 </time>
-              </p>
-            )}
+              )}
+            </div>
           </section>
 
           <nav aria-label="Secciones" className="min-w-0">
