@@ -9,6 +9,8 @@
  * club — lo correcto para un ranking de goleadores del Mundial.
  */
 import { prisma } from '@futstats/db';
+import { unstable_cache } from 'next/cache';
+import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
 
 const FIELD_METRICS = {
   goals: 'goals',
@@ -50,10 +52,10 @@ interface RawRow {
   minutes: bigint;
 }
 
-export async function topPlayerStat(
+async function queryTopPlayerStat(
   competitionSlug: string,
   metric: WorldCupStatMetric,
-  limit = 10,
+  limit: number,
 ): Promise<TopStatRow[]> {
   const isGk = metric in GK_METRICS;
   const column = isGk
@@ -95,4 +97,17 @@ export async function topPlayerStat(
     total: Number(r.total),
     minutes: Number(r.minutes),
   }));
+}
+
+const cachedTopPlayerStat = unstable_cache(queryTopPlayerStat, ['top-player-stat'], {
+  revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
+  tags: [FOOTBALL_DATA_CACHE_TAG, 'competition-player-stats'],
+});
+
+export async function topPlayerStat(
+  competitionSlug: string,
+  metric: WorldCupStatMetric,
+  limit = 10,
+): Promise<TopStatRow[]> {
+  return cachedTopPlayerStat(competitionSlug, metric, limit);
 }
