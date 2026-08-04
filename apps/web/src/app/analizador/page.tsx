@@ -7,7 +7,6 @@ export const metadata: Metadata = {
   description:
     'Registra tus operaciones deportivas, controla varios bankrolls y analiza balance, ROI, acierto, drawdown y rendimiento por mercado.',
   alternates: { canonical: '/analizador' },
-  robots: { index: false, follow: true },
 };
 
 export default function AnalizadorPage() {
