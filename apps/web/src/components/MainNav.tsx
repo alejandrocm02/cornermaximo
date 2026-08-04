@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 
 const NAV = [
   { href: '/', label: 'Inicio' },
+  { href: '/partidos', label: 'Partidos' },
   { href: '/jugadores', label: 'Jugadores' },
   { href: '/equipos', label: 'Equipos' },
   { href: '/ligas', label: 'Ligas' },
@@ -81,7 +82,7 @@ export function MainNav() {
   return (
     <nav
       aria-label="Navegación principal"
-      className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:px-8 xl:gap-6"
+      className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8 xl:gap-5"
     >
       <Link href="/" className={`group flex shrink-0 items-center gap-2.5 ${linkBase} p-1`}>
         <span
@@ -103,7 +104,7 @@ export function MainNav() {
               <Link
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`${linkBase} relative block px-3 py-2 ${
+                className={`${linkBase} relative block px-2.5 py-2 ${
                   active
                     ? 'font-semibold text-white'
                     : 'text-pitch-muted hover:bg-pitch-elevated/60 hover:text-white'
