@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { LeagueInsightsPanel } from '@/components/CompetitionInsightPanels';
+import { getLeagueInsights } from '@/lib/competitionInsights';
 import { formatMatchDate, seasonLabel } from '@/lib/football';
 
 export const dynamic = 'force-dynamic';
@@ -67,7 +69,7 @@ export default async function LeaguePage({
   // API-Football nombra las jornadas de liga "Regular Season - N".
   const firstRounds = Array.from({ length: FIRST_ROUNDS_SHOWN }, (_, index) => `Regular Season - ${index + 1}`);
 
-  const [season, roundMatches] = await Promise.all([
+  const [season, roundMatches, insights] = await Promise.all([
     seasonMeta != null
       ? prisma.season.findUnique({
           where: { id: seasonMeta.id },
@@ -75,12 +77,6 @@ export default async function LeaguePage({
             standings: {
               include: { team: { select: { name: true, slug: true, crestUrl: true } } },
               orderBy: { position: 'asc' },
-            },
-            matches: {
-              where: { status: 'SCHEDULED', kickoffAt: { gte: new Date() } },
-              include: { teams: { include: { team: { select: { name: true } } } } },
-              orderBy: { kickoffAt: 'asc' },
-              take: 5,
             },
           },
         })
@@ -92,6 +88,7 @@ export default async function LeaguePage({
           orderBy: { kickoffAt: 'asc' },
         })
       : [],
+    seasonMeta != null ? getLeagueInsights(seasonMeta.id) : null,
   ]);
 
   const jornadas = firstRounds
@@ -102,7 +99,7 @@ export default async function LeaguePage({
     .filter((jornada) => jornada.matches.length > 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <Breadcrumbs items={[{ label: 'Ligas', href: '/ligas' }, { label: competition.name }]} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -135,6 +132,8 @@ export default async function LeaguePage({
           </nav>
         )}
       </div>
+
+      {insights != null && <LeagueInsightsPanel insights={insights} />}
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Clasificación</h2>
@@ -175,7 +174,11 @@ export default async function LeaguePage({
                   <tr key={row.id} className="border-b border-pitch-border/50 last:border-0">
                     <td className="px-3 py-2 text-pitch-muted">{row.position}</td>
                     <td className="px-3 py-2">
-                      <Link href={`/equipos/${row.team.slug}`} className="hover:text-pitch-accent">
+                      <Link href={`/equipos/${row.team.slug}`} className="inline-flex items-center gap-2 hover:text-pitch-accent">
+                        {row.team.crestUrl != null && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img width={22} height={22} src={row.team.crestUrl} alt="" className="h-[22px] w-[22px] object-contain" />
+                        )}
                         {row.team.name}
                       </Link>
                     </td>
@@ -258,25 +261,6 @@ export default async function LeaguePage({
             El calendario de esta temporada todavía no está disponible. Se incorporará automáticamente cuando la fuente lo publique.
           </p>
         )}
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Próximos partidos</h2>
-        <div className="space-y-2">
-          {season?.matches.map((match) => {
-            const home = match.teams.find((team) => team.isHome);
-            const away = match.teams.find((team) => !team.isHome);
-            return (
-              <div key={match.id} className="fs-panel flex items-center gap-4 px-4 py-3 text-sm">
-                <span className="w-32 text-xs text-pitch-muted">{formatMatchDate(match.kickoffAt)}</span>
-                <span>{home?.team.name ?? '—'} — {away?.team.name ?? '—'}</span>
-              </div>
-            );
-          })}
-          {(season == null || season.matches.length === 0) && (
-            <p className="text-sm text-pitch-muted">Sin partidos programados en la base de datos.</p>
-          )}
-        </div>
       </section>
     </div>
   );
