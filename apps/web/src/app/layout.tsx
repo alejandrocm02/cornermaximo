@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk } from 'next/font/google';
+import { FavoriteHomeBanner } from '@/components/FavoriteHomeBanner';
 import { MainNav } from '@/components/MainNav';
 import { SiteFooter } from '@/components/SiteFooter';
 import './globals.css';
@@ -71,6 +72,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <MainNav />
           <div aria-hidden="true" className="fs-rule absolute inset-x-0 bottom-0" />
         </header>
+
+        <FavoriteHomeBanner />
 
         <main
           id="contenido"
