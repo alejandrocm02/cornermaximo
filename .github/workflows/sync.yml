@@ -10,23 +10,53 @@ on:
     - cron: '0 * * * *' # cada hora
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
+# Una sincronización nueva espera a que termine la anterior. Cancelar una tanda
+# a mitad podría dejar unidades pendientes y desperdiciar presupuesto de la API.
+concurrency:
+  group: futstats-production-sync
+  cancel-in-progress: false
+
 jobs:
   run-sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Ejecutar tandas de sincronización
+        shell: bash
         run: |
+          set -euo pipefail
+
           for i in $(seq 1 10); do
             echo "--- tanda $i ---"
-            RESP=$(curl -sS -X POST \
+
+            if ! RESP=$(curl \
+              --fail-with-body \
+              --silent \
+              --show-error \
+              --max-time 55 \
+              -X POST \
               -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
               -H "Content-Type: application/json" \
               "${{ secrets.APP_URL }}/api/admin/sync/run" \
-              -d '{"maxRequests":200}' || echo "CURL_ERROR")
+              -d '{"maxRequests":200}'); then
+              echo "::error::El endpoint de sincronización devolvió un error HTTP o agotó el tiempo máximo."
+              exit 1
+            fi
+
             echo "$RESP"
             case "$RESP" in
-              *'"stopped":"completed"'*)        echo "Todo sincronizado."; break ;;
-              *'"stopped":"budget_exhausted"'*) echo "Presupuesto diario agotado."; break ;;
+              *'"stopped":"completed"'*)
+                echo "Todo sincronizado."
+                break
+                ;;
+              *'"stopped":"budget_exhausted"'*)
+                echo "Presupuesto diario agotado."
+                break
+                ;;
             esac
+
             sleep 10
           done
