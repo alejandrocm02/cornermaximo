@@ -13,6 +13,8 @@ import {
   type TrendResult,
 } from '@futstats/stats';
 import { RECENT_MATCHES_WINDOW } from '@futstats/shared';
+import { unstable_cache } from 'next/cache';
+import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
 
 export interface RecentMatchDetail {
   matchId: number;
@@ -139,17 +141,15 @@ const sumOrNull = (values: Array<number | null>): number | null => {
   return present.length > 0 ? present.reduce((a, b) => a + b, 0) : null;
 };
 
-export async function getLastMatches(
+async function getLastMatchesUncached(
   playerId: number,
   isGoalkeeper: boolean,
   window: ComparisonWindow = RECENT_MATCHES_WINDOW,
 ): Promise<LastMatchesResponse> {
-  // 'season' = todos los partidos jugados disponibles (sin ventana previa para tendencias)
   const played = await fetchPlayed(playerId, window === 'season' ? undefined : window * 2);
   const recent = window === 'season' ? played : played.slice(0, window);
   const previous = window === 'season' ? [] : played.slice(window);
 
-  // Convocados sin minutos dentro del rango temporal reciente (informativos)
   const newestDate = recent[0]?.match.kickoffAt;
   const oldestDate = recent[recent.length - 1]?.match.kickoffAt;
   const bench =
@@ -215,4 +215,21 @@ export async function getLastMatches(
     summary,
     trends,
   };
+}
+
+const getCachedLastMatches = unstable_cache(
+  getLastMatchesUncached,
+  ['player-last-matches'],
+  {
+    revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
+    tags: [FOOTBALL_DATA_CACHE_TAG],
+  },
+);
+
+export async function getLastMatches(
+  playerId: number,
+  isGoalkeeper: boolean,
+  window: ComparisonWindow = RECENT_MATCHES_WINDOW,
+): Promise<LastMatchesResponse> {
+  return getCachedLastMatches(playerId, isGoalkeeper, window);
 }
