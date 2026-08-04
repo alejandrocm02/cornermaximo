@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/comparador',
     '/noticias',
     '/fichajes',
-    '/apuestas',
+    '/analizador',
     '/modo-carrera',
     '/mundial-2026',
     '/mundial-2026/goleadores',
@@ -28,11 +28,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]);
     return [
       ...staticRoutes,
-      ...leagues.map((l) => ({ url: `${BASE_URL}/ligas/${l.slug}`, lastModified: l.updatedAt })),
-      ...teams.map((t) => ({ url: `${BASE_URL}/equipos/${t.slug}`, lastModified: t.updatedAt })),
-      ...players.map((p) => ({ url: `${BASE_URL}/jugadores/${p.slug}`, lastModified: p.updatedAt })),
+      ...leagues.map((league) => ({ url: `${BASE_URL}/ligas/${league.slug}`, lastModified: league.updatedAt })),
+      ...teams.map((team) => ({ url: `${BASE_URL}/equipos/${team.slug}`, lastModified: team.updatedAt })),
+      ...players.map((player) => ({ url: `${BASE_URL}/jugadores/${player.slug}`, lastModified: player.updatedAt })),
     ];
   } catch {
-    return staticRoutes; // sin BD (build local): solo rutas estáticas
+    return staticRoutes;
   }
 }
