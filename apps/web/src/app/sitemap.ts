@@ -20,6 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/mundial-2026/goleadores',
     '/sobre',
     '/metodologia',
+    '/estado-datos',
   ].map((path) => ({ url: `${BASE_URL}${path}`, changeFrequency: 'hourly' as const }));
 
   try {
