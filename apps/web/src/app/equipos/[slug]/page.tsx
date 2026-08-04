@@ -371,7 +371,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
                           </span>
                           <span className="block truncate text-2xs text-pitch-muted">
                             {player.shirtNumber != null ? `#${player.shirtNumber} · ` : ''}
-                            {position?.specificPosition ?? GROUP_ES[group].slice(0, -1)}
+                            {position?.specificPosition ?? (GROUP_ES[group] ?? group).slice(0, -1)}
                           </span>
                         </span>
                         <span
