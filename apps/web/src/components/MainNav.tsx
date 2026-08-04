@@ -1,20 +1,5 @@
 'use client';
 
-/**
- * Navegación principal accesible.
- * - Estado activo según la ruta, señalado con color + peso + barra inferior
- *   (nunca solo con color, para no depender de la percepción cromática).
- * - Escritorio a partir de `lg`: con diez secciones, en tablet el menú
- *   desplegable resulta más legible que una fila comprimida.
- * - Menú móvil: botón con etiqueta accesible, cierre con Escape, foco visible,
- *   bloqueo de scroll del body mientras está abierto y trampa de foco básica.
- *
- * El panel móvil se monta con un portal en <body> y NO dentro de <header>.
- * La cabecera usa `backdrop-blur`, y un `backdrop-filter` crea un bloque
- * contenedor para los descendientes `position: fixed`: dentro de ella el
- * panel se posicionaría respecto a la cabecera (64 px de alto) en lugar del
- * viewport, quedando recortado a un único elemento de menú.
- */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -28,7 +13,7 @@ const NAV = [
   { href: '/comparador', label: 'Comparador' },
   { href: '/noticias', label: 'Noticias' },
   { href: '/fichajes', label: 'Fichajes' },
-  { href: '/apuestas', label: 'Apuestas' },
+  { href: '/analizador', label: 'Analizador' },
   { href: '/modo-carrera', label: 'Mi Carrera' },
   { href: '/mundial-2026', label: 'Mundial 2026' },
 ];
@@ -43,7 +28,6 @@ const linkBase = 'rounded-lg outline-none transition-colors duration-150';
 export function MainNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  // `createPortal` necesita el DOM: en el render del servidor no existe.
   const [mounted, setMounted] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -52,30 +36,13 @@ export function MainNav() {
     setMounted(true);
   }, []);
 
-  // Cerrar al navegar
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  // Escape + bloqueo de scroll + foco inicial dentro del panel
   useEffect(() => {
     if (!open) return;
 
-    /*
-     * Bloqueo de scroll del fondo — SIN `position: fixed` en <body>.
-     *
-     * WebKit trata los descendientes `position: fixed` como `absolute` cuando
-     * un ancestro es `position: fixed`. Como el panel se monta en <body> con
-     * un portal, fijar el body hacía que el panel se anclase al documento en
-     * lugar de al viewport y acabase fuera de pantalla: en iOS el menú se
-     * abría "detrás" de la página. En escritorio no ocurre porque ese
-     * comportamiento es específico de WebKit.
-     *
-     * `overflow: hidden` en <html> y <body> es menos estricto (iOS puede
-     * seguir permitiendo algo de rebote elástico), pero no rompe el anclaje.
-     * Se prefiere un bloqueo imperfecto a un menú invisible; el rebote lo
-     * contiene además `overscroll-contain` en el propio panel.
-     */
     const html = document.documentElement;
     const previous = {
       htmlOverflow: html.style.overflow,
@@ -86,23 +53,22 @@ export function MainNav() {
 
     panelRef.current?.querySelector<HTMLElement>('button, a')?.focus();
 
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
         setOpen(false);
         buttonRef.current?.focus();
         return;
       }
-      if (e.key === 'Tab' && panelRef.current != null) {
-        // Trampa de foco: mantener el tabulador dentro del menú abierto
+      if (event.key === 'Tab' && panelRef.current != null) {
         const focusables = panelRef.current.querySelectorAll<HTMLElement>('a, button');
         if (focusables.length === 0) return;
         const first = focusables[0]!;
         const last = focusables[focusables.length - 1]!;
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
           last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
           first.focus();
         }
       }
@@ -122,7 +88,6 @@ export function MainNav() {
       className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:gap-6 lg:px-8"
     >
       <Link href="/" className={`group flex shrink-0 items-center gap-2.5 ${linkBase} p-1`}>
-        {/* Marca: monograma con degradado + halo. */}
         <span
           aria-hidden="true"
           className="grid h-8 w-8 place-items-center rounded-xl bg-grad-brand font-display text-sm font-bold text-black shadow-glow-soft transition-transform duration-200 group-hover:scale-105"
@@ -134,7 +99,6 @@ export function MainNav() {
         </span>
       </Link>
 
-      {/* Escritorio */}
       <ul className="hidden flex-1 items-center justify-end gap-0.5 text-sm lg:flex">
         {NAV.map((item) => {
           const active = isActive(pathname, item.href);
@@ -160,14 +124,13 @@ export function MainNav() {
         })}
       </ul>
 
-      {/* Móvil y tablet */}
       <button
         ref={buttonRef}
         type="button"
         aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
         aria-expanded={open}
         aria-controls="menu-movil"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((value) => !value)}
         className={`ml-auto grid h-11 w-11 place-items-center border border-pitch-border bg-pitch-card/60 text-pitch-subtle transition hover:border-pitch-accent/50 hover:text-white lg:hidden ${linkBase}`}
       >
         {open ? (
@@ -181,17 +144,6 @@ export function MainNav() {
         )}
       </button>
 
-      {/*
-        El panel se monta en <body> mediante portal para escapar del bloque
-        contenedor que crea el `backdrop-filter` de la cabecera.
-
-        Además, su altura la fija `100dvh` (viewport) en lugar de combinar
-        `top-16` con `bottom-0`, que se resuelven contra el bloque contenedor:
-        así ocupa la pantalla completa aunque algún ancestro con
-        `backdrop-filter` o `transform` vuelva a capturarlo, y `dvh` absorbe
-        el colapso de la barra de direcciones en iOS. La barra superior y su
-        botón Volver viven dentro del portal para que el panel no los tape.
-      */}
       {open &&
         mounted &&
         createPortal(
@@ -242,7 +194,6 @@ export function MainNav() {
                       }`}
                     >
                       <span className="flex items-center gap-2.5">
-                        {/* Marca visual de la sección activa, además del color. */}
                         <span
                           aria-hidden="true"
                           className={`h-5 w-1 rounded-full ${active ? 'bg-grad-brand' : 'bg-transparent'}`}
