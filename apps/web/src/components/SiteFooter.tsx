@@ -10,6 +10,7 @@ const FOOTER_LINKS = [
 ];
 
 const SECTIONS = [
+  { href: '/favoritos', label: 'Mis favoritos' },
   { href: '/partidos', label: 'Partidos' },
   { href: '/jugadores', label: 'Jugadores' },
   { href: '/equipos', label: 'Equipos' },
