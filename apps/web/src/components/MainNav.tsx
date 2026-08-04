@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 const NAV = [
   { href: '/', label: 'Inicio' },
   { href: '/jugadores', label: 'Jugadores' },
+  { href: '/equipos', label: 'Equipos' },
   { href: '/ligas', label: 'Ligas' },
   { href: '/rankings', label: 'Rankings' },
   { href: '/comparador', label: 'Comparador' },
@@ -32,13 +33,8 @@ export function MainNav() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  useEffect(() => setMounted(true), []);
+  useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,7 +46,6 @@ export function MainNav() {
     };
     html.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
-
     panelRef.current?.querySelector<HTMLElement>('button, a')?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
@@ -59,18 +54,19 @@ export function MainNav() {
         buttonRef.current?.focus();
         return;
       }
-      if (event.key === 'Tab' && panelRef.current != null) {
-        const focusables = panelRef.current.querySelectorAll<HTMLElement>('a, button');
-        if (focusables.length === 0) return;
-        const first = focusables[0]!;
-        const last = focusables[focusables.length - 1]!;
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
+      if (event.key !== 'Tab' || panelRef.current == null) return;
+
+      const focusables = panelRef.current.querySelectorAll<HTMLElement>('a, button');
+      if (focusables.length === 0) return;
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
@@ -85,7 +81,7 @@ export function MainNav() {
   return (
     <nav
       aria-label="Navegación principal"
-      className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:gap-6 lg:px-8"
+      className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:px-8 xl:gap-6"
     >
       <Link href="/" className={`group flex shrink-0 items-center gap-2.5 ${linkBase} p-1`}>
         <span
@@ -99,7 +95,7 @@ export function MainNav() {
         </span>
       </Link>
 
-      <ul className="hidden flex-1 items-center justify-end gap-0.5 text-sm lg:flex">
+      <ul className="hidden flex-1 items-center justify-end gap-0.5 text-sm xl:flex">
         {NAV.map((item) => {
           const active = isActive(pathname, item.href);
           return (
@@ -108,7 +104,9 @@ export function MainNav() {
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={`${linkBase} relative block px-3 py-2 ${
-                  active ? 'font-semibold text-white' : 'text-pitch-muted hover:bg-pitch-elevated/60 hover:text-white'
+                  active
+                    ? 'font-semibold text-white'
+                    : 'text-pitch-muted hover:bg-pitch-elevated/60 hover:text-white'
                 }`}
               >
                 {item.label}
@@ -131,7 +129,7 @@ export function MainNav() {
         aria-expanded={open}
         aria-controls="menu-movil"
         onClick={() => setOpen((value) => !value)}
-        className={`ml-auto grid h-11 w-11 place-items-center border border-pitch-border bg-pitch-card/60 text-pitch-subtle transition hover:border-pitch-accent/50 hover:text-white lg:hidden ${linkBase}`}
+        className={`ml-auto grid h-11 w-11 place-items-center border border-pitch-border bg-pitch-card/60 text-pitch-subtle transition hover:border-pitch-accent/50 hover:text-white xl:hidden ${linkBase}`}
       >
         {open ? (
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -153,7 +151,7 @@ export function MainNav() {
             role="dialog"
             aria-modal="true"
             aria-label="Menú de navegación"
-            className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-pitch-bg lg:hidden"
+            className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-pitch-bg xl:hidden"
           >
             <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-pitch-border bg-pitch-bg px-4">
               <button
@@ -164,21 +162,14 @@ export function MainNav() {
                 }}
                 className={`${linkBase} inline-flex min-h-11 items-center gap-2 px-3 text-sm font-semibold text-pitch-subtle hover:bg-pitch-elevated hover:text-white`}
               >
-                <svg
-                  aria-hidden="true"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M16 10H4m5-5-5 5 5 5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 Volver
               </button>
               <span className="text-sm font-semibold text-white">Menú</span>
             </div>
+
             <ul className="mx-auto grid max-w-md gap-1.5 p-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
               {NAV.map((item) => {
                 const active = isActive(pathname, item.href);
@@ -205,16 +196,7 @@ export function MainNav() {
                           Estás aquí
                         </span>
                       ) : (
-                        <svg
-                          aria-hidden="true"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          className="text-pitch-muted"
-                        >
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="text-pitch-muted">
                           <path d="M7 4l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
