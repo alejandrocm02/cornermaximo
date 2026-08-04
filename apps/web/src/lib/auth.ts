@@ -1,9 +1,7 @@
 import { createHash, createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { promisify } from 'node:util';
 import { prisma } from '@futstats/db';
 import { cookies } from 'next/headers';
 
-const scrypt = promisify(scryptCallback);
 const COOKIE_NAME = 'futstats_session';
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 30;
 const SCRYPT_N = 131_072;
@@ -31,6 +29,20 @@ function authSecret(): string {
   return secret;
 }
 
+function deriveKey(
+  password: string,
+  salt: Buffer,
+  keyLength: number,
+  options: { N: number; r: number; p: number; maxmem: number },
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scryptCallback(password, salt, keyLength, options, (error, derivedKey) => {
+      if (error != null) reject(error);
+      else resolve(derivedKey);
+    });
+  });
+}
+
 function encode(value: string | Buffer): string {
   return Buffer.from(value).toString('base64url');
 }
@@ -47,12 +59,12 @@ function safeEqual(left: string, right: string): boolean {
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
-  const derived = (await scrypt(password, salt, SCRYPT_KEY_LENGTH, {
+  const derived = await deriveKey(password, salt, SCRYPT_KEY_LENGTH, {
     N: SCRYPT_N,
     r: SCRYPT_R,
     p: SCRYPT_P,
     maxmem: 256 * 1024 * 1024,
-  })) as Buffer;
+  });
   return ['scrypt', SCRYPT_N, SCRYPT_R, SCRYPT_P, encode(salt), encode(derived)].join('$');
 }
 
@@ -71,12 +83,12 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
   try {
     const expected = Buffer.from(hashValue, 'base64url');
-    const actual = (await scrypt(password, Buffer.from(saltValue, 'base64url'), expected.length, {
+    const actual = await deriveKey(password, Buffer.from(saltValue, 'base64url'), expected.length, {
       N,
       r,
       p,
       maxmem: 256 * 1024 * 1024,
-    })) as Buffer;
+    });
     return expected.length === actual.length && timingSafeEqual(expected, actual);
   } catch {
     return false;
