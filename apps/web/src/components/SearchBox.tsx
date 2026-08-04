@@ -2,27 +2,87 @@
 
 /**
  * Buscador global: jugadores, equipos y ligas.
- * Autocompletado con debounce, navegación por teclado (↑ ↓ Enter Esc),
- * foco visible, estado sin resultados y tolerancia a mayúsculas/acentos
- * (la normalización ocurre en /api/search).
+ * Autocompletado con debounce, caché breve en el navegador, navegación por
+ * teclado y tolerancia a mayúsculas/acentos.
  *
- * Con `onSelect` (modo comparador) solo muestra jugadores y no navega.
+ * Con `onSelect` (modo comparador) solo solicita jugadores y no navega.
  */
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-interface PlayerResult { slug: string; name: string; photoUrl: string | null; team: string | null; href: string }
-interface TeamResult { slug: string; name: string; crestUrl: string | null; isNational: boolean; href: string }
-interface LeagueResult { slug: string; name: string; href: string }
+interface PlayerResult {
+  slug: string;
+  name: string;
+  photoUrl: string | null;
+  team: string | null;
+  href: string;
+}
 
-interface SearchResponse { players: PlayerResult[]; teams: TeamResult[]; leagues: LeagueResult[] }
+interface TeamResult {
+  slug: string;
+  name: string;
+  crestUrl: string | null;
+  isNational: boolean;
+  href: string;
+}
+
+interface LeagueResult {
+  slug: string;
+  name: string;
+  href: string;
+}
+
+interface SearchResponse {
+  players: PlayerResult[];
+  teams: TeamResult[];
+  leagues: LeagueResult[];
+}
 
 type Item =
   | { kind: 'player'; label: string; sub: string; img: string | null; href: string; slug: string }
   | { kind: 'team'; label: string; sub: string; img: string | null; href: string; slug: string }
   | { kind: 'league'; label: string; sub: string; img: null; href: string; slug: string };
 
-const KIND_LABEL: Record<Item['kind'], string> = { player: 'Jugadores', team: 'Equipos', league: 'Ligas' };
+const KIND_LABEL: Record<Item['kind'], string> = {
+  player: 'Jugadores',
+  team: 'Equipos',
+  league: 'Ligas',
+};
+
+const CLIENT_CACHE_TTL_MS = 5 * 60 * 1000;
+const CLIENT_CACHE_MAX_ENTRIES = 40;
+const clientCache = new Map<string, { expiresAt: number; data: SearchResponse }>();
+
+function normalizeCacheKey(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function readCachedResult(key: string): SearchResponse | null {
+  const cached = clientCache.get(key);
+  if (cached == null) return null;
+  if (cached.expiresAt <= Date.now()) {
+    clientCache.delete(key);
+    return null;
+  }
+
+  // Reinserta la entrada para aproximar un orden LRU.
+  clientCache.delete(key);
+  clientCache.set(key, cached);
+  return cached.data;
+}
+
+function cacheResult(key: string, data: SearchResponse) {
+  if (!clientCache.has(key) && clientCache.size >= CLIENT_CACHE_MAX_ENTRIES) {
+    const oldestKey = clientCache.keys().next().value as string | undefined;
+    if (oldestKey != null) clientCache.delete(oldestKey);
+  }
+  clientCache.set(key, { expiresAt: Date.now() + CLIENT_CACHE_TTL_MS, data });
+}
 
 export function SearchBox({
   placeholder = 'Busca un jugador, equipo o liga',
@@ -30,62 +90,119 @@ export function SearchBox({
 }: {
   placeholder?: string;
   /** Modo selección (comparador): solo jugadores, no navega. */
-  onSelect?: (r: { slug: string; name: string }) => void;
+  onSelect?: (result: { slug: string; name: string }) => void;
 }) {
   const router = useRouter();
+  const scope = onSelect != null ? 'players' : 'all';
   const [query, setQuery] = useState('');
   const [data, setData] = useState<SearchResponse | null>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const latestRequest = useRef(0);
 
   const items: Item[] = useMemo(() => {
     if (data == null) return [];
-    const players: Item[] = data.players.map((p) => ({
-      kind: 'player', label: p.name, sub: p.team ?? '', img: p.photoUrl, href: p.href, slug: p.slug,
+
+    const players: Item[] = data.players.map((player) => ({
+      kind: 'player',
+      label: player.name,
+      sub: player.team ?? '',
+      img: player.photoUrl,
+      href: player.href,
+      slug: player.slug,
     }));
-    if (onSelect != null) return players; // modo comparador: solo jugadores
-    const teams: Item[] = data.teams.map((t) => ({
-      kind: 'team', label: t.name, sub: t.isNational ? 'Selección' : 'Club', img: t.crestUrl, href: t.href, slug: t.slug,
+    if (onSelect != null) return players;
+
+    const teams: Item[] = data.teams.map((team) => ({
+      kind: 'team',
+      label: team.name,
+      sub: team.isNational ? 'Selección' : 'Club',
+      img: team.crestUrl,
+      href: team.href,
+      slug: team.slug,
     }));
-    const leagues: Item[] = data.leagues.map((l) => ({
-      kind: 'league', label: l.name, sub: 'Competición', img: null, href: l.href, slug: l.slug,
+    const leagues: Item[] = data.leagues.map((league) => ({
+      kind: 'league',
+      label: league.name,
+      sub: 'Competición',
+      img: null,
+      href: league.href,
+      slug: league.slug,
     }));
+
     return [...players, ...teams, ...leagues];
   }, [data, onSelect]);
 
   useEffect(() => {
+    const requestId = ++latestRequest.current;
+    let controller: AbortController | null = null;
+
     if (timer.current != null) clearTimeout(timer.current);
-    if (query.trim().length < 2) {
+
+    const trimmedQuery = query.trim();
+    const normalizedQuery = normalizeCacheKey(trimmedQuery);
+    if (normalizedQuery.length < 2) {
       setData(null);
       setOpen(false);
       setActive(-1);
+      setLoading(false);
+      setError(false);
       return;
     }
+
+    const cacheKey = `${scope}:${normalizedQuery}`;
+    const cached = readCachedResult(cacheKey);
+    if (cached != null) {
+      setData(cached);
+      setOpen(true);
+      setActive(-1);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
+    // No conserva resultados de una consulta anterior mientras cambia el texto.
+    setData(null);
+    setOpen(false);
+    setActive(-1);
+    setError(false);
+
     timer.current = setTimeout(async () => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
+      controller = new AbortController();
       setLoading(true);
+
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`, { signal: controller.signal });
-        if (res.ok) {
-          setData((await res.json()) as SearchResponse);
-          setOpen(true);
-          setActive(-1);
-        }
+        const response = await fetch(
+          `/api/search?q=${encodeURIComponent(trimmedQuery)}&scope=${scope}`,
+          { signal: controller.signal, headers: { Accept: 'application/json' } },
+        );
+        if (!response.ok) throw new Error(`Search failed with status ${response.status}`);
+
+        const result = (await response.json()) as SearchResponse;
+        if (requestId !== latestRequest.current) return;
+
+        cacheResult(cacheKey, result);
+        setData(result);
+        setOpen(true);
+        setActive(-1);
       } catch {
-        // petición abortada o red caída: se ignora
+        if (controller.signal.aborted || requestId !== latestRequest.current) return;
+        setData(null);
+        setOpen(true);
+        setError(true);
       } finally {
-        setLoading(false);
+        if (requestId === latestRequest.current) setLoading(false);
       }
-    }, 300);
+    }, 350);
+
     return () => {
       if (timer.current != null) clearTimeout(timer.current);
+      controller?.abort();
     };
-  }, [query]);
+  }, [query, scope]);
 
   function choose(item: Item) {
     setOpen(false);
@@ -97,31 +214,33 @@ export function SearchBox({
     router.push(item.href);
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (!open || items.length === 0) {
-      if (e.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') setOpen(false);
       return;
     }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActive((a) => (a + 1) % items.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActive((a) => (a <= 0 ? items.length - 1 : a - 1));
-    } else if (e.key === 'Enter' && active >= 0 && active < items.length) {
-      e.preventDefault();
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActive((value) => (value + 1) % items.length);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActive((value) => (value <= 0 ? items.length - 1 : value - 1));
+    } else if (event.key === 'Enter' && active >= 0 && active < items.length) {
+      event.preventDefault();
       choose(items[active]!);
-    } else if (e.key === 'Escape') {
+    } else if (event.key === 'Escape') {
       setOpen(false);
       setActive(-1);
     }
   }
 
-  const showNoResults = open && !loading && items.length === 0 && query.trim().length >= 2;
+  const showNoResults =
+    open && !loading && !error && items.length === 0 && query.trim().length >= 2;
+  const showError = open && !loading && error;
 
   return (
     <div className="relative w-full max-w-xl">
-      {/* Halo de foco: se ilumina cuando el campo recibe el foco. */}
       <div className="group relative">
         <span
           aria-hidden="true"
@@ -135,12 +254,14 @@ export function SearchBox({
         <input
           aria-label={placeholder}
           role="combobox"
+          aria-autocomplete="list"
           aria-expanded={open}
+          aria-busy={loading}
           aria-controls="global-search-list"
           aria-activedescendant={active >= 0 ? `search-item-${active}` : undefined}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => items.length > 0 && setOpen(true)}
+          onChange={(event) => setQuery(event.target.value)}
+          onFocus={() => (items.length > 0 || error) && setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           onKeyDown={onKeyDown}
           placeholder={placeholder}
@@ -159,8 +280,8 @@ export function SearchBox({
           role="listbox"
           className="absolute z-20 mt-2 max-h-96 w-full overflow-auto rounded-2xl border border-pitch-border bg-pitch-card/95 shadow-float backdrop-blur-xl"
         >
-          {items.map((item, i) => {
-            const isFirstOfKind = i === 0 || items[i - 1]!.kind !== item.kind;
+          {items.map((item, index) => {
+            const isFirstOfKind = index === 0 || items[index - 1]!.kind !== item.kind;
             return (
               <li key={`${item.kind}-${item.slug}`}>
                 {isFirstOfKind && onSelect == null && (
@@ -170,23 +291,31 @@ export function SearchBox({
                 )}
                 <button
                   type="button"
-                  id={`search-item-${i}`}
+                  id={`search-item-${index}`}
                   role="option"
-                  aria-selected={i === active}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
+                  aria-selected={index === active}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
                     choose(item);
                   }}
-                  onMouseEnter={() => setActive(i)}
+                  onMouseEnter={() => setActive(index)}
                   className={`flex w-full items-center gap-3 border-l-2 px-4 py-2.5 text-left transition-colors ${
-                    i === active
+                    index === active
                       ? 'border-pitch-accent bg-pitch-accent/10'
                       : 'border-transparent hover:bg-pitch-elevated/70'
                   }`}
                 >
                   {item.img != null ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img width={32} height={32} loading="lazy" decoding="async" src={item.img} alt="" className={item.kind === 'team' ? 'h-8 w-8 object-contain' : 'h-8 w-8 rounded-full object-cover'} />
+                    <img
+                      width={32}
+                      height={32}
+                      loading="lazy"
+                      decoding="async"
+                      src={item.img}
+                      alt=""
+                      className={item.kind === 'team' ? 'h-8 w-8 object-contain' : 'h-8 w-8 rounded-full object-cover'}
+                    />
                   ) : (
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pitch-border text-[10px] text-pitch-muted">
                       {item.kind === 'league' ? '🏆' : '·'}
@@ -204,6 +333,15 @@ export function SearchBox({
       {showNoResults && (
         <div className="absolute z-20 mt-2 w-full rounded-2xl border border-pitch-border bg-pitch-card/95 px-4 py-3 text-sm text-pitch-muted shadow-float backdrop-blur-xl">
           Sin resultados para «{query.trim()}». Prueba con otro nombre.
+        </div>
+      )}
+
+      {showError && (
+        <div
+          role="status"
+          className="absolute z-20 mt-2 w-full rounded-2xl border border-pitch-danger/40 bg-pitch-card/95 px-4 py-3 text-sm text-pitch-subtle shadow-float backdrop-blur-xl"
+        >
+          No se pudo completar la búsqueda. Vuelve a intentarlo en unos segundos.
         </div>
       )}
     </div>
