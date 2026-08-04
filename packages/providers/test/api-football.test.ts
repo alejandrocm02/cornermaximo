@@ -1,3 +1,4 @@
+import { TRACKED_COMPETITIONS } from '@futstats/shared';
 import { describe, expect, it } from 'vitest';
 import {
   ApiFootballClient,
@@ -153,7 +154,7 @@ describe('mapFixturePlayers', () => {
 });
 
 describe('ApiFootballProvider', () => {
-  it('getCompetitions devuelve las 5 grandes ligas + Mundial 2026 sin gastar requests', async () => {
+  it('getCompetitions devuelve el catálogo configurado sin gastar requests', async () => {
     const budget = new InMemoryBudgetGuard(0); // presupuesto agotado a propósito
     const provider = new ApiFootballProvider(
       new ApiFootballClient({
@@ -165,7 +166,10 @@ describe('ApiFootballProvider', () => {
       }),
     );
     const comps = await provider.getCompetitions();
-    expect(comps).toHaveLength(6);
+    expect(comps).toHaveLength(TRACKED_COMPETITIONS.length);
+    expect(comps.map((c) => c.externalId)).toEqual(
+      TRACKED_COMPETITIONS.map((competition) => String(competition.apiFootballId)),
+    );
     expect(comps.map((c) => c.name)).toContain('LaLiga');
     expect(comps.find((c) => c.name === 'Copa Mundial de la FIFA 2026')?.type).toBe('CUP');
     expect(budget.usedToday).toBe(0);

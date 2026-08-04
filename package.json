@@ -2,7 +2,7 @@
   "name": "futstats",
   "version": "0.1.0",
   "private": true,
-  "description": "Base de datos y análisis de futbolistas — últimos 5 partidos. 5 grandes ligas europeas.",
+  "description": "Base de datos y análisis de futbolistas, ligas, competiciones y rendimiento.",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -14,6 +14,8 @@
     "test": "npm run test --workspaces --if-present",
     "db:generate": "npm run generate -w @futstats/db",
     "db:migrate": "npm run migrate -w @futstats/db",
+    "db:deploy": "npm run deploy -w @futstats/db",
+    "db:push": "npm run push -w @futstats/db",
     "db:validate": "npm run validate -w @futstats/db"
   },
   "devDependencies": {
