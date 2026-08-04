@@ -14,7 +14,9 @@ export const metadata: Metadata = {
 
 export default async function TeamsPage() {
   const rows = await prisma.team.findMany({
-    where: { seasons: { some: {} } },
+    // El directorio representa el catálogo vigente. Las afiliaciones históricas
+    // siguen disponibles en la base de datos, pero no deben alterar los filtros.
+    where: { seasons: { some: { season: { isCurrent: true } } } },
     select: {
       slug: true,
       name: true,
@@ -24,11 +26,11 @@ export default async function TeamsPage() {
       country: { select: { name: true } },
       _count: { select: { players: true } },
       seasons: {
+        where: { season: { isCurrent: true } },
         select: {
           season: {
             select: {
               year: true,
-              isCurrent: true,
               competition: { select: { slug: true, name: true } },
             },
           },
@@ -43,8 +45,8 @@ export default async function TeamsPage() {
     const competitions = [...team.seasons]
       .sort(
         (a, b) =>
-          Number(b.season.isCurrent) - Number(a.season.isCurrent) ||
-          b.season.year - a.season.year,
+          b.season.year - a.season.year ||
+          a.season.competition.name.localeCompare(b.season.competition.name, 'es'),
       )
       .map(({ season }) => season.competition)
       .filter((competition) => {
@@ -85,7 +87,7 @@ export default async function TeamsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-bold sm:text-4xl">Equipos y selecciones</h1>
         <p className="mt-3 max-w-3xl text-sm text-pitch-muted sm:text-base">
-          Encuentra clubes y selecciones por nombre, país o competición y accede a sus
+          Encuentra clubes y selecciones por nombre, país o competición vigente y accede a sus
           plantillas, clasificación, partidos, noticias y movimientos de mercado.
         </p>
 
