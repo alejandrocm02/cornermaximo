@@ -1,9 +1,10 @@
 import { prisma } from '@futstats/db';
+import { WORLD_CUP_2026 } from '@futstats/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { formatMatchDate } from '@/lib/football';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { formatMatchDate, seasonLabel } from '@/lib/football';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +13,19 @@ const FIRST_ROUNDS_SHOWN = 5;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const c = await prisma.competition.findUnique({ where: { slug } });
-  return { title: c?.name ?? 'Liga' };
+  const competition = await prisma.competition.findUnique({
+    where: { slug },
+    select: { name: true, type: true },
+  });
+
+  return {
+    title: competition?.name ?? 'Liga',
+    description:
+      competition == null
+        ? undefined
+        : `Clasificación, calendario, equipos y temporadas de ${competition.name} en FutStats.`,
+    alternates: { canonical: competition?.type === 'LEAGUE' ? `/ligas/${slug}` : undefined },
+  };
 }
 
 export default async function LeaguePage({
@@ -28,21 +40,32 @@ export default async function LeaguePage({
 
   const competition = await prisma.competition.findUnique({
     where: { slug },
-    include: { seasons: { orderBy: { year: 'asc' }, select: { id: true, year: true, isCurrent: true } } },
+    include: {
+      seasons: {
+        orderBy: { year: 'asc' },
+        select: { id: true, year: true, isCurrent: true },
+      },
+    },
   });
   if (competition == null) notFound();
-  // El Mundial 2026 tiene su propia sección (grupos, eliminatorias, goleadores).
-  if (competition.type === 'CUP') redirect('/mundial-2026');
+
+  // Solo el Mundial dispone actualmente de una experiencia específica para
+  // copas. Una copa distinta nunca debe redirigir a un torneo que no le
+  // corresponde.
+  if (competition.type === 'CUP') {
+    if (competition.slug === WORLD_CUP_2026.slug) redirect('/mundial-2026');
+    notFound();
+  }
 
   const availableSeasons = competition.seasons;
   const requestedYear = temporada != null ? Number(temporada) : undefined;
   const seasonMeta =
-    availableSeasons.find((s) => s.year === requestedYear) ??
-    availableSeasons.find((s) => s.isCurrent) ??
+    availableSeasons.find((season) => season.year === requestedYear) ??
+    availableSeasons.find((season) => season.isCurrent) ??
     availableSeasons[availableSeasons.length - 1];
 
   // API-Football nombra las jornadas de liga "Regular Season - N".
-  const firstRounds = Array.from({ length: FIRST_ROUNDS_SHOWN }, (_, i) => `Regular Season - ${i + 1}`);
+  const firstRounds = Array.from({ length: FIRST_ROUNDS_SHOWN }, (_, index) => `Regular Season - ${index + 1}`);
 
   const [season, roundMatches] = await Promise.all([
     seasonMeta != null
@@ -71,37 +94,45 @@ export default async function LeaguePage({
       : [],
   ]);
 
-  // Agrupar por jornada preservando el orden 1..N
   const jornadas = firstRounds
-    .map((round, i) => ({
-      num: i + 1,
-      matches: roundMatches.filter((m) => m.round === round),
+    .map((round, index) => ({
+      num: index + 1,
+      matches: roundMatches.filter((match) => match.round === round),
     }))
-    .filter((j) => j.matches.length > 0);
+    .filter((jornada) => jornada.matches.length > 0);
 
   return (
     <div className="space-y-8">
       <Breadcrumbs items={[{ label: 'Ligas', href: '/ligas' }, { label: competition.name }]} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold sm:text-4xl">
-          {competition.name} {season != null && <span className="text-pitch-muted">· {season.year}-{(season.year + 1) % 100}</span>}
-        </h1>
+        <div>
+          <p className="fs-eyebrow">{competition.countryId != null ? 'Competición de liga' : 'Liga'}</p>
+          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">
+            {competition.name}
+            {season != null && (
+              <span className="text-pitch-muted"> · {seasonLabel(season.year, competition.seasonFormat)}</span>
+            )}
+          </h1>
+        </div>
+
         {availableSeasons.length > 1 && (
-          <div className="flex gap-2 text-sm">
-            {availableSeasons.map((s) => (
+          <nav aria-label="Temporadas disponibles" className="flex flex-wrap gap-2 text-sm">
+            {availableSeasons.map((availableSeason) => (
               <Link
-                key={s.id}
-                href={`/ligas/${slug}?temporada=${s.year}`}
+                key={availableSeason.id}
+                href={`/ligas/${slug}?temporada=${availableSeason.year}`}
+                aria-current={availableSeason.id === seasonMeta?.id ? 'page' : undefined}
                 className={`rounded-lg border px-3 py-1.5 ${
-                  s.id === seasonMeta?.id
-                    ? 'border-pitch-accent text-pitch-accent'
-                    : 'border-pitch-border text-pitch-muted hover:text-white'
+                  availableSeason.id === seasonMeta?.id
+                    ? 'border-pitch-accent bg-pitch-accent/10 text-pitch-accent'
+                    : 'border-pitch-border text-pitch-muted hover:border-pitch-border-strong hover:text-white'
                 }`}
               >
-                {s.year}-{(s.year + 1) % 100}
+                {seasonLabel(availableSeason.year, competition.seasonFormat)}
               </Link>
             ))}
-          </div>
+          </nav>
         )}
       </div>
 
@@ -110,15 +141,18 @@ export default async function LeaguePage({
         {season != null && season.standings.length > 0 && (
           <p className="-mt-2 mb-3 text-xs text-pitch-muted">
             Última actualización:{' '}
-            {new Date(Math.max(...season.standings.map((r) => r.updatedAt.getTime()))).toLocaleString('es-ES', {
+            {new Date(Math.max(...season.standings.map((row) => row.updatedAt.getTime()))).toLocaleString('es-ES', {
               dateStyle: 'medium',
               timeStyle: 'short',
             })}
           </p>
         )}
         {season != null && season.standings.length > 0 && (
-          <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">Desliza la tabla lateralmente para ver todas las columnas →</p>
+          <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">
+            Desliza la tabla lateralmente para ver todas las columnas →
+          </p>
         )}
+
         {season != null && season.standings.length > 0 ? (
           <div className="overflow-x-auto rounded-xl border border-pitch-border">
             <table className="w-full min-w-[560px] bg-pitch-card text-sm">
@@ -172,35 +206,45 @@ export default async function LeaguePage({
         </h2>
         {jornadas.length > 0 ? (
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {jornadas.map((j) => (
-              <div key={j.num} className="fs-panel">
+            {jornadas.map((jornada) => (
+              <div key={jornada.num} className="fs-panel">
                 <p className="border-b border-pitch-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">
-                  Jornada {j.num}
+                  Jornada {jornada.num}
                 </p>
                 <ul className="divide-y divide-pitch-border/50">
-                  {j.matches.map((m) => {
-                    const home = m.teams.find((t) => t.isHome);
-                    const away = m.teams.find((t) => !t.isHome);
-                    const played = m.status === 'FINISHED';
+                  {jornada.matches.map((match) => {
+                    const home = match.teams.find((team) => team.isHome);
+                    const away = match.teams.find((team) => !team.isHome);
+                    const played = match.status === 'FINISHED';
                     return (
-                      <li key={m.id} className="flex items-center gap-2 px-4 py-2 text-sm">
+                      <li key={match.id} className="flex items-center gap-2 px-4 py-2 text-sm">
                         <span className="min-w-0 flex-1 truncate text-right">
-                          <Link href={`/equipos/${home?.team.slug}`} className="hover:text-pitch-accent">
-                            {home?.team.name}
-                          </Link>
+                          {home != null ? (
+                            <Link href={`/equipos/${home.team.slug}`} className="hover:text-pitch-accent">
+                              {home.team.name}
+                            </Link>
+                          ) : (
+                            '—'
+                          )}
                         </span>
                         <span
                           className={`w-14 shrink-0 rounded px-1 text-center font-semibold ${
                             played ? 'bg-pitch-accent/10 text-pitch-accent' : 'text-pitch-muted'
                           }`}
-                          title={played ? 'Finalizado' : formatMatchDate(m.kickoffAt)}
+                          title={played ? 'Finalizado' : formatMatchDate(match.kickoffAt)}
                         >
-                          {played ? `${home?.goals ?? '-'}–${away?.goals ?? '-'}` : formatMatchDate(m.kickoffAt).slice(0, 6)}
+                          {played
+                            ? `${home?.goals ?? '-'}–${away?.goals ?? '-'}`
+                            : formatMatchDate(match.kickoffAt).slice(0, 6)}
                         </span>
                         <span className="min-w-0 flex-1 truncate">
-                          <Link href={`/equipos/${away?.team.slug}`} className="hover:text-pitch-accent">
-                            {away?.team.name}
-                          </Link>
+                          {away != null ? (
+                            <Link href={`/equipos/${away.team.slug}`} className="hover:text-pitch-accent">
+                              {away.team.name}
+                            </Link>
+                          ) : (
+                            '—'
+                          )}
                         </span>
                       </li>
                     );
@@ -219,13 +263,13 @@ export default async function LeaguePage({
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Próximos partidos</h2>
         <div className="space-y-2">
-          {season?.matches.map((m) => {
-            const home = m.teams.find((t) => t.isHome);
-            const away = m.teams.find((t) => !t.isHome);
+          {season?.matches.map((match) => {
+            const home = match.teams.find((team) => team.isHome);
+            const away = match.teams.find((team) => !team.isHome);
             return (
-              <div key={m.id} className="flex items-center gap-4 fs-panel px-4 py-3 text-sm">
-                <span className="w-32 text-xs text-pitch-muted">{formatMatchDate(m.kickoffAt)}</span>
-                <span>{home?.team.name} — {away?.team.name}</span>
+              <div key={match.id} className="fs-panel flex items-center gap-4 px-4 py-3 text-sm">
+                <span className="w-32 text-xs text-pitch-muted">{formatMatchDate(match.kickoffAt)}</span>
+                <span>{home?.team.name ?? '—'} — {away?.team.name ?? '—'}</span>
               </div>
             );
           })}
