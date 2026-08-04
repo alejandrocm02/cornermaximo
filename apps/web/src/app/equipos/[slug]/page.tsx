@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { TeamInsightsPanel } from '@/components/CompetitionInsightPanels';
+import { getTeamInsights } from '@/lib/competitionInsights';
 import { groupLabel, seasonLabel } from '@/lib/football';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +16,13 @@ const GROUP_ES: Record<string, string> = {
   DF: 'Defensas',
   MF: 'Centrocampistas',
   FW: 'Delanteros',
+};
+const PLAYER_STATUS_LABEL: Record<string, string> = {
+  AVAILABLE: 'Disponible',
+  INJURED: 'Lesionado',
+  SUSPENDED: 'Sancionado',
+  DOUBT: 'Duda',
+  NOT_CALLED: 'No convocado',
 };
 
 function competitionHref(competition: { slug: string; type: string }): string | undefined {
@@ -39,6 +48,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
+interface RosterRow {
+  slug: string;
+  name: string;
+  photoUrl: string | null;
+  position: string | null;
+  club: string | null;
+  played: bigint;
+  minutes: bigint;
+  goals: bigint | null;
+}
+
 export default async function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const team = await prisma.team.findUnique({
@@ -61,11 +81,8 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
   });
   if (team == null) notFound();
 
-  // Una ficha puede estar vinculada a varias competiciones y temporadas. La
-  // referencia principal se escoge por vigencia, por tipo adecuado al equipo
-  // (liga para clubes, copa para selecciones), por disponibilidad de tabla y,
-  // finalmente, por el año más reciente. Así una fila antigua actualizada tarde
-  // no sustituye a la clasificación de la temporada vigente.
+  // La temporada principal prioriza vigencia, el tipo adecuado para club o
+  // selección, la existencia de clasificación y el año más reciente.
   const seasonCandidates = Array.from(
     new Map([
       ...team.seasons.map(({ season }) => [season.id, season] as const),
@@ -97,22 +114,11 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
       ? null
       : `${contextCompetition!.name} · ${seasonLabel(contextSeason.year, contextCompetition!.seasonFormat)}`;
 
-  // En una selección, currentTeamId apunta al club del jugador. La lista se
-  // reconstruye desde las actas, pero exclusivamente dentro de la temporada de
-  // referencia elegida arriba; nunca se mezclan torneos o ciclos anteriores.
-  interface RosterRow {
-    slug: string;
-    name: string;
-    photoUrl: string | null;
-    position: string | null;
-    club: string | null;
-    played: bigint;
-    minutes: bigint;
-    goals: bigint | null;
-  }
-  const roster: RosterRow[] =
+  // Las tres ramas costosas se ejecutan en paralelo: analítica, convocatoria
+  // reconstruida para selecciones y contenido editorial/mercado para clubes.
+  const rosterPromise: Promise<RosterRow[]> =
     team.isNational && contextSeason != null
-      ? await prisma.$queryRawUnsafe<RosterRow[]>(
+      ? prisma.$queryRawUnsafe<RosterRow[]>(
           `
           SELECT p.slug,
                  COALESCE(p."knownAs", p."fullName") AS name,
@@ -138,13 +144,14 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
           team.id,
           contextSeason.id,
         )
-      : [];
+      : Promise.resolve([]);
 
-  const injured = team.players.filter((player) => player.status === 'INJURED' || player.status === 'DOUBT');
+  const insightsPromise =
+    contextSeason == null ? Promise.resolve(null) : getTeamInsights(team.id, contextSeason.id);
 
-  const [teamNews, altas, bajas] = team.isNational
-    ? [[], [], []]
-    : await Promise.all([
+  const marketPromise = team.isNational
+    ? Promise.resolve([[], [], []] as const)
+    : Promise.all([
         prisma.newsItem.findMany({
           where: { teamId: team.id },
           orderBy: { publishedAt: 'desc' },
@@ -161,7 +168,6 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
             fromName: true,
             fee: true,
             date: true,
-            type: true,
             player: { select: { slug: true } },
           },
         }),
@@ -175,14 +181,21 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
             toName: true,
             fee: true,
             date: true,
-            type: true,
             player: { select: { slug: true } },
           },
         }),
       ]);
 
+  const [roster, insights, [teamNews, altas, bajas]] = await Promise.all([
+    rosterPromise,
+    insightsPromise,
+    marketPromise,
+  ]);
+
+  const injured = team.players.filter((player) => player.status === 'INJURED' || player.status === 'DOUBT');
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <Breadcrumbs
         items={[
           { label: 'Equipos', href: '/equipos' },
@@ -199,14 +212,12 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
           <img
             width={80}
             height={80}
-            loading="lazy"
-            decoding="async"
             src={team.crestUrl}
             alt=""
             className="h-20 w-20 object-contain"
           />
         ) : (
-          <span className="h-20 w-20 rounded-full bg-pitch-border" />
+          <span aria-hidden="true" className="h-20 w-20 rounded-full bg-pitch-border" />
         )}
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold sm:text-4xl">
@@ -248,6 +259,8 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
         </div>
       </section>
 
+      {insights != null && <TeamInsightsPanel insights={insights} />}
+
       {injured.length > 0 && (
         <section className="rounded-xl border border-pitch-danger/40 bg-pitch-danger/5 p-4 text-sm">
           <span className="font-semibold text-pitch-danger">Bajas y dudas: </span>
@@ -264,175 +277,110 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
 
       {!team.isNational && (altas.length > 0 || bajas.length > 0 || teamNews.length > 0) && (
         <section className="grid gap-6 lg:grid-cols-3" aria-label="Mercado y actualidad del club">
-          <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Altas confirmadas</h2>
-            <ul className="space-y-2 text-sm">
-              {altas.map((transfer) => (
-                <li key={transfer.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
-                  {transfer.player != null ? (
-                    <Link href={`/jugadores/${transfer.player.slug}`} className="font-medium hover:text-pitch-accent">
-                      {transfer.playerName}
-                    </Link>
-                  ) : (
-                    <span className="font-medium">{transfer.playerName}</span>
-                  )}
-                  <span className="block text-xs text-pitch-muted">
-                    desde {transfer.fromName ?? '—'} · {transfer.fee ?? 'No revelado'} ·{' '}
-                    {transfer.date.toLocaleDateString('es-ES')}
-                  </span>
-                </li>
-              ))}
-              {altas.length === 0 && <li className="text-xs text-pitch-muted">Sin altas registradas recientemente.</li>}
-            </ul>
-          </div>
-          <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Bajas confirmadas</h2>
-            <ul className="space-y-2 text-sm">
-              {bajas.map((transfer) => (
-                <li key={transfer.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
-                  {transfer.player != null ? (
-                    <Link href={`/jugadores/${transfer.player.slug}`} className="font-medium hover:text-pitch-accent">
-                      {transfer.playerName}
-                    </Link>
-                  ) : (
-                    <span className="font-medium">{transfer.playerName}</span>
-                  )}
-                  <span className="block text-xs text-pitch-muted">
-                    hacia {transfer.toName ?? '—'} · {transfer.fee ?? 'No revelado'} ·{' '}
-                    {transfer.date.toLocaleDateString('es-ES')}
-                  </span>
-                </li>
-              ))}
-              {bajas.length === 0 && <li className="text-xs text-pitch-muted">Sin bajas registradas recientemente.</li>}
-            </ul>
-          </div>
-          <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Noticias del club</h2>
-            <ul className="space-y-2 text-sm">
-              {teamNews.map((news) => (
-                <li key={news.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
-                  <a href={news.url} rel="noopener noreferrer" target="_blank" className="hover:text-pitch-accent">
-                    {news.title}
-                  </a>
-                  <span className="block text-xs text-pitch-muted">
-                    {news.source} · {news.publishedAt.toLocaleDateString('es-ES')}
-                  </span>
-                </li>
-              ))}
-              {teamNews.length === 0 && <li className="text-xs text-pitch-muted">Sin noticias vinculadas todavía.</li>}
-            </ul>
-          </div>
+          <TransferColumn title="Altas confirmadas">
+            {altas.map((transfer) => (
+              <li key={transfer.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+                {transfer.player != null ? (
+                  <Link href={`/jugadores/${transfer.player.slug}`} className="font-medium hover:text-pitch-accent">
+                    {transfer.playerName}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{transfer.playerName}</span>
+                )}
+                <span className="block text-xs text-pitch-muted">
+                  desde {transfer.fromName ?? '—'} · {transfer.fee ?? 'No revelado'} · {transfer.date.toLocaleDateString('es-ES')}
+                </span>
+              </li>
+            ))}
+            {altas.length === 0 && <li className="text-xs text-pitch-muted">Sin altas registradas recientemente.</li>}
+          </TransferColumn>
+
+          <TransferColumn title="Bajas confirmadas">
+            {bajas.map((transfer) => (
+              <li key={transfer.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+                {transfer.player != null ? (
+                  <Link href={`/jugadores/${transfer.player.slug}`} className="font-medium hover:text-pitch-accent">
+                    {transfer.playerName}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{transfer.playerName}</span>
+                )}
+                <span className="block text-xs text-pitch-muted">
+                  hacia {transfer.toName ?? '—'} · {transfer.fee ?? 'No revelado'} · {transfer.date.toLocaleDateString('es-ES')}
+                </span>
+              </li>
+            ))}
+            {bajas.length === 0 && <li className="text-xs text-pitch-muted">Sin bajas registradas recientemente.</li>}
+          </TransferColumn>
+
+          <TransferColumn title="Noticias del club">
+            {teamNews.map((news) => (
+              <li key={news.id} className="rounded-lg border border-pitch-border bg-pitch-card px-3 py-2">
+                <a href={news.url} rel="noopener noreferrer" target="_blank" className="hover:text-pitch-accent">
+                  {news.title}
+                </a>
+                <span className="block text-xs text-pitch-muted">
+                  {news.source} · {news.publishedAt.toLocaleDateString('es-ES')}
+                </span>
+              </li>
+            ))}
+            {teamNews.length === 0 && <li className="text-xs text-pitch-muted">Sin noticias vinculadas todavía.</li>}
+          </TransferColumn>
         </section>
       )}
 
       {team.isNational ? (
-        <section className="space-y-6">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-pitch-muted">
-              Convocatoria en actas{contextLabel != null ? ` — ${contextLabel}` : ''} ({roster.length} jugadores)
-            </h2>
-            <p className="mt-2 text-xs text-pitch-muted">
-              Reconstruida únicamente con las actas de la temporada indicada. PJ = partidos con minutos; también se incluyen convocados sin participación.
-            </p>
-          </div>
-
-          {GROUP_ORDER.map((group) => {
-            const players = roster.filter((row) => row.position === group);
-            if (players.length === 0) return null;
-            return (
-              <div key={group}>
-                <h3 className="mb-2 text-xs font-semibold uppercase text-pitch-muted">{GROUP_ES[group]}</h3>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {players.map((row) => (
-                    <Link
-                      key={row.slug}
-                      href={`/jugadores/${row.slug}`}
-                      className="flex items-center gap-3 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 text-sm hover:border-pitch-accent"
-                    >
-                      {row.photoUrl != null ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          width={32}
-                          height={32}
-                          loading="lazy"
-                          decoding="async"
-                          src={row.photoUrl}
-                          alt=""
-                          className="h-8 w-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="h-8 w-8 shrink-0 rounded-full bg-pitch-border" />
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate">{row.name}</span>
-                        <span className="block truncate text-xs text-pitch-muted">{row.club ?? 'Club no registrado'}</span>
-                      </span>
-                      <span className="shrink-0 text-right text-xs text-pitch-muted">
-                        <span className="block">
-                          {Number(row.played)} PJ · {Number(row.minutes)}&apos;
-                        </span>
-                        {row.goals != null && Number(row.goals) > 0 && (
-                          <span className="block font-semibold text-pitch-accent">{Number(row.goals)} goles</span>
-                        )}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-
-          {roster.some((row) => row.position == null) && (
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase text-pitch-muted">Sin posición registrada</h3>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {roster
-                  .filter((row) => row.position == null)
-                  .map((row) => (
-                    <Link
-                      key={row.slug}
-                      href={`/jugadores/${row.slug}`}
-                      className="flex items-center gap-3 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 text-sm hover:border-pitch-accent"
-                    >
-                      <span className="min-w-0 flex-1 truncate">{row.name}</span>
-                      <span className="shrink-0 text-xs text-pitch-muted">
-                        {Number(row.played)} PJ · {Number(row.minutes)}&apos;
-                      </span>
-                    </Link>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {roster.length === 0 && (
-            <p className="text-sm text-pitch-muted">
-              {contextSeason == null
-                ? 'No hay una temporada asociada a esta selección todavía.'
-                : 'Las actas de esta temporada todavía no contienen jugadores. La lista se completará automáticamente durante la sincronización.'}
-            </p>
-          )}
-        </section>
+        <NationalRoster roster={roster} contextLabel={contextLabel} hasSeason={contextSeason != null} />
       ) : (
         <section className="space-y-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-pitch-muted">Plantilla actual</h2>
+          <div>
+            <p className="fs-eyebrow">Jugadores registrados</p>
+            <h2 className="mt-1 text-2xl font-bold">Plantilla por posición</h2>
+          </div>
           {GROUP_ORDER.map((group) => {
             const players = team.players.filter((player) => player.positions[0]?.group === group);
             if (players.length === 0) return null;
             return (
               <div key={group}>
-                <h3 className="mb-2 text-xs font-semibold uppercase text-pitch-muted">{GROUP_ES[group]}</h3>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {players.map((player) => (
-                    <Link
-                      key={player.id}
-                      href={`/jugadores/${player.slug}`}
-                      className="flex items-center gap-3 rounded-lg border border-pitch-border bg-pitch-card px-3 py-2 text-sm hover:border-pitch-accent"
-                    >
-                      <span className="w-6 text-right text-xs text-pitch-muted">{player.shirtNumber ?? ''}</span>
-                      <span className="flex-1 truncate">{player.knownAs ?? player.fullName}</span>
-                      {player.status !== 'AVAILABLE' && <span className="text-xs text-pitch-danger">●</span>}
-                    </Link>
-                  ))}
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">{GROUP_ES[group]}</h3>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {players.map((player) => {
+                    const position = player.positions[0];
+                    const available = player.status === 'AVAILABLE';
+                    return (
+                      <Link
+                        key={player.id}
+                        href={`/jugadores/${player.slug}`}
+                        className="fs-panel-interactive flex items-center gap-3 p-3"
+                      >
+                        {player.photoUrl != null ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            width={44}
+                            height={44}
+                            src={player.photoUrl}
+                            alt=""
+                            className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-pitch-border"
+                          />
+                        ) : (
+                          <span aria-hidden="true" className="h-11 w-11 shrink-0 rounded-full bg-pitch-elevated ring-1 ring-pitch-border" />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-white">
+                            {player.knownAs ?? player.fullName}
+                          </span>
+                          <span className="block truncate text-2xs text-pitch-muted">
+                            {player.shirtNumber != null ? `#${player.shirtNumber} · ` : ''}
+                            {position?.specificPosition ?? GROUP_ES[group].slice(0, -1)}
+                          </span>
+                        </span>
+                        <span
+                          title={PLAYER_STATUS_LABEL[player.status] ?? player.status}
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${available ? 'bg-pitch-accent' : 'bg-pitch-danger'}`}
+                        />
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -441,5 +389,95 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
         </section>
       )}
     </div>
+  );
+}
+
+function TransferColumn({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">{title}</h2>
+      <ul className="space-y-2 text-sm">{children}</ul>
+    </div>
+  );
+}
+
+function NationalRoster({
+  roster,
+  contextLabel,
+  hasSeason,
+}: {
+  roster: RosterRow[];
+  contextLabel: string | null;
+  hasSeason: boolean;
+}) {
+  return (
+    <section className="space-y-6">
+      <div>
+        <p className="fs-eyebrow">Convocatorias verificadas</p>
+        <h2 className="mt-1 text-2xl font-bold">
+          Plantilla por posición{contextLabel != null ? ` · ${contextLabel}` : ''}
+        </h2>
+        <p className="mt-2 text-xs text-pitch-muted">
+          Reconstruida únicamente con las actas de la temporada indicada. PJ = partidos con minutos; también se incluyen convocados sin participación.
+        </p>
+      </div>
+
+      {GROUP_ORDER.map((group) => {
+        const players = roster.filter((row) => row.position === group);
+        if (players.length === 0) return null;
+        return (
+          <div key={group}>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">{GROUP_ES[group]}</h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {players.map((row) => (
+                <NationalPlayerCard key={row.slug} row={row} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {roster.some((row) => row.position == null) && (
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">Sin posición registrada</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {roster
+              .filter((row) => row.position == null)
+              .map((row) => <NationalPlayerCard key={row.slug} row={row} />)}
+          </div>
+        </div>
+      )}
+
+      {roster.length === 0 && (
+        <p className="text-sm text-pitch-muted">
+          {!hasSeason
+            ? 'No hay una temporada asociada a esta selección todavía.'
+            : 'Las actas de esta temporada todavía no contienen jugadores. La lista se completará automáticamente durante la sincronización.'}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function NationalPlayerCard({ row }: { row: RosterRow }) {
+  return (
+    <Link href={`/jugadores/${row.slug}`} className="fs-panel-interactive flex items-center gap-3 p-3">
+      {row.photoUrl != null ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img width={44} height={44} src={row.photoUrl} alt="" className="h-11 w-11 rounded-full object-cover ring-1 ring-pitch-border" />
+      ) : (
+        <span aria-hidden="true" className="h-11 w-11 shrink-0 rounded-full bg-pitch-elevated ring-1 ring-pitch-border" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-white">{row.name}</span>
+        <span className="block truncate text-2xs text-pitch-muted">{row.club ?? 'Club no registrado'}</span>
+      </span>
+      <span className="shrink-0 text-right text-2xs text-pitch-muted">
+        <span className="block">{Number(row.played)} PJ · {Number(row.minutes)}&apos;</span>
+        {row.goals != null && Number(row.goals) > 0 && (
+          <span className="block font-semibold text-pitch-accent">{Number(row.goals)} goles</span>
+        )}
+      </span>
+    </Link>
   );
 }
