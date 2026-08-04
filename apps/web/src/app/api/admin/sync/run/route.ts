@@ -5,9 +5,11 @@
  */
 import { prisma } from '@futstats/db';
 import { runSync } from '@futstats/sync';
+import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { jsonError, requireSyncAuth } from '@/lib/api';
+import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // límite de Vercel Hobby
@@ -31,6 +33,12 @@ export async function POST(request: Request) {
 
   try {
     const result = await runSync(prisma, { maxRequests });
+
+    // Las agregaciones públicas se sirven desde la caché de datos de Next.
+    // Cada tanda completada invalida la etiqueta para que la siguiente visita
+    // reciba los resultados recién sincronizados, sin esperar al TTL horario.
+    revalidateTag(FOOTBALL_DATA_CACHE_TAG);
+
     return NextResponse.json(result);
   } catch (err) {
     await prisma.syncLog.create({
