@@ -18,6 +18,7 @@ const NAV = [
   { href: '/analizador', label: 'Analizador' },
   { href: '/modo-carrera', label: 'Mi Carrera' },
   { href: '/mundial-2026', label: 'Mundial 2026' },
+  { href: '/cuenta', label: 'Cuenta' },
 ];
 
 function isActive(pathname: string, href: string): boolean {
