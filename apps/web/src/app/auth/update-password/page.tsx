@@ -68,7 +68,7 @@ export default function UpdatePasswordPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition focus:border-pitch-accent"
-              placeholder="10+ caracteres con mayúscula, número y símbolo"
+              placeholder="10+ caracteres con mayúscula, minúscula, número y símbolo"
             />
           </label>
 
