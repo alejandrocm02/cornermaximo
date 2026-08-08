@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk } from 'next/font/google';
+import { CookieNotice } from '@/components/CookieNotice';
 import { FavoriteHomeBanner } from '@/components/FavoriteHomeBanner';
 import { MainNav } from '@/components/MainNav';
 import { SiteFooter } from '@/components/SiteFooter';
@@ -66,8 +67,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Saltar al contenido principal
         </a>
 
-        {/* Cabecera fija translúcida. El degradado inferior sustituye al borde
-            plano y da sensación de profundidad al desplazar el contenido. */}
         <header className="sticky top-0 z-30 border-b border-pitch-border/70 bg-pitch-bg/80 backdrop-blur-xl supports-[backdrop-filter]:bg-pitch-bg/60">
           <MainNav />
           <div aria-hidden="true" className="fs-rule absolute inset-x-0 bottom-0" />
@@ -84,6 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
 
         <SiteFooter />
+        <CookieNotice />
       </body>
     </html>
   );
