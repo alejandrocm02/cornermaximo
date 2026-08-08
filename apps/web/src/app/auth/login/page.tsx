@@ -3,7 +3,13 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import { PasswordRequirements } from '@/components/PasswordRequirements';
 import { createClient } from '@/lib/supabase/client';
+import {
+  getPasswordValidationError,
+  isPasswordValid,
+  PASSWORD_MIN_LENGTH,
+} from '@/lib/auth/passwordPolicy';
 
 type Mode = 'login' | 'register';
 
@@ -19,20 +25,25 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
+  const registrationPasswordValid = isPasswordValid(password);
+  const passwordsMatch = password === confirmPassword;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setMessage(null);
 
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
-      return;
-    }
+    if (mode === 'register') {
+      const passwordError = getPasswordValidationError(password);
+      if (passwordError) {
+        setError(passwordError);
+        return;
+      }
 
-    if (mode === 'register' && password !== confirmPassword) {
-      setError('Las contraseñas no coinciden.');
-      return;
+      if (!passwordsMatch) {
+        setError('Las contraseñas no coinciden.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -81,14 +92,23 @@ export default function AuthPage() {
         <div className="mb-6 grid grid-cols-2 rounded-xl border border-pitch-border bg-pitch-bg/60 p-1">
           <button
             type="button"
-            onClick={() => { setMode('login'); setError(null); setMessage(null); }}
+            onClick={() => {
+              setMode('login');
+              setConfirmPassword('');
+              setError(null);
+              setMessage(null);
+            }}
             className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === 'login' ? 'bg-pitch-elevated text-white' : 'text-pitch-muted hover:text-white'}`}
           >
             Entrar
           </button>
           <button
             type="button"
-            onClick={() => { setMode('register'); setError(null); setMessage(null); }}
+            onClick={() => {
+              setMode('register');
+              setError(null);
+              setMessage(null);
+            }}
             className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === 'register' ? 'bg-pitch-elevated text-white' : 'text-pitch-muted hover:text-white'}`}
           >
             Registrarme
@@ -115,28 +135,45 @@ export default function AuthPage() {
               type="password"
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               required
-              minLength={8}
+              minLength={mode === 'register' ? PASSWORD_MIN_LENGTH : undefined}
+              aria-describedby={mode === 'register' ? 'password-requirements' : undefined}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition placeholder:text-pitch-muted focus:border-pitch-accent"
-              placeholder="Mínimo 8 caracteres"
+              placeholder={mode === 'login' ? 'Tu contraseña' : '10+ caracteres con mayúscula, número y símbolo'}
             />
           </label>
 
           {mode === 'register' && (
-            <label className="block text-sm font-medium text-pitch-subtle">
-              Repite la contraseña
-              <input
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition placeholder:text-pitch-muted focus:border-pitch-accent"
-                placeholder="Repite tu contraseña"
-              />
-            </label>
+            <div id="password-requirements">
+              <PasswordRequirements password={password} />
+            </div>
+          )}
+
+          {mode === 'register' && (
+            <div>
+              <label className="block text-sm font-medium text-pitch-subtle">
+                Repite la contraseña
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={PASSWORD_MIN_LENGTH}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition placeholder:text-pitch-muted focus:border-pitch-accent"
+                  placeholder="Repite tu contraseña"
+                />
+              </label>
+              {confirmPassword && (
+                <p
+                  aria-live="polite"
+                  className={`mt-2 text-sm ${passwordsMatch ? 'text-pitch-accent' : 'text-pitch-muted'}`}
+                >
+                  {passwordsMatch ? '✓ Las contraseñas coinciden.' : 'Las contraseñas todavía no coinciden.'}
+                </p>
+              )}
+            </div>
           )}
 
           {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>}
@@ -144,7 +181,7 @@ export default function AuthPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (mode === 'register' && (!registrationPasswordValid || !passwordsMatch))}
             className="w-full rounded-xl bg-grad-brand px-4 py-3 font-display font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? 'Procesando…' : mode === 'login' ? 'Entrar en FutStats' : 'Crear cuenta'}
