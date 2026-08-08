@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { PasswordRequirements } from '@/components/PasswordRequirements';
+import { TURNSTILE_CONFIGURED, TurnstileChallenge } from '@/components/TurnstileChallenge';
+import { safeInternalPath } from '@/lib/security/redirect';
 import { createClient } from '@/lib/supabase/client';
 import {
   getPasswordValidationError,
@@ -20,6 +22,8 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaRevision, setCaptchaRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,11 +31,23 @@ export default function AuthPage() {
   const supabase = createClient();
   const registrationPasswordValid = isPasswordValid(password);
   const passwordsMatch = password === confirmPassword;
+  const captchaReady = !TURNSTILE_CONFIGURED || captchaToken != null;
+
+  function resetCaptcha() {
+    if (!TURNSTILE_CONFIGURED) return;
+    setCaptchaToken(null);
+    setCaptchaRevision((value) => value + 1);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setMessage(null);
+
+    if (!captchaReady) {
+      setError('Completa la verificación anti-bot antes de continuar.');
+      return;
+    }
 
     if (mode === 'register') {
       const passwordError = getPasswordValidationError(password);
@@ -47,14 +63,18 @@ export default function AuthPage() {
     }
 
     setLoading(true);
+    const normalizedEmail = email.trim();
 
     try {
       if (mode === 'register') {
         const callbackUrl = `${window.location.origin}/auth/callback`;
         const { error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
-          options: { emailRedirectTo: callbackUrl },
+          options: {
+            emailRedirectTo: callbackUrl,
+            ...(captchaToken ? { captchaToken } : {}),
+          },
         });
 
         if (signUpError) throw signUpError;
@@ -62,18 +82,30 @@ export default function AuthPage() {
         setPassword('');
         setConfirmPassword('');
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+          ...(captchaToken ? { options: { captchaToken } } : {}),
+        });
         if (signInError) throw signInError;
 
-        const next = searchParams.get('next');
-        router.replace(next && next.startsWith('/') ? next : '/cuenta');
+        router.replace(safeInternalPath(searchParams.get('next'), '/cuenta'));
         router.refresh();
       }
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : 'No se ha podido completar la autenticación.');
     } finally {
       setLoading(false);
+      resetCaptcha();
     }
+  }
+
+  function changeMode(nextMode: Mode) {
+    setMode(nextMode);
+    setConfirmPassword('');
+    setError(null);
+    setMessage(null);
+    resetCaptcha();
   }
 
   return (
@@ -92,23 +124,14 @@ export default function AuthPage() {
         <div className="mb-6 grid grid-cols-2 rounded-xl border border-pitch-border bg-pitch-bg/60 p-1">
           <button
             type="button"
-            onClick={() => {
-              setMode('login');
-              setConfirmPassword('');
-              setError(null);
-              setMessage(null);
-            }}
+            onClick={() => changeMode('login')}
             className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === 'login' ? 'bg-pitch-elevated text-white' : 'text-pitch-muted hover:text-white'}`}
           >
             Entrar
           </button>
           <button
             type="button"
-            onClick={() => {
-              setMode('register');
-              setError(null);
-              setMessage(null);
-            }}
+            onClick={() => changeMode('register')}
             className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === 'register' ? 'bg-pitch-elevated text-white' : 'text-pitch-muted hover:text-white'}`}
           >
             Registrarme
@@ -122,6 +145,7 @@ export default function AuthPage() {
               type="email"
               autoComplete="email"
               required
+              maxLength={254}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition placeholder:text-pitch-muted focus:border-pitch-accent"
@@ -135,6 +159,7 @@ export default function AuthPage() {
               type="password"
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               required
+              maxLength={128}
               minLength={mode === 'register' ? PASSWORD_MIN_LENGTH : undefined}
               aria-describedby={mode === 'register' ? 'password-requirements' : undefined}
               value={password}
@@ -158,6 +183,7 @@ export default function AuthPage() {
                   type="password"
                   autoComplete="new-password"
                   required
+                  maxLength={128}
                   minLength={PASSWORD_MIN_LENGTH}
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
@@ -176,12 +202,16 @@ export default function AuthPage() {
             </div>
           )}
 
+          {TURNSTILE_CONFIGURED && (
+            <TurnstileChallenge key={`${mode}-${captchaRevision}`} onToken={setCaptchaToken} />
+          )}
+
           {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>}
           {message && <p role="status" className="rounded-xl border border-pitch-accent/30 bg-pitch-accent/10 px-4 py-3 text-sm text-pitch-accent">{message}</p>}
 
           <button
             type="submit"
-            disabled={loading || (mode === 'register' && (!registrationPasswordValid || !passwordsMatch))}
+            disabled={loading || !captchaReady || (mode === 'register' && (!registrationPasswordValid || !passwordsMatch))}
             className="w-full rounded-xl bg-grad-brand px-4 py-3 font-display font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? 'Procesando…' : mode === 'login' ? 'Entrar en FutStats' : 'Crear cuenta'}

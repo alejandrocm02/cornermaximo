@@ -2,23 +2,39 @@
 
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
+import { TURNSTILE_CONFIGURED, TurnstileChallenge } from '@/components/TurnstileChallenge';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaRevision, setCaptchaRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const captchaReady = !TURNSTILE_CONFIGURED || captchaToken != null;
+
+  function resetCaptcha() {
+    if (!TURNSTILE_CONFIGURED) return;
+    setCaptchaToken(null);
+    setCaptchaRevision((value) => value + 1);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
     setMessage(null);
 
+    if (!captchaReady) {
+      setError('Completa la verificación anti-bot antes de continuar.');
+      return;
+    }
+
+    setLoading(true);
     const supabase = createClient();
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
+      ...(captchaToken ? { captchaToken } : {}),
     });
 
     if (resetError) {
@@ -27,6 +43,7 @@ export default function ForgotPasswordPage() {
       setMessage('Si existe una cuenta con ese correo, recibirás un enlace para cambiar la contraseña.');
     }
     setLoading(false);
+    resetCaptcha();
   }
 
   return (
@@ -43,16 +60,25 @@ export default function ForgotPasswordPage() {
               type="email"
               autoComplete="email"
               required
+              maxLength={254}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition focus:border-pitch-accent"
             />
           </label>
 
+          {TURNSTILE_CONFIGURED && (
+            <TurnstileChallenge key={captchaRevision} onToken={setCaptchaToken} />
+          )}
+
           {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>}
           {message && <p role="status" className="rounded-xl border border-pitch-accent/30 bg-pitch-accent/10 px-4 py-3 text-sm text-pitch-accent">{message}</p>}
 
-          <button type="submit" disabled={loading} className="w-full rounded-xl bg-grad-brand px-4 py-3 font-display font-bold text-black disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={loading || !captchaReady}
+            className="w-full rounded-xl bg-grad-brand px-4 py-3 font-display font-bold text-black disabled:cursor-not-allowed disabled:opacity-60"
+          >
             {loading ? 'Enviando…' : 'Enviar enlace'}
           </button>
         </form>

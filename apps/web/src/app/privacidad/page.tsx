@@ -6,17 +6,48 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <article className="max-w-2xl space-y-4">
-      <h1 className="text-3xl font-bold sm:text-4xl">Política de privacidad</h1>
-      <p className="text-sm leading-relaxed text-pitch-muted">
-        FutStats no requiere registro y no recopila datos personales de sus visitantes. No se
-        utilizan cookies propias de seguimiento ni herramientas de analítica en esta versión.
-      </p>
-      <p className="rounded-lg border border-dashed border-pitch-border p-3 text-xs text-pitch-muted">
-        Documento en preparación. Pendiente de definir: responsable del tratamiento y vía de
-        contacto. Esta página se completará antes de incorporar cualquier tratamiento de datos
-        personales (cuentas de usuario, analítica o publicidad).
-      </p>
+    <article className="max-w-3xl space-y-6">
+      <div>
+        <p className="fs-eyebrow">Privacidad</p>
+        <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Política de privacidad</h1>
+      </div>
+
+      <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
+        <p>
+          FutStats permite crear una cuenta mediante correo electrónico. La autenticación se presta con Supabase Auth, que gestiona las credenciales, la confirmación de correo, la recuperación de contraseña y las sesiones. FutStats no almacena ni puede recuperar la contraseña original del usuario.
+        </p>
+        <p>
+          Para prestar la cuenta se tratan, como mínimo, el correo electrónico, un identificador técnico de usuario, fechas y metadatos de autenticación necesarios para seguridad y funcionamiento de la sesión. Los datos deportivos públicos de jugadores, clubes y competiciones no forman parte del perfil personal del usuario.
+        </p>
+      </section>
+
+      <section className="fs-panel p-5 text-sm leading-7 text-pitch-subtle">
+        <h2 className="font-display text-xl font-bold text-white">Finalidades</h2>
+        <ul className="mt-3 list-disc space-y-2 pl-5 text-pitch-muted">
+          <li>Crear y proteger la cuenta de FutStats.</li>
+          <li>Confirmar el correo y permitir recuperación o cambio de contraseña.</li>
+          <li>Mantener la sesión y prevenir usos abusivos o automatizados del sistema de autenticación.</li>
+          <li>Prestar funciones personales que el usuario solicite cuando se incorporen a la cuenta.</li>
+        </ul>
+      </section>
+
+      <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
+        <h2 className="font-display text-xl font-bold text-white">Almacenamiento en el dispositivo</h2>
+        <p>
+          Determinadas funciones actuales, como favoritos, datos del Analizador y algunas preferencias, pueden permanecer únicamente en el almacenamiento local del navegador. Consulta la política de cookies para conocer qué se guarda en cookies y qué se mantiene localmente.
+        </p>
+      </section>
+
+      <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
+        <h2 className="font-display text-xl font-bold text-white">Proveedores técnicos</h2>
+        <p>
+          FutStats utiliza servicios de infraestructura y autenticación como Supabase y Vercel, y una base PostgreSQL para los datos deportivos. Estos proveedores pueden tratar los datos técnicos necesarios para prestar sus servicios conforme a sus propias condiciones y medidas de seguridad.
+        </p>
+      </section>
+
+      <section className="rounded-xl border border-pitch-warning/35 bg-pitch-warning/5 p-4 text-sm leading-6 text-pitch-muted">
+        <strong className="text-white">Información legal pendiente:</strong> antes de una explotación comercial o captación abierta de usuarios debe completarse aquí la identidad y los datos de contacto del responsable del tratamiento, así como el canal para ejercer derechos de acceso, rectificación, supresión y demás derechos aplicables. No se inventan esos datos en esta página porque deben corresponder al titular legal real de FutStats.
+      </section>
     </article>
   );
 }

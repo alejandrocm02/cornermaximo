@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server';
+import { safeInternalPath } from '@/lib/security/redirect';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
-  const nextParam = url.searchParams.get('next');
-  const next = nextParam && nextParam.startsWith('/') ? nextParam : '/cuenta';
+  const next = safeInternalPath(url.searchParams.get('next'), '/cuenta');
 
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, url.origin));
+    if (!error) {
+      const response = NextResponse.redirect(new URL(next, url.origin));
+      response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+      return response;
+    }
   }
 
-  return NextResponse.redirect(new URL('/auth/login?error=callback', url.origin));
+  const response = NextResponse.redirect(new URL('/auth/login?error=callback', url.origin));
+  response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+  return response;
 }
