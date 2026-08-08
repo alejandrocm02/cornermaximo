@@ -23,7 +23,23 @@ jobs:
   run-sync:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+      APP_URL: ${{ secrets.APP_URL }}
     steps:
+      - name: Validar configuración segura
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ${#SYNC_SECRET} -lt 32 ]; then
+            echo "::error::SYNC_SECRET debe tener al menos 32 caracteres."
+            exit 1
+          fi
+          if [[ "$APP_URL" != https://* ]]; then
+            echo "::error::APP_URL debe usar HTTPS en producción."
+            exit 1
+          fi
+
       - name: Ejecutar tandas de sincronización
         shell: bash
         run: |
@@ -38,9 +54,9 @@ jobs:
               --show-error \
               --max-time 55 \
               -X POST \
-              -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+              -H "Authorization: Bearer $SYNC_SECRET" \
               -H "Content-Type: application/json" \
-              "${{ secrets.APP_URL }}/api/admin/sync/run" \
+              "$APP_URL/api/admin/sync/run" \
               -d '{"maxRequests":200}'); then
               echo "::error::El endpoint de sincronización devolvió un error HTTP o agotó el tiempo máximo."
               exit 1
