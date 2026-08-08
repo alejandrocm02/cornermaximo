@@ -140,7 +140,7 @@ export default function AuthPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition placeholder:text-pitch-muted focus:border-pitch-accent"
-              placeholder={mode === 'login' ? 'Tu contraseña' : '10+ caracteres con mayúscula, número y símbolo'}
+              placeholder={mode === 'login' ? 'Tu contraseña' : '10+ caracteres con mayúscula, minúscula, número y símbolo'}
             />
           </label>
 
