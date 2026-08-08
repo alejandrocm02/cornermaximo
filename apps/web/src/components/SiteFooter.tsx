@@ -6,6 +6,7 @@ const FOOTER_LINKS = [
   { href: '/metodologia', label: 'Fuente y metodología' },
   { href: '/estado-datos', label: 'Estado de los datos' },
   { href: '/privacidad', label: 'Política de privacidad' },
+  { href: '/cookies', label: 'Cookies' },
   { href: '/aviso-legal', label: 'Aviso legal' },
 ];
 
