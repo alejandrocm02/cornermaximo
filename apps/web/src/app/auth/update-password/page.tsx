@@ -2,6 +2,12 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { PasswordRequirements } from '@/components/PasswordRequirements';
+import {
+  getPasswordValidationError,
+  isPasswordValid,
+  PASSWORD_MIN_LENGTH,
+} from '@/lib/auth/passwordPolicy';
 import { createClient } from '@/lib/supabase/client';
 
 export default function UpdatePasswordPage() {
@@ -11,15 +17,20 @@ export default function UpdatePasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const passwordValid = isPasswordValid(password);
+  const passwordsMatch = password === confirmPassword;
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
+    const passwordError = getPasswordValidationError(password);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
-    if (password !== confirmPassword) {
+
+    if (!passwordsMatch) {
       setError('Las contraseñas no coinciden.');
       return;
     }
@@ -51,29 +62,50 @@ export default function UpdatePasswordPage() {
             <input
               type="password"
               autoComplete="new-password"
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
+              aria-describedby="password-requirements"
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition focus:border-pitch-accent"
+              placeholder="10+ caracteres con mayúscula, minúscula, número y símbolo"
             />
           </label>
-          <label className="block text-sm font-medium text-pitch-subtle">
-            Repite la contraseña
-            <input
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition focus:border-pitch-accent"
-            />
-          </label>
+
+          <div id="password-requirements">
+            <PasswordRequirements password={password} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-pitch-subtle">
+              Repite la contraseña
+              <input
+                type="password"
+                autoComplete="new-password"
+                minLength={PASSWORD_MIN_LENGTH}
+                required
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-pitch-border bg-pitch-bg px-4 py-3 text-white outline-none transition focus:border-pitch-accent"
+              />
+            </label>
+            {confirmPassword && (
+              <p
+                aria-live="polite"
+                className={`mt-2 text-sm ${passwordsMatch ? 'text-pitch-accent' : 'text-pitch-muted'}`}
+              >
+                {passwordsMatch ? '✓ Las contraseñas coinciden.' : 'Las contraseñas todavía no coinciden.'}
+              </p>
+            )}
+          </div>
 
           {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>}
 
-          <button type="submit" disabled={loading} className="w-full rounded-xl bg-grad-brand px-4 py-3 font-display font-bold text-black disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={loading || !passwordValid || !passwordsMatch}
+            className="w-full rounded-xl bg-grad-brand px-4 py-3 font-display font-bold text-black disabled:cursor-not-allowed disabled:opacity-60"
+          >
             {loading ? 'Guardando…' : 'Guardar contraseña'}
           </button>
         </form>
