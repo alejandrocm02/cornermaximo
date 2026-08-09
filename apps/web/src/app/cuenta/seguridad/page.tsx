@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { AccountDataControls } from '@/components/AccountDataControls';
 import { LogoutButton } from '@/components/LogoutButton';
 import { createClient } from '@/lib/supabase/server';
 
@@ -35,6 +36,8 @@ export default async function AccountSecurityPage() {
         <div className="mt-6 rounded-xl border border-pitch-accent/20 bg-pitch-accent/5 p-4 text-sm leading-6 text-pitch-subtle">
           Las contraseñas no se almacenan en el código ni en la base deportiva de FutStats. Supabase gestiona las credenciales y la sesión.
         </div>
+
+        <AccountDataControls />
       </div>
     </section>
   );
