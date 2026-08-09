@@ -8,7 +8,6 @@ export function CookieNotice() {
   const [visible, setVisible] = useState(false);
   const [settings, setSettings] = useState(false);
   const [analytics, setAnalytics] = useState(false);
-  const [advertising, setAdvertising] = useState(false);
 
   useEffect(() => {
     const current = readConsent();
@@ -16,13 +15,11 @@ export function CookieNotice() {
       setVisible(true);
     } else {
       setAnalytics(current.analytics);
-      setAdvertising(current.advertising);
     }
 
     const openSettings = () => {
       const latest = readConsent();
       setAnalytics(latest?.analytics ?? false);
-      setAdvertising(latest?.advertising ?? false);
       setSettings(true);
       setVisible(true);
     };
@@ -30,10 +27,9 @@ export function CookieNotice() {
     return () => window.removeEventListener('futstats:open-consent-settings', openSettings);
   }, []);
 
-  function save(nextAnalytics: boolean, nextAdvertising: boolean) {
-    writeConsent({ analytics: nextAnalytics, advertising: nextAdvertising });
+  function save(nextAnalytics: boolean) {
+    writeConsent({ analytics: nextAnalytics, advertising: false });
     setAnalytics(nextAnalytics);
-    setAdvertising(nextAdvertising);
     setVisible(false);
     setSettings(false);
   }
@@ -49,7 +45,7 @@ export function CookieNotice() {
         <div>
           <h2 className="font-display text-lg font-bold text-white">Tu privacidad en FutStats</h2>
           <p className="mt-1 text-sm leading-6 text-pitch-subtle">
-            Las tecnologías necesarias para sesión, seguridad y preferencias básicas funcionan siempre. La analítica y la publicidad son opcionales y permanecen desactivadas hasta que las aceptes. Puedes cambiar tu decisión en cualquier momento.{' '}
+            Las tecnologías necesarias para sesión, seguridad y preferencias básicas funcionan siempre. La analítica es opcional y permanece desactivada hasta que la aceptes. No hay publicidad comportamental activa. Puedes cambiar tu decisión en cualquier momento.{' '}
             <Link href="/cookies" className="font-semibold text-pitch-accent hover:underline">Política de cookies</Link>.
           </p>
         </div>
@@ -66,28 +62,28 @@ export function CookieNotice() {
             <label className="flex items-start justify-between gap-4 border-t border-pitch-border/60 pt-3">
               <span>
                 <span className="font-semibold text-white">Analítica</span>
-                <span className="mt-1 block text-xs leading-5 text-pitch-muted">Medición de uso para mejorar FutStats. No se cargará ningún servicio de analítica sin esta autorización.</span>
+                <span className="mt-1 block text-xs leading-5 text-pitch-muted">Medición de uso para mejorar FutStats. Ningún servicio de analítica se cargará sin esta autorización.</span>
               </span>
               <input type="checkbox" checked={analytics} onChange={(event) => setAnalytics(event.target.checked)} className="mt-1 h-5 w-5" />
             </label>
-            <label className="flex items-start justify-between gap-4 border-t border-pitch-border/60 pt-3">
-              <span>
-                <span className="font-semibold text-white">Publicidad</span>
-                <span className="mt-1 block text-xs leading-5 text-pitch-muted">Tecnologías publicitarias o de medición asociada. Permanecerán desactivadas hasta una futura implementación y solo con consentimiento.</span>
-              </span>
-              <input type="checkbox" checked={advertising} onChange={(event) => setAdvertising(event.target.checked)} className="mt-1 h-5 w-5" />
-            </label>
+            <div className="flex items-start justify-between gap-4 border-t border-pitch-border/60 pt-3 opacity-70">
+              <div>
+                <p className="font-semibold text-white">Publicidad</p>
+                <p className="mt-1 text-xs leading-5 text-pitch-muted">No implementada. Si se incorpora, se informará del proveedor y finalidad y se solicitará una decisión específica nueva.</p>
+              </div>
+              <span className="fs-chip">No disponible</span>
+            </div>
           </div>
         )}
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <button type="button" onClick={() => save(false, false)} className="fs-btn-ghost justify-center">Rechazar opcionales</button>
+          <button type="button" onClick={() => save(false)} className="fs-btn-ghost justify-center">Rechazar analítica</button>
           {settings ? (
-            <button type="button" onClick={() => save(analytics, advertising)} className="fs-btn-ghost justify-center">Guardar selección</button>
+            <button type="button" onClick={() => save(analytics)} className="fs-btn-ghost justify-center">Guardar selección</button>
           ) : (
             <button type="button" onClick={() => setSettings(true)} className="fs-btn-ghost justify-center">Configurar</button>
           )}
-          <button type="button" onClick={() => save(true, true)} className="fs-btn-primary justify-center">Aceptar opcionales</button>
+          <button type="button" onClick={() => save(true)} className="fs-btn-primary justify-center">Aceptar analítica</button>
         </div>
       </div>
     </aside>
