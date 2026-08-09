@@ -22,6 +22,26 @@ type FavoriteRow = {
 
 type WatchlistPlayerRow = { player_slug: string };
 
+type TrackedPlayer = {
+  slug: string;
+  fullName: string;
+  knownAs: string | null;
+  photoUrl: string | null;
+  status: string;
+  currentTeam: { name: string; slug: string; crestUrl: string | null } | null;
+};
+
+type UpcomingMatch = {
+  id: number;
+  kickoffAt: Date;
+  round: string | null;
+  season: { competition: { name: string; slug: string } };
+  teams: Array<{
+    isHome: boolean;
+    team: { name: string; slug: string; crestUrl: string | null };
+  }>;
+};
+
 const STATUS_LABEL: Record<string, string> = {
   AVAILABLE: 'Disponible',
   INJURED: 'Lesionado',
@@ -88,8 +108,8 @@ export default async function MyFutStatsPage() {
   const trackedTeamSlugs = [...new Set(teamFavorites.map((row) => row.entity_slug))].slice(0, 20);
   const trackedCompetitionSlugs = [...new Set(competitionFavorites.map((row) => row.entity_slug))].slice(0, 20);
 
-  let trackedPlayers: Awaited<ReturnType<typeof prisma.player.findMany>> = [];
-  let upcomingMatches: Awaited<ReturnType<typeof prisma.match.findMany>> = [];
+  let trackedPlayers: TrackedPlayer[] = [];
+  let upcomingMatches: UpcomingMatch[] = [];
   let sportsDataError = false;
 
   try {
