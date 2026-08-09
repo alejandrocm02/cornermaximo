@@ -1,4 +1,5 @@
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { PlayerWatchlistButton } from '@/components/PlayerWatchlistButton';
 import { getPlayerProfileCore } from '@/lib/playerProfile';
 
 export default async function PlayerProfileLayout({
@@ -14,10 +15,18 @@ export default async function PlayerProfileLayout({
   return (
     <div className="space-y-3">
       {player != null && (
-        <div className="flex justify-end">
+        <div className="flex flex-col justify-end gap-2 sm:flex-row">
           <FavoriteButton
             item={{
               kind: 'player',
+              slug: player.slug,
+              name: player.knownAs ?? player.fullName,
+              imageUrl: player.photoUrl,
+              subtitle: player.currentTeam?.name ?? null,
+            }}
+          />
+          <PlayerWatchlistButton
+            player={{
               slug: player.slug,
               name: player.knownAs ?? player.fullName,
               imageUrl: player.photoUrl,
