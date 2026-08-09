@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { FavoriteAlerts } from '@/components/FavoriteAlerts';
+import { PushNotificationSettings } from '@/components/PushNotificationSettings';
 
 export const metadata: Metadata = {
   title: 'Centro de alertas',
@@ -24,6 +25,7 @@ export default function AlertsPage() {
           <Link href="/watchlists" className="fs-btn-ghost inline-flex">Gestionar watchlists</Link>
         </div>
       </header>
+      <PushNotificationSettings />
       <FavoriteAlerts />
     </div>
   );
