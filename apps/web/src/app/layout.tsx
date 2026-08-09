@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk } from 'next/font/google';
 import { CookieNotice } from '@/components/CookieNotice';
 import { FavoriteHomeBanner } from '@/components/FavoriteHomeBanner';
+import { FavoritesAccountSync } from '@/components/FavoritesAccountSync';
 import { MainNav } from '@/components/MainNav';
 import { SiteFooter } from '@/components/SiteFooter';
 import './globals.css';
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className={`${fontSans.variable} ${fontDisplay.variable}`}>
       <body className="min-h-dvh">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
+        <FavoritesAccountSync />
         <a
           href="#contenido"
           className="sr-only z-50 rounded-lg bg-pitch-accent px-4 py-2 font-semibold text-black focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
