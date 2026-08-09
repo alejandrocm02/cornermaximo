@@ -16,6 +16,8 @@ export default function robots(): MetadataRoute.Robots {
           '/favoritos',
           '/watchlists',
           '/alertas',
+          '/auth/',
+          '/brand-guide',
           '/login',
           '/registro',
           '/recuperar-password',
