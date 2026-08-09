@@ -1,5 +1,7 @@
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { PlayerAdvancedSection } from '@/components/PlayerAdvancedSection';
 import { PlayerWatchlistButton } from '@/components/PlayerWatchlistButton';
+import { getPlayerAdvancedStats } from '@/lib/playerAdvancedStats';
 import { getPlayerProfileCore } from '@/lib/playerProfile';
 
 export default async function PlayerProfileLayout({
@@ -11,9 +13,10 @@ export default async function PlayerProfileLayout({
 }) {
   const { slug } = await params;
   const player = await getPlayerProfileCore(slug);
+  const advanced = player == null ? null : await getPlayerAdvancedStats(player.id);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-8">
       {player != null && (
         <div className="flex flex-col justify-end gap-2 sm:flex-row">
           <FavoriteButton
@@ -36,6 +39,7 @@ export default async function PlayerProfileLayout({
         </div>
       )}
       {children}
+      {advanced != null && <PlayerAdvancedSection data={advanced} />}
     </div>
   );
 }
