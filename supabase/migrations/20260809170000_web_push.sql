@@ -82,8 +82,12 @@ create policy "push_subscriptions_delete_own"
   on public.user_push_subscriptions for delete to authenticated
   using ((select auth.uid()) = user_id);
 
--- Delivery history is service-only. RLS stays enabled with no user policies.
+-- Delivery history is service-only. Explicit deny policies document that intent;
+-- service_role still bypasses RLS for the delivery worker.
 revoke all on table public.user_push_deliveries from anon, authenticated;
+create policy "push_deliveries_deny_user_select"
+  on public.user_push_deliveries for select to authenticated
+  using (false);
 
 revoke insert, update, delete on table public.push_public_config from anon, authenticated;
 grant select on table public.push_public_config to anon, authenticated;
