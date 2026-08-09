@@ -2,6 +2,7 @@ import type { PositionGroup } from '@futstats/db';
 import Link from 'next/link';
 import { prisma } from '@futstats/db';
 import { getPlayerAdvancedAnalytics, type PlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
+import { ShareComparisonButton } from '@/components/ShareComparisonButton';
 
 type PlayerEntry = {
   slug: string;
@@ -74,6 +75,9 @@ export async function AdvancedComparison({ p1, p2 }: { p1?: string; p2?: string 
             </p>
           </div>
           <Link href="/scouting" className="fs-btn-ghost inline-flex">Buscar otro perfil</Link>
+        </div>
+        <div className="mt-4">
+          <ShareComparisonButton p1={entries[0]!.slug} p2={entries[1]!.slug} />
         </div>
         {!samePosition && (
           <p className="mt-4 rounded-lg border border-yellow-600/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">
