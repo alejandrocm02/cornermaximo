@@ -1,5 +1,8 @@
+import type { PositionGroup } from '@futstats/db';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { PlayerAdvancedAnalytics } from '@/components/PlayerAdvancedAnalytics';
 import { PlayerWatchlistButton } from '@/components/PlayerWatchlistButton';
+import { getPlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
 import { getPlayerProfileCore } from '@/lib/playerProfile';
 
 export default async function PlayerProfileLayout({
@@ -11,6 +14,10 @@ export default async function PlayerProfileLayout({
 }) {
   const { slug } = await params;
   const player = await getPlayerProfileCore(slug);
+  const primaryPosition = player?.positions.find((position) => position.isPrimary)?.group as PositionGroup | undefined;
+  const advanced = player != null && primaryPosition != null
+    ? await getPlayerAdvancedAnalytics(player.id, primaryPosition)
+    : null;
 
   return (
     <div className="space-y-3">
@@ -36,6 +43,11 @@ export default async function PlayerProfileLayout({
         </div>
       )}
       {children}
+      {advanced != null && (
+        <div className="pt-5">
+          <PlayerAdvancedAnalytics analytics={advanced} />
+        </div>
+      )}
     </div>
   );
 }
