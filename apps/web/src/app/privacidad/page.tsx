@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ConsentSettingsButton } from '@/components/ConsentSettingsButton';
 
 export const metadata = {
@@ -67,9 +68,12 @@ export default function PrivacyPage() {
       </section>
 
       <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
-        <h2 className="font-display text-xl font-bold text-white">Derechos y retirada del consentimiento</h2>
+        <h2 className="font-display text-xl font-bold text-white">Derechos, exportación y supresión</h2>
         <p>
           Cuando resulte aplicable, las personas pueden ejercer los derechos reconocidos por la normativa de protección de datos, entre ellos acceso, rectificación, supresión, limitación, oposición y portabilidad. Cuando un tratamiento se base en consentimiento, este puede retirarse sin afectar a la licitud del tratamiento previo a la retirada.
+        </p>
+        <p>
+          Las cuentas autenticadas pueden descargar desde <Link href="/cuenta/seguridad" className="font-semibold text-pitch-accent hover:underline">Cuenta y seguridad</Link> una copia JSON estructurada de los datos personales conservados por FutStats y pueden solicitar allí la eliminación definitiva de la cuenta. La eliminación borra el usuario de Supabase Auth y los registros personales vinculados mediante relaciones en cascada; no afecta a datos deportivos públicos que no pertenecen a la cuenta.
         </p>
         <p>
           La retirada de una categoría opcional no debe impedir el uso de las funciones esenciales de FutStats. Las preferencias de analítica pueden modificarse desde esta página o desde la política de cookies.
