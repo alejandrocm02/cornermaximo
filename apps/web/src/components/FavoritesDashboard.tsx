@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  clearFavorites,
+  clearFavoritesForCurrentUser,
   readFavorites,
-  removeFavorite,
+  removeFavoriteForCurrentUser,
   subscribeFavorites,
+  syncFavoritesWithAccount,
   type FavoriteItem,
   type FavoriteKind,
+  type FavoriteStorageMode,
 } from '@/lib/favorites';
 
 type FeedEntity = {
@@ -64,11 +66,20 @@ export function FavoritesDashboard() {
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [feed, setFeed] = useState<FavoriteFeed | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [feedError, setFeedError] = useState(false);
+  const [syncError, setSyncError] = useState(false);
+  const [storageMode, setStorageMode] = useState<FavoriteStorageMode>('local');
 
   useEffect(() => {
     const update = () => setFavorites(readFavorites());
     update();
+
+    void syncFavoritesWithAccount().then((result) => {
+      setFavorites(result.items);
+      setStorageMode(result.mode);
+      setSyncError(result.error != null);
+    });
+
     return subscribeFavorites(update);
   }, []);
 
@@ -76,13 +87,13 @@ export function FavoritesDashboard() {
     if (favorites.length === 0) {
       setFeed(null);
       setLoading(false);
-      setError(false);
+      setFeedError(false);
       return;
     }
 
     const controller = new AbortController();
     setLoading(true);
-    setError(false);
+    setFeedError(false);
     fetch(`/api/favoritos?${paramsFor(favorites).toString()}`, {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
@@ -93,7 +104,7 @@ export function FavoritesDashboard() {
       })
       .then((result) => setFeed(result))
       .catch((reason: unknown) => {
-        if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(true);
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) setFeedError(true);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -116,14 +127,38 @@ export function FavoritesDashboard() {
     [entities],
   );
 
+  async function handleClearFavorites() {
+    setSyncError(false);
+    const result = await clearFavoritesForCurrentUser();
+    setFavorites(readFavorites());
+    setStorageMode(result.mode);
+    setSyncError(result.error != null);
+  }
+
+  async function handleRemoveFavorite(item: FeedEntity) {
+    setSyncError(false);
+    const result = await removeFavoriteForCurrentUser(item);
+    setFavorites(result.items);
+    setStorageMode(result.mode);
+    setSyncError(result.error != null);
+  }
+
   if (!loading && favorites.length === 0) {
     return (
       <section className="fs-panel px-5 py-10 text-center">
         <span aria-hidden="true" className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-pitch-elevated text-2xl">☆</span>
         <h2 className="mt-4 text-xl font-bold">Todavía no tienes favoritos</h2>
         <p className="mx-auto mt-2 max-w-lg text-sm text-pitch-muted">
-          Abre una ficha de jugador, equipo o liga y pulsa «Añadir a favoritos». La selección se guarda únicamente en este navegador.
+          Abre una ficha de jugador, equipo o liga y pulsa «Añadir a favoritos».
+          {storageMode === 'account'
+            ? ' Los favoritos se guardarán en tu cuenta.'
+            : ' Si inicias sesión, podrás conservarlos en tu cuenta y usarlos en otros dispositivos.'}
         </p>
+        {syncError ? (
+          <p role="alert" className="mx-auto mt-3 max-w-lg text-sm text-pitch-danger">
+            No se pudo sincronizar con tu cuenta. Tus cambios siguen disponibles temporalmente en este dispositivo.
+          </p>
+        ) : null}
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Link href="/equipos" className="fs-btn-primary">Explorar equipos</Link>
           <Link href="/jugadores" className="fs-btn-ghost">Explorar jugadores</Link>
@@ -139,21 +174,29 @@ export function FavoritesDashboard() {
         <div>
           <p className="font-semibold">{favorites.length} favorito{favorites.length === 1 ? '' : 's'}</p>
           <p className="mt-1 text-xs text-pitch-muted">
-            Guardados localmente. No se envían a una cuenta ni se comparten con terceros.
+            {storageMode === 'account'
+              ? 'Sincronizados de forma privada con tu cuenta de FutStats.'
+              : 'Guardados en este navegador. Inicia sesión para sincronizarlos con tu cuenta.'}
           </p>
         </div>
         <button
           type="button"
-          onClick={() => clearFavorites()}
+          onClick={() => void handleClearFavorites()}
           className="fs-btn-ghost self-start text-pitch-danger sm:self-auto"
         >
           Vaciar favoritos
         </button>
       </section>
 
-      {error && (
+      {syncError && (
         <p role="alert" className="rounded-lg border border-pitch-danger/40 bg-pitch-danger/10 px-4 py-3 text-sm text-pitch-danger">
-          No se pudo actualizar la información. Se muestran los datos guardados en el navegador.
+          No se pudo sincronizar con tu cuenta. Los cambios se mantienen temporalmente en este dispositivo y se reintentará al volver a cargar la sesión.
+        </p>
+      )}
+
+      {feedError && (
+        <p role="alert" className="rounded-lg border border-pitch-danger/40 bg-pitch-danger/10 px-4 py-3 text-sm text-pitch-danger">
+          No se pudo actualizar la información deportiva. Se muestran los datos guardados de tus favoritos.
         </p>
       )}
 
@@ -188,7 +231,7 @@ export function FavoritesDashboard() {
                   <button
                     type="button"
                     aria-label={`Quitar ${item.name} de favoritos`}
-                    onClick={() => setFavorites(removeFavorite(item))}
+                    onClick={() => void handleRemoveFavorite(item)}
                     className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-pitch-muted transition hover:bg-pitch-danger/10 hover:text-pitch-danger"
                   >
                     ×
