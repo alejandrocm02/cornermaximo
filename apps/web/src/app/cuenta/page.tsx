@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { LogoutButton } from '@/components/LogoutButton';
 import { createClient } from '@/lib/supabase/server';
@@ -9,7 +10,7 @@ export default async function AccountPage() {
   if (!user) redirect('/auth/login?next=/cuenta');
 
   return (
-    <section className="mx-auto max-w-3xl">
+    <section className="mx-auto max-w-3xl space-y-5">
       <div className="rounded-2xl border border-pitch-border bg-pitch-card/80 p-6 shadow-xl sm:p-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -18,6 +19,17 @@ export default async function AccountPage() {
             <p className="mt-2 text-pitch-muted">Tu sesión está protegida por Supabase Auth.</p>
           </div>
           <LogoutButton />
+        </div>
+
+        <div className="mt-7 grid gap-3 sm:grid-cols-2">
+          <Link href="/mi-futstats" className="rounded-xl border border-pitch-accent/30 bg-pitch-accent/5 p-4 transition hover:border-pitch-accent/60">
+            <p className="font-display text-lg font-bold text-white">Mi FutStats</p>
+            <p className="mt-1 text-sm text-pitch-muted">Abre tu dashboard personal de favoritos y seguimiento.</p>
+          </Link>
+          <Link href="/watchlists" className="rounded-xl border border-pitch-border bg-pitch-bg/60 p-4 transition hover:border-pitch-accent/40">
+            <p className="font-display text-lg font-bold text-white">Mis watchlists</p>
+            <p className="mt-1 text-sm text-pitch-muted">Organiza jugadores en listas privadas sincronizadas.</p>
+          </Link>
         </div>
 
         <dl className="mt-8 grid gap-4 sm:grid-cols-2">
