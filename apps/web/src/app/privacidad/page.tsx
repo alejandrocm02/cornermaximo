@@ -17,7 +17,7 @@ export default function PrivacyPage() {
           FutStats permite crear una cuenta mediante correo electrónico. La autenticación se presta con Supabase Auth, que gestiona las credenciales, la confirmación de correo, la recuperación de contraseña y las sesiones. FutStats no almacena ni puede recuperar la contraseña original del usuario.
         </p>
         <p>
-          Para prestar la cuenta se tratan, como mínimo, el correo electrónico, un identificador técnico de usuario, fechas y metadatos de autenticación necesarios para seguridad y funcionamiento de la sesión. Los datos deportivos públicos de jugadores, clubes y competiciones no forman parte del perfil personal del usuario.
+          Para prestar la cuenta se tratan, como mínimo, el correo electrónico, un identificador técnico de usuario, fechas y metadatos de autenticación necesarios para seguridad y funcionamiento de la sesión. Los datos deportivos públicos de jugadores, clubes y competiciones se mantienen separados de los datos personales del usuario.
         </p>
       </section>
 
@@ -27,21 +27,28 @@ export default function PrivacyPage() {
           <li>Crear y proteger la cuenta de FutStats.</li>
           <li>Confirmar el correo y permitir recuperación o cambio de contraseña.</li>
           <li>Mantener la sesión y prevenir usos abusivos o automatizados del sistema de autenticación.</li>
-          <li>Prestar funciones personales que el usuario solicite cuando se incorporen a la cuenta.</li>
+          <li>Sincronizar de forma privada los favoritos que el usuario decida asociar a su cuenta.</li>
+          <li>Prestar otras funciones personales que el usuario solicite cuando se incorporen a la cuenta.</li>
         </ul>
       </section>
 
       <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
-        <h2 className="font-display text-xl font-bold text-white">Almacenamiento en el dispositivo</h2>
+        <h2 className="font-display text-xl font-bold text-white">Favoritos y almacenamiento en el dispositivo</h2>
         <p>
-          Determinadas funciones actuales, como favoritos, datos del Analizador y algunas preferencias, pueden permanecer únicamente en el almacenamiento local del navegador. Consulta la política de cookies para conocer qué se guarda en cookies y qué se mantiene localmente.
+          Si el usuario ha iniciado sesión, FutStats almacena en Supabase el tipo de favorito, el identificador público de la entidad deportiva y los datos de presentación necesarios para mostrarlo. Estas filas se vinculan al identificador de Supabase Auth y están protegidas mediante políticas de seguridad a nivel de fila para que cada cuenta solo pueda acceder a sus propios datos.
+        </p>
+        <p>
+          FutStats mantiene además una copia local de los favoritos en el navegador para respuesta inmediata de la interfaz y para permitir favoritos a visitantes sin cuenta. Cuando una cuenta se utiliza por primera vez tras esta actualización, los favoritos locales existentes pueden migrarse a esa cuenta. Al cerrar sesión se limpia la caché local de favoritos vinculada a la sesión para reducir el riesgo de exposición en dispositivos compartidos.
+        </p>
+        <p>
+          Otras funciones, como determinados datos del Analizador y algunas preferencias, pueden seguir permaneciendo únicamente en el almacenamiento local del navegador. Consulta la política de cookies para conocer qué se guarda en cookies y qué se mantiene localmente.
         </p>
       </section>
 
       <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
         <h2 className="font-display text-xl font-bold text-white">Proveedores técnicos</h2>
         <p>
-          FutStats utiliza servicios de infraestructura y autenticación como Supabase y Vercel, y una base PostgreSQL para los datos deportivos. Estos proveedores pueden tratar los datos técnicos necesarios para prestar sus servicios conforme a sus propias condiciones y medidas de seguridad.
+          FutStats utiliza servicios de infraestructura y autenticación como Supabase y Vercel. Los datos personales de cuenta y favoritos se almacenan en Supabase, mientras que la base PostgreSQL de Neon se utiliza para los datos deportivos. Estos proveedores pueden tratar los datos técnicos necesarios para prestar sus servicios conforme a sus propias condiciones y medidas de seguridad.
         </p>
       </section>
 

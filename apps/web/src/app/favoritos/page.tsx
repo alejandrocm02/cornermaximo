@@ -19,7 +19,7 @@ export default function FavoritesPage() {
           <p className="fs-eyebrow">Tu FutStats</p>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Mis favoritos</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-pitch-muted">
-            Sigue a tus equipos, jugadores y competiciones desde un único lugar. La selección permanece en este navegador y puede eliminarse en cualquier momento.
+            Sigue a tus equipos, jugadores y competiciones desde un único lugar. Si has iniciado sesión, la selección se sincroniza de forma privada con tu cuenta; como invitado permanece únicamente en este navegador.
           </p>
         </div>
         <Link href="/alertas" className="fs-btn-primary">Ver alertas</Link>
