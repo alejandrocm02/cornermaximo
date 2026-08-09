@@ -59,7 +59,10 @@ export function AccountDataControls() {
 
       try {
         localStorage.removeItem('futstats.favorites.v1');
-        localStorage.removeItem('futstats.favorites.migrated.v1');
+        for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+          const key = localStorage.key(index);
+          if (key?.startsWith('futstats.favorites.account-migrated.v1:')) localStorage.removeItem(key);
+        }
         sessionStorage.clear();
       } catch {
         // El almacenamiento puede estar bloqueado por el navegador.
