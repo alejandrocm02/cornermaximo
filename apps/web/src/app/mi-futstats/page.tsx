@@ -115,7 +115,7 @@ export default async function MyFutStatsPage() {
               <p className="font-semibold">Comparador</p>
               <p className="mt-1 text-sm text-pitch-muted">Compara rápidamente jugadores que estés siguiendo.</p>
             </Link>
-            <Link href="/cuenta" className="rounded-xl border border-pitch-border bg-pitch-bg/50 p-4 transition hover:border-pitch-accent/40">
+            <Link href="/cuenta/seguridad" className="rounded-xl border border-pitch-border bg-pitch-bg/50 p-4 transition hover:border-pitch-accent/40">
               <p className="font-semibold">Cuenta y seguridad</p>
               <p className="mt-1 text-sm text-pitch-muted">Revisa tu identidad y la sesión de FutStats.</p>
             </Link>
