@@ -1,6 +1,8 @@
+import { ConsentSettingsButton } from '@/components/ConsentSettingsButton';
+
 export const metadata = {
   title: 'Política de cookies',
-  description: 'Información sobre las cookies y almacenamiento local utilizados por FutStats.',
+  description: 'Información sobre las cookies, almacenamiento local y preferencias de privacidad utilizados por FutStats.',
   robots: { index: false },
 };
 
@@ -14,20 +16,20 @@ export default function CookiesPage() {
 
       <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
         <p>
-          FutStats utiliza cookies técnicamente necesarias para mantener el inicio de sesión y renovar de forma segura la sesión de las cuentas. Estas cookies se gestionan mediante Supabase Auth y no se utilizan para publicidad, elaboración de perfiles ni analítica de comportamiento.
+          FutStats utiliza tecnologías técnicamente necesarias para mantener la sesión, proteger la cuenta, recordar preferencias básicas y prestar funciones solicitadas por el usuario. Estas tecnologías no se utilizan para publicidad comportamental ni para elaborar perfiles comerciales.
         </p>
         <p>
-          Al ser necesarias para prestar la función de cuenta solicitada por el usuario, no se ofrece un interruptor para desactivarlas desde FutStats. Puedes eliminarlas desde la configuración de tu navegador; al hacerlo, se cerrará la sesión.
+          Las tecnologías opcionales permanecen desactivadas hasta que el usuario presta una autorización expresa. Rechazar una categoría opcional no impide utilizar las funciones esenciales de FutStats.
         </p>
       </section>
 
       <section className="fs-panel p-5">
-        <h2 className="font-display text-xl font-bold">Cookies y almacenamiento utilizados</h2>
+        <h2 className="font-display text-xl font-bold">Tecnologías necesarias</h2>
         <dl className="mt-4 space-y-4 text-sm">
           <div>
             <dt className="font-semibold text-white">Sesión de Supabase Auth</dt>
             <dd className="mt-1 text-pitch-muted">
-              Cookies cuyo nombre comienza normalmente por <code>sb-</code>. Mantienen y renuevan la sesión autenticada. Su contenido son tokens de sesión; FutStats no almacena la contraseña original en estas cookies.
+              Cookies cuyo nombre comienza normalmente por <code>sb-</code>. Mantienen y renuevan la sesión autenticada. FutStats no almacena la contraseña original en estas cookies.
             </dd>
           </div>
           <div>
@@ -37,18 +39,35 @@ export default function CookiesPage() {
             </dd>
           </div>
           <div>
-            <dt className="font-semibold text-white">Almacenamiento local</dt>
+            <dt className="font-semibold text-white">Almacenamiento local funcional</dt>
             <dd className="mt-1 text-pitch-muted">
-              Favoritos, determinadas preferencias, datos del Analizador y el estado de lectura de avisos pueden mantenerse en <code>localStorage</code> del navegador. No son cookies y permanecen en el dispositivo hasta que el usuario los elimina o borra los datos del sitio.
+              Favoritos, determinadas preferencias, datos del Analizador y estados de interfaz pueden mantenerse en <code>localStorage</code> para prestar funciones solicitadas por el usuario o conservarlas en el dispositivo.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-white">Preferencia de privacidad</dt>
+            <dd className="mt-1 text-pitch-muted">
+              <code>futstats.consent.v1</code> conserva localmente la elección sobre categorías opcionales, la versión del aviso y la fecha de la decisión. No se utiliza para seguimiento.
             </dd>
           </div>
         </dl>
       </section>
 
       <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
-        <h2 className="font-display text-xl font-bold text-white">Cookies opcionales</h2>
+        <h2 className="font-display text-xl font-bold text-white">Analítica opcional</h2>
         <p>
-          Esta versión no instala cookies de publicidad ni de analítica. Si en el futuro se incorporan tecnologías no esenciales, FutStats deberá solicitar consentimiento antes de activarlas y permitir rechazarlas con la misma facilidad con la que se aceptan.
+          FutStats dispone ya de una categoría de consentimiento para analítica, pero no cargará un proveedor de medición mientras no esté documentado e integrado expresamente. Cuando se active una herramienta concreta, esta política identificará el proveedor, los datos tratados, la finalidad y la información relevante antes de comenzar la medición.
+        </p>
+        <p>
+          La opción de aceptar y la de rechazar se presentan al mismo nivel. También puedes retirar o cambiar tu decisión en cualquier momento desde este botón:
+        </p>
+        <ConsentSettingsButton />
+      </section>
+
+      <section className="space-y-3 text-sm leading-7 text-pitch-subtle">
+        <h2 className="font-display text-xl font-bold text-white">Publicidad</h2>
+        <p>
+          Actualmente no hay cookies ni tecnologías de publicidad comportamental activas. FutStats no solicita un consentimiento anticipado para una implementación futura: si esta finalidad se incorpora, se facilitará información específica y se pedirá una decisión nueva antes de activar cualquier tecnología no esencial.
         </p>
       </section>
     </article>
