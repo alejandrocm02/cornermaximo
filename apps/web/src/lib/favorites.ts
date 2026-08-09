@@ -1,4 +1,7 @@
+import { createClient } from '@/lib/supabase/client';
+
 export type FavoriteKind = 'player' | 'team' | 'competition';
+export type FavoriteStorageMode = 'local' | 'account';
 
 export interface FavoriteItem {
   kind: FavoriteKind;
@@ -9,8 +12,24 @@ export interface FavoriteItem {
   addedAt: string;
 }
 
+export interface FavoriteSyncResult {
+  items: FavoriteItem[];
+  mode: FavoriteStorageMode;
+  error: string | null;
+}
+
+interface FavoriteRow {
+  kind: FavoriteKind;
+  entity_slug: string;
+  display_name: string;
+  image_url: string | null;
+  subtitle: string | null;
+  added_at: string;
+}
+
 const STORAGE_KEY = 'futstats.favorites.v1';
 const CHANGE_EVENT = 'futstats:favorites-change';
+const MIGRATION_KEY_PREFIX = 'futstats.favorites.account-migrated.v1';
 const MAX_FAVORITES = 60;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -29,6 +48,15 @@ function validItem(value: unknown): value is FavoriteItem {
   );
 }
 
+function migrationKey(userId: string): string {
+  return `${MIGRATION_KEY_PREFIX}:${userId}`;
+}
+
+function dispatchFavoritesChange(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+}
+
 export function readFavorites(): FavoriteItem[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -43,8 +71,45 @@ export function readFavorites(): FavoriteItem[] {
 }
 
 function writeFavorites(items: FavoriteItem[]): void {
+  if (typeof window === 'undefined') return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, MAX_FAVORITES)));
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  dispatchFavoritesChange();
+}
+
+function rowToFavorite(row: FavoriteRow): FavoriteItem {
+  return {
+    kind: row.kind,
+    slug: row.entity_slug,
+    name: row.display_name,
+    imageUrl: row.image_url,
+    subtitle: row.subtitle,
+    addedAt: row.added_at,
+  };
+}
+
+function itemToRow(item: FavoriteItem, userId: string) {
+  return {
+    user_id: userId,
+    kind: item.kind,
+    entity_slug: item.slug,
+    display_name: item.name,
+    image_url: item.imageUrl,
+    subtitle: item.subtitle,
+    added_at: item.addedAt,
+  };
+}
+
+async function readAccountFavorites(userId: string): Promise<{ items: FavoriteItem[]; error: string | null }> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('user_favorites')
+    .select('kind, entity_slug, display_name, image_url, subtitle, added_at')
+    .eq('user_id', userId)
+    .order('added_at', { ascending: false })
+    .limit(MAX_FAVORITES);
+
+  if (error) return { items: [], error: error.message };
+  return { items: ((data ?? []) as FavoriteRow[]).map(rowToFavorite), error: null };
 }
 
 export function favoriteKey(item: Pick<FavoriteItem, 'kind' | 'slug'>): string {
@@ -80,6 +145,103 @@ export function removeFavorite(item: Pick<FavoriteItem, 'kind' | 'slug'>): Favor
 export function clearFavorites(): void {
   if (typeof window === 'undefined') return;
   writeFavorites([]);
+}
+
+export async function syncFavoritesWithAccount(): Promise<FavoriteSyncResult> {
+  const localItems = readFavorites();
+  if (typeof window === 'undefined') return { items: localItems, mode: 'local', error: null };
+
+  const supabase = createClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || authData.user == null) {
+    return { items: localItems, mode: 'local', error: null };
+  }
+
+  const userId = authData.user.id;
+  let account = await readAccountFavorites(userId);
+  if (account.error != null) {
+    return { items: localItems, mode: 'account', error: account.error };
+  }
+
+  const alreadyMigrated = window.localStorage.getItem(migrationKey(userId)) === '1';
+  if (!alreadyMigrated && localItems.length > 0) {
+    const { error } = await supabase
+      .from('user_favorites')
+      .upsert(localItems.map((item) => itemToRow(item, userId)), {
+        onConflict: 'user_id,kind,entity_slug',
+      });
+
+    if (error) return { items: localItems, mode: 'account', error: error.message };
+
+    account = await readAccountFavorites(userId);
+    if (account.error != null) {
+      return { items: localItems, mode: 'account', error: account.error };
+    }
+  }
+
+  window.localStorage.setItem(migrationKey(userId), '1');
+  writeFavorites(account.items);
+  return { items: account.items, mode: 'account', error: null };
+}
+
+export async function persistFavoriteForCurrentUser(
+  item: Omit<FavoriteItem, 'addedAt'>,
+  active: boolean,
+): Promise<{ mode: FavoriteStorageMode; error: string | null }> {
+  const supabase = createClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || authData.user == null) return { mode: 'local', error: null };
+
+  const userId = authData.user.id;
+  if (active) {
+    const stored = readFavorites().find(
+      (favorite) => favorite.kind === item.kind && favorite.slug === item.slug,
+    );
+    const favorite: FavoriteItem = stored ?? { ...item, addedAt: new Date().toISOString() };
+    const { error } = await supabase
+      .from('user_favorites')
+      .upsert(itemToRow(favorite, userId), { onConflict: 'user_id,kind,entity_slug' });
+    return { mode: 'account', error: error?.message ?? null };
+  }
+
+  const { error } = await supabase
+    .from('user_favorites')
+    .delete()
+    .eq('user_id', userId)
+    .eq('kind', item.kind)
+    .eq('entity_slug', item.slug);
+  return { mode: 'account', error: error?.message ?? null };
+}
+
+export async function removeFavoriteForCurrentUser(
+  item: Pick<FavoriteItem, 'kind' | 'slug'>,
+): Promise<{ items: FavoriteItem[]; mode: FavoriteStorageMode; error: string | null }> {
+  const items = removeFavorite(item);
+  const result = await persistFavoriteForCurrentUser(
+    { kind: item.kind, slug: item.slug, name: item.slug, imageUrl: null, subtitle: null },
+    false,
+  );
+  return { items, ...result };
+}
+
+export async function clearFavoritesForCurrentUser(): Promise<{
+  mode: FavoriteStorageMode;
+  error: string | null;
+}> {
+  clearFavorites();
+  const supabase = createClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || authData.user == null) return { mode: 'local', error: null };
+
+  const { error } = await supabase
+    .from('user_favorites')
+    .delete()
+    .eq('user_id', authData.user.id);
+  return { mode: 'account', error: error?.message ?? null };
+}
+
+export function clearFavoriteCacheAfterSignOut(): void {
+  clearFavorites();
 }
 
 export function subscribeFavorites(listener: () => void): () => void {
