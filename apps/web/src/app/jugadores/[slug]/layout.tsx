@@ -2,8 +2,10 @@ import type { PositionGroup } from '@futstats/db';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { PlayerAdvancedAnalytics } from '@/components/PlayerAdvancedAnalytics';
 import { PlayerWatchlistButton } from '@/components/PlayerWatchlistButton';
+import { SimilarPlayers } from '@/components/SimilarPlayers';
 import { getPlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
 import { getPlayerProfileCore } from '@/lib/playerProfile';
+import { getSimilarPlayers } from '@/lib/similarPlayers';
 
 export default async function PlayerProfileLayout({
   children,
@@ -15,9 +17,12 @@ export default async function PlayerProfileLayout({
   const { slug } = await params;
   const player = await getPlayerProfileCore(slug);
   const primaryPosition = player?.positions.find((position) => position.isPrimary)?.group as PositionGroup | undefined;
-  const advanced = player != null && primaryPosition != null
-    ? await getPlayerAdvancedAnalytics(player.id, primaryPosition)
-    : null;
+  const [advanced, similar] = player != null && primaryPosition != null
+    ? await Promise.all([
+        getPlayerAdvancedAnalytics(player.id, primaryPosition),
+        getSimilarPlayers(player.id, primaryPosition),
+      ])
+    : [null, null];
 
   return (
     <div className="space-y-3">
@@ -46,6 +51,11 @@ export default async function PlayerProfileLayout({
       {advanced != null && (
         <div className="pt-5">
           <PlayerAdvancedAnalytics analytics={advanced} />
+        </div>
+      )}
+      {similar != null && (
+        <div className="pt-5">
+          <SimilarPlayers result={similar} />
         </div>
       )}
     </div>
