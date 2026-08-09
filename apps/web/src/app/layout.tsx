@@ -17,8 +17,20 @@ export const metadata: Metadata = {
   title: { default:'CornerMaximo | Sports Intelligence', template:'%s | CornerMaximo' },
   description:'Partidos, estadísticas, rankings, scouting y análisis de fútbol. Tus datos. Tu ventaja.',
   applicationName:'CornerMaximo',
-  openGraph:{ type:'website', siteName:'CornerMaximo', locale:'es_ES', title:'CornerMaximo | Sports Intelligence', description:'Partidos. Datos. Scouting. Todo el fútbol en un solo lugar.' },
-  twitter:{ card:'summary_large_image', title:'CornerMaximo | Sports Intelligence', description:'Tu deporte. Tus datos. Tu ventaja.' },
+  openGraph:{
+    type:'website',
+    siteName:'CornerMaximo',
+    locale:'es_ES',
+    title:'CornerMaximo | Sports Intelligence',
+    description:'Partidos. Datos. Scouting. Todo el fútbol en un solo lugar.',
+    images:[{ url:'/opengraph-image', width:1200, height:630, alt:'CornerMaximo Sports Intelligence' }],
+  },
+  twitter:{
+    card:'summary_large_image',
+    title:'CornerMaximo | Sports Intelligence',
+    description:'Tu deporte. Tus datos. Tu ventaja.',
+    images:['/opengraph-image'],
+  },
 };
 export const viewport: Viewport = { themeColor:'#05070B', colorScheme:'dark' };
 const websiteJsonLd = { '@context':'https://schema.org', '@type':'WebSite', name:'CornerMaximo', alternateName:'CM Sports Intelligence', url:BASE_URL, inLanguage:'es' };
