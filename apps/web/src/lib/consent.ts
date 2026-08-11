@@ -1,4 +1,4 @@
-export const CONSENT_STORAGE_KEY = 'futstats.consent.v1';
+export const CONSENT_STORAGE_KEY = 'cornermaximo.consent.v1';
 export const CONSENT_VERSION = 1;
 
 export type ConsentPreferences = {
@@ -46,7 +46,7 @@ export function writeConsent(input: Pick<ConsentPreferences, 'analytics' | 'adve
   } catch {
     // Si el almacenamiento está bloqueado, la preferencia no puede persistir y el banner reaparecerá.
   }
-  window.dispatchEvent(new CustomEvent('futstats:consent-change', { detail: value }));
+  window.dispatchEvent(new CustomEvent('cornermaximo:consent-change', { detail: value }));
   return value;
 }
 
