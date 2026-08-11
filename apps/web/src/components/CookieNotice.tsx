@@ -23,8 +23,8 @@ export function CookieNotice() {
       setSettings(true);
       setVisible(true);
     };
-    window.addEventListener('futstats:open-consent-settings', openSettings);
-    return () => window.removeEventListener('futstats:open-consent-settings', openSettings);
+    window.addEventListener('cornermaximo:open-consent-settings', openSettings);
+    return () => window.removeEventListener('cornermaximo:open-consent-settings', openSettings);
   }, []);
 
   function save(nextAnalytics: boolean) {
