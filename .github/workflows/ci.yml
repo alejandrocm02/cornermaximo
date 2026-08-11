@@ -25,23 +25,32 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: futstats
+          POSTGRES_DB: cornermaximo
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d futstats"
+          --health-cmd "pg_isready -U postgres -d cornermaximo"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/futstats
-      DIRECT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/futstats
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cornermaximo
+      DIRECT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cornermaximo
       NEXT_PUBLIC_APP_URL: http://localhost:3000
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Audit legacy brand residues
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RniI --exclude-dir=.git --exclude='*.map' 'futstats' .; then
+            echo "::error::Se encontraron referencias residuales de la marca anterior."
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
