@@ -22,7 +22,7 @@ export function AccountDataControls() {
       const blob = await response.blob();
       const disposition = response.headers.get('content-disposition') ?? '';
       const match = disposition.match(/filename="([^"]+)"/);
-      const filename = match?.[1] ?? 'futstats-datos.json';
+      const filename = match?.[1] ?? 'cornermaximo-datos.json';
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -81,7 +81,7 @@ export function AccountDataControls() {
       <section className="rounded-xl border border-pitch-border bg-pitch-bg/45 p-5">
         <h2 className="font-display text-xl font-bold text-white">Tus datos</h2>
         <p className="mt-2 text-sm leading-6 text-pitch-muted">
-          Descarga en JSON los datos personales que FutStats conserva en el servidor: cuenta, favoritos, watchlists, preferencias y actividad de alertas.
+          Descarga en JSON los datos personales que CornerMaximo conserva en el servidor: cuenta, favoritos, watchlists, preferencias y actividad de alertas.
         </p>
         <button type="button" onClick={exportData} disabled={exporting} className="fs-btn-ghost mt-4 justify-center disabled:opacity-50">
           {exporting ? 'Preparando exportación…' : 'Descargar mis datos'}
@@ -91,7 +91,7 @@ export function AccountDataControls() {
       <section className="rounded-xl border border-pitch-danger/40 bg-pitch-danger/5 p-5">
         <h2 className="font-display text-xl font-bold text-white">Eliminar cuenta</h2>
         <p className="mt-2 text-sm leading-6 text-pitch-muted">
-          Esta acción elimina tu usuario de Supabase Auth y los datos personales vinculados a la cuenta mediante borrado en cascada. No elimina datos deportivos públicos de FutStats.
+          Esta acción elimina tu usuario de Supabase Auth y los datos personales vinculados a la cuenta mediante borrado en cascada. No elimina datos deportivos públicos de CornerMaximo.
         </p>
         <p className="mt-3 text-sm font-semibold text-pitch-danger">
           Es irreversible. Descarga antes una copia si quieres conservar tus datos.
