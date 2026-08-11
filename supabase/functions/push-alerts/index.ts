@@ -87,7 +87,7 @@ Deno.serve(async (request) => {
   const runtime = runtimeRows?.[0];
   if (runtimeError || !runtime) return new Response('Push runtime config missing', { status: 503 });
 
-  const suppliedSecret = request.headers.get('x-futstats-cron') ?? '';
+  const suppliedSecret = request.headers.get('x-cornermaximo-cron') ?? '';
   if (!suppliedSecret || suppliedSecret !== runtime.cron_secret) return new Response('Unauthorized', { status: 401 });
 
   const { data: publicConfig, error: publicConfigError } = await supabase
@@ -98,7 +98,7 @@ Deno.serve(async (request) => {
   if (publicConfigError || !publicConfig?.vapid_public_key) return new Response('VAPID public key missing', { status: 503 });
 
   webpush.setVapidDetails(
-    'mailto:admin@futstats.app',
+    Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@cornermaximo.app',
     publicConfig.vapid_public_key,
     runtime.vapid_private_key,
   );
@@ -154,7 +154,7 @@ Deno.serve(async (request) => {
     let feed: Feed;
     try {
       const response = await fetch(`${runtime.app_url.replace(/\/$/, '')}/api/alertas?${params.toString()}`, {
-        headers: { 'User-Agent': 'FutStats-Push/1.0' },
+        headers: { 'User-Agent': 'CornerMaximo-Push/1.0' },
       });
       if (!response.ok) continue;
       feed = await response.json() as Feed;
