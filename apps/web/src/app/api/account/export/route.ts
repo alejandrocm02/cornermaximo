@@ -31,7 +31,7 @@ export async function GET() {
 
   const exportedAt = new Date().toISOString();
   const payload = {
-    format: 'FutStats personal data export',
+    format: 'CornerMaximo personal data export',
     version: 1,
     exportedAt,
     account: {
@@ -51,7 +51,7 @@ export async function GET() {
     alertReads: alertReads.data ?? [],
     pushSubscriptions: pushSubscriptions.data ?? [],
     pushDeliveries: pushDeliveries.data ?? [],
-    note: 'Los datos deportivos públicos de FutStats no forman parte de esta exportación porque no son datos personales de la cuenta. Los datos que solo existen en localStorage permanecen exclusivamente en este navegador y no se conservan en el servidor.',
+    note: 'Los datos deportivos públicos de CornerMaximo no forman parte de esta exportación porque no son datos personales de la cuenta. Los datos que solo existen en localStorage permanecen exclusivamente en este navegador y no se conservan en el servidor.',
   };
 
   const date = exportedAt.slice(0, 10);
@@ -59,7 +59,7 @@ export async function GET() {
     status: 200,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Content-Disposition': `attachment; filename="futstats-datos-${date}.json"`,
+      'Content-Disposition': `attachment; filename="cornermaximo-datos-${date}.json"`,
       'Cache-Control': 'no-store, private',
       'X-Content-Type-Options': 'nosniff',
     },
