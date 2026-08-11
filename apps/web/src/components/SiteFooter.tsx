@@ -11,7 +11,7 @@ const FOOTER_LINKS = [
 ];
 
 const SECTIONS = [
-  { href: '/mi-futstats', label: 'Mi Corner' },
+  { href: '/mi-corner', label: 'Mi Corner' },
   { href: '/partidos', label: 'Partidos' },
   { href: '/jugadores', label: 'Jugadores' },
   { href: '/equipos', label: 'Equipos' },
