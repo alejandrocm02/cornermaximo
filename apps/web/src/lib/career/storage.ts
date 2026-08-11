@@ -7,8 +7,8 @@
 import { countryName } from './countries';
 import type { CareerCard, CareerState } from './types';
 
-export const CAREERS_KEY = 'futstats.carrera.partidas.v1';
-export const RANKING_KEY = 'futstats.carrera.ranking.v1';
+export const CAREERS_KEY = 'cornermaximo.carrera.partidas.v1';
+export const RANKING_KEY = 'cornermaximo.carrera.ranking.v1';
 const MAX_SLOTS = 5;
 const MAX_RANKING = 25;
 
@@ -77,7 +77,6 @@ function migrateCareer(raw: unknown): CareerState | null {
     delete player.country;
     delete player.secondCountry;
     club.country = mapLegacyCode(club.country as string) ?? 'ES';
-    // Si ya había convocatorias en v1, la federación era la nacionalidad única.
     national.teamCode = (national.level as string) !== 'ninguna' ? primary : null;
     c.v = 2;
     return c as unknown as CareerState;
@@ -86,7 +85,6 @@ function migrateCareer(raw: unknown): CareerState | null {
   }
 }
 
-/** Migra una tarjeta del ranking v1 (campo `country`) al formato v2. */
 function migrateCard(raw: unknown): CareerCard | null {
   if (raw == null || typeof raw !== 'object') return null;
   const c = raw as Record<string, unknown>;
@@ -98,8 +96,6 @@ function migrateCard(raw: unknown): CareerCard | null {
   delete c.country;
   return c as unknown as CareerCard;
 }
-
-// --- Partidas -------------------------------------------------------------
 
 export function loadCareers(): CareerState[] {
   const items = loadJson<unknown[]>(CAREERS_KEY, []);
@@ -113,24 +109,14 @@ export function saveCareer(state: CareerState): void {
 }
 
 export function deleteCareer(id: string): void {
-  saveJson(
-    CAREERS_KEY,
-    loadCareers().filter((c) => c.id !== id),
-  );
+  saveJson(CAREERS_KEY, loadCareers().filter((c) => c.id !== id));
 }
-
-// --- Ranking local --------------------------------------------------------
 
 export function loadRanking(): CareerCard[] {
   const items = loadJson<unknown[]>(RANKING_KEY, []);
   return items.map(migrateCard).filter((c): c is CareerCard => c != null);
 }
 
-/**
- * Añade una carrera terminada al ranking local.
- * Medida básica contra manipulación: se recalcula un sello simple del
- * contenido; entradas sin sello coherente se descartan al cargar.
- */
 export function addToRanking(card: CareerCard): CareerCard[] {
   const items = loadRanking().filter((c) => c.id !== card.id);
   items.push(card);
@@ -144,15 +130,8 @@ export function clearRanking(): void {
   saveJson(RANKING_KEY, []);
 }
 
-// --- Analítica ------------------------------------------------------------
-
 type AnalyticsProps = Record<string, string | number | boolean>;
 
-/**
- * Analítica respetuosa con la privacidad: nunca se envían nombres
- * personalizados ni datos identificables. Si no hay colector configurado,
- * el evento simplemente se descarta.
- */
 export function track(event: string, props: AnalyticsProps = {}): void {
   if (typeof window === 'undefined') return;
   try {
