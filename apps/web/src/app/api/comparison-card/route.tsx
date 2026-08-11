@@ -95,7 +95,7 @@ export async function GET(request: Request) {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, color: '#82988a', fontSize: 13 }}>
           <div style={{ display: 'flex' }}>Datos de temporada · métricas por 90 y percentiles posicionales</div>
-          <div style={{ display: 'flex' }}>cornermaximo-web-neon.vercel.app</div>
+          <div style={{ display: 'flex' }}>CornerMaximo · Sports Intelligence</div>
         </div>
       </div>
     ),
