@@ -58,10 +58,10 @@ export function AccountDataControls() {
       }
 
       try {
-        localStorage.removeItem('futstats.favorites.v1');
+        localStorage.removeItem('cornermaximo.favorites.v1');
         for (let index = localStorage.length - 1; index >= 0; index -= 1) {
           const key = localStorage.key(index);
-          if (key?.startsWith('futstats.favorites.account-migrated.v1:')) localStorage.removeItem(key);
+          if (key?.startsWith('cornermaximo.favorites.account-migrated.v1:')) localStorage.removeItem(key);
         }
         sessionStorage.clear();
       } catch {
