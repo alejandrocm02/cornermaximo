@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'CornerMaximo',
     short_name: 'CM',
     description: 'Sports Intelligence: partidos, estadísticas, scouting, rankings y alertas de fútbol.',
-    start_url: '/mi-futstats',
+    start_url: '/mi-corner',
     display: 'standalone',
     background_color: '#05070B',
     theme_color: '#05070B',
