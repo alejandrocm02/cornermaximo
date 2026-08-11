@@ -1,4 +1,4 @@
-import { formatSeasonLabel, WORLD_CUP_2026 } from '@futstats/shared';
+import { formatSeasonLabel, WORLD_CUP_2026 } from '@cornermaximo/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -12,7 +12,7 @@ import {
 export const metadata: Metadata = {
   title: 'Estado y cobertura de los datos',
   description:
-    'Consulta la última sincronización y la cobertura actual de equipos, calendarios, clasificaciones, alineaciones y estadísticas de FutStats.',
+    'Consulta la última sincronización y la cobertura actual de equipos, calendarios, clasificaciones, alineaciones y estadísticas de CornerMaximo.',
   alternates: { canonical: '/estado-datos' },
 };
 
@@ -108,7 +108,7 @@ export default async function DataStatusPage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <p className="fs-eyebrow">Transparencia del dato</p>
-            <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Estado y cobertura de FutStats</h1>
+            <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Estado y cobertura de CornerMaximo</h1>
             <p className="mt-3 text-sm leading-6 text-pitch-muted sm:text-base">
               Esta página resume cuándo se sincronizó correctamente la plataforma y qué partes de cada competición están disponibles. Un porcentaje inferior al 100 % no implica necesariamente un error: los próximos partidos aún no tienen alineaciones ni estadísticas.
             </p>
@@ -237,7 +237,7 @@ export default async function DataStatusPage() {
       <section className="rounded-xl border border-pitch-border bg-pitch-card/50 p-5 text-sm text-pitch-muted">
         <h2 className="font-semibold text-white">Cómo interpretar estos datos</h2>
         <p className="mt-2 leading-6">
-          FutStats no inventa valores ausentes. Cuando el proveedor todavía no ha publicado una clasificación, un acta o una estadística, la cobertura aparece como parcial o pendiente. Consulta la{' '}
+          CornerMaximo no inventa valores ausentes. Cuando el proveedor todavía no ha publicado una clasificación, un acta o una estadística, la cobertura aparece como parcial o pendiente. Consulta la{' '}
           <Link href="/metodologia" className="text-pitch-accent hover:underline">
             metodología
           </Link>{' '}

@@ -12,11 +12,11 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "db:generate": "npm run generate -w @futstats/db",
-    "db:migrate": "npm run migrate -w @futstats/db",
-    "db:deploy": "npm run deploy -w @futstats/db",
-    "db:push": "npm run push -w @futstats/db",
-    "db:validate": "npm run validate -w @futstats/db"
+    "db:generate": "npm run generate -w @cornermaximo/db",
+    "db:migrate": "npm run migrate -w @cornermaximo/db",
+    "db:deploy": "npm run deploy -w @cornermaximo/db",
+    "db:push": "npm run push -w @cornermaximo/db",
+    "db:validate": "npm run validate -w @cornermaximo/db"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

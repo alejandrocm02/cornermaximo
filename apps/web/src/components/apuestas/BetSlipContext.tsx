@@ -5,7 +5,7 @@
  * conservar las selecciones al navegar. Sin dinero real.
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { BetSelection } from '@futstats/stats';
+import type { BetSelection } from '@cornermaximo/stats';
 import { loadJson, saveJson, SLIP_KEY } from './betTypes';
 
 interface BetSlipState {

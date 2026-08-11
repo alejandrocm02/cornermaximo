@@ -1,5 +1,5 @@
 /** GET /api/players/:slug/last-matches — últimos 5 jugados + resumen + tendencias. */
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
 import { getLastMatches } from '@/lib/recent';

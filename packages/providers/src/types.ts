@@ -8,7 +8,7 @@ import type {
   MatchStatus,
   PositionGroup,
   PreferredFoot,
-} from '@futstats/shared';
+} from '@cornermaximo/shared';
 
 export interface ProviderCompetition {
   externalId: string;

@@ -2,7 +2,7 @@
  * Servicio "últimos 5 partidos": detalle por partido + resumen agregado + tendencia.
  * Solo cuentan partidos con minutos > 0. Los BENCH_UNUSED se listan aparte.
  */
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import {
   aggregateFieldPlayer,
   aggregateGoalkeeper,
@@ -11,8 +11,8 @@ import {
   type PlayerMatchLine,
   type RecentSummary,
   type TrendResult,
-} from '@futstats/stats';
-import { RECENT_MATCHES_WINDOW } from '@futstats/shared';
+} from '@cornermaximo/stats';
+import { RECENT_MATCHES_WINDOW } from '@cornermaximo/shared';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
 

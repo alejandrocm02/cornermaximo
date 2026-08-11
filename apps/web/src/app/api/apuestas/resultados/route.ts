@@ -2,7 +2,7 @@
  * GET /api/apuestas/resultados?ids=1,2,3 — estado y marcador final de partidos
  * para resolver selecciones de apuestas simuladas en el cliente.
  */
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
 

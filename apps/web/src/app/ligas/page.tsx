@@ -1,4 +1,4 @@
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import Link from 'next/link';
 import { seasonLabel } from '@/lib/football';
 
@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'Ligas',
   description:
-    'Explora las ligas disponibles en FutStats con clasificación, calendario, equipos y temporadas correctamente contextualizadas.',
+    'Explora las ligas disponibles en CornerMaximo con clasificación, calendario, equipos y temporadas correctamente contextualizadas.',
   alternates: { canonical: '/ligas' },
 };
 

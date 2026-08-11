@@ -17,7 +17,7 @@ import {
   riskLevel,
   validateOdds,
   type BetMarketId,
-} from '@futstats/stats';
+} from '@cornermaximo/stats';
 import { useBetSlip } from './BetSlipContext';
 import { BETS_KEY, loadJson, RESPONSIBLE_NOTICE, saveJson, type SavedBet } from './betTypes';
 

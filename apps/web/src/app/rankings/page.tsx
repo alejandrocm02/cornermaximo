@@ -1,12 +1,12 @@
-import { prisma } from '@futstats/db';
-import { ALL_TRACKED_SEASONS, BIG_FIVE_PREVIOUS_SEASON, seasonsOf, type SeasonFormat } from '@futstats/shared';
+import { prisma } from '@cornermaximo/db';
+import { ALL_TRACKED_SEASONS, BIG_FIVE_PREVIOUS_SEASON, seasonsOf, type SeasonFormat } from '@cornermaximo/shared';
 import Link from 'next/link';
 import { seasonLabel } from '@/lib/football';
 import { rankingRows, type RankingMetric } from '@/lib/leaderboards';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: { absolute: 'Ranking de goleadores, asistencias y estadísticas | FutStats' },
+  title: { absolute: 'Ranking de goleadores, asistencias y estadísticas | CornerMaximo' },
   description:
     'Rankings de goles, asistencias, pases clave y paradas por liga y temporada, con datos actualizados automáticamente.',
   alternates: { canonical: '/rankings' },

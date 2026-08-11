@@ -5,8 +5,8 @@
  * por consulta normalizada durante cinco minutos y se invalidan cuando termina
  * una tanda de sincronización de datos.
  */
-import { prisma } from '@futstats/db';
-import { WORLD_CUP_2026 } from '@futstats/shared';
+import { prisma } from '@cornermaximo/db';
+import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import { unstable_cache } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';

@@ -1,4 +1,4 @@
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import type { Metadata } from 'next';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { TeamsDirectory, type TeamDirectoryItem } from './TeamsDirectory';

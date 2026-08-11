@@ -4,7 +4,7 @@
  * La categoría se deriva de las palabras del propio titular: un rumor solo se
  * etiqueta como rumor; "confirmado/oficial" exige que la fuente lo diga.
  */
-import type { PrismaClient } from '@futstats/db';
+import type { PrismaClient } from '@cornermaximo/db';
 
 interface FeedConfig {
   url: string;
@@ -119,7 +119,7 @@ export async function syncNews(db: PrismaClient): Promise<number> {
     let xml: string;
     try {
       const res = await fetch(feed.url, {
-        headers: { 'user-agent': 'FutStatsBot/1.0 (+agregador de titulares con enlace a la fuente)' },
+        headers: { 'user-agent': 'CornerMaximoBot/1.0 (+agregador de titulares con enlace a la fuente)' },
         signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) continue;

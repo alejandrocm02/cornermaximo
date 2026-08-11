@@ -1,4 +1,4 @@
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';

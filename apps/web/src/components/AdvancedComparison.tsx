@@ -1,6 +1,6 @@
-import type { PositionGroup } from '@futstats/db';
+import type { PositionGroup } from '@cornermaximo/db';
 import Link from 'next/link';
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { getPlayerAdvancedAnalytics, type PlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
 import { ShareComparisonButton } from '@/components/ShareComparisonButton';
 

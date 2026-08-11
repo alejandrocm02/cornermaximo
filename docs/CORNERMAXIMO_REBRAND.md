@@ -3,7 +3,7 @@
 Public brand: **CORNERMAXIMO**. Positioning: **Sports Intelligence Platform**. Claim: **TU DEPORTE. TUS DATOS. TU VENTAJA.**
 
 ## Migration rule
-Technical identifiers (`futstats`, `@futstats/*`, database names, migrations, environment variables, deployment identifiers and existing sports slugs) remain unchanged unless a separate migration proves a user-facing benefit. Public copy, metadata, PWA surfaces and UI progressively move to CornerMaximo.
+Technical identifiers (`cornermaximo`, `@cornermaximo/*`, database names, migrations, environment variables, deployment identifiers and existing sports slugs) remain unchanged unless a separate migration proves a user-facing benefit. Public copy, metadata, PWA surfaces and UI progressively move to CornerMaximo.
 
 ## Color semantics
 - `#05070B` base, `#0A0D14` elevated, `#10141E` cards.

@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from '@futstats/db';
+import { prisma, type Prisma } from '@cornermaximo/db';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -17,7 +17,7 @@ export async function generateMetadata({
   const sp = await searchParams;
   const hasFilters = ['categoria', 'liga', 'club', 'q', 'fecha', 'pagina'].some((k) => sp[k] != null && sp[k] !== '');
   return {
-    title: { absolute: 'Noticias de fútbol y última hora | FutStats' },
+    title: { absolute: 'Noticias de fútbol y última hora | CornerMaximo' },
     description:
       'Consulta las últimas noticias de fútbol, fichajes confirmados, rumores y movimientos del mercado por jugador, club y liga.',
     alternates: { canonical: '/noticias' },
@@ -254,7 +254,7 @@ export default async function NewsPage({
       )}
 
       <p className="text-xs text-pitch-muted">
-        FutStats agrega titulares con enlace directo al medio original; el contenido completo
+        CornerMaximo agrega titulares con enlace directo al medio original; el contenido completo
         pertenece a cada fuente. Fichajes confirmados en la sección{' '}
         <Link href="/fichajes" className="text-pitch-accent hover:underline">Fichajes</Link>.
       </p>

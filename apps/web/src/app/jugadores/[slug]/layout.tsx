@@ -1,4 +1,4 @@
-import type { PositionGroup } from '@futstats/db';
+import type { PositionGroup } from '@cornermaximo/db';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { PlayerAdvancedAnalytics } from '@/components/PlayerAdvancedAnalytics';
 import { PlayerWatchlistButton } from '@/components/PlayerWatchlistButton';

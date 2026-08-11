@@ -1,5 +1,5 @@
 /**
- * @futstats/db — cliente Prisma singleton.
+ * @cornermaximo/db — cliente Prisma singleton.
  * Evita agotar conexiones en desarrollo (hot reload de Next.js).
  */
 import { PrismaClient } from '@prisma/client';

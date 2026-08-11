@@ -1,4 +1,4 @@
--- FutStats personal data lives in Supabase, alongside Supabase Auth.
+-- CornerMaximo personal data lives in Supabase, alongside Supabase Auth.
 -- Sports data remains in Neon/Prisma. Do not add sports tables here.
 
 create table if not exists public.user_profiles (

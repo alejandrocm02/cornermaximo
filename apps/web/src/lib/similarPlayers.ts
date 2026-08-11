@@ -1,4 +1,4 @@
-import { PositionGroup, prisma } from '@futstats/db';
+import { PositionGroup, prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
 

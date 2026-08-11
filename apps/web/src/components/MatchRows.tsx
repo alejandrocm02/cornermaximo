@@ -1,4 +1,4 @@
-import type { MatchStatus } from '@futstats/shared';
+import type { MatchStatus } from '@cornermaximo/shared';
 import Link from 'next/link';
 import { formatMatchDate, roundLabel, statusLabel } from '@/lib/football';
 

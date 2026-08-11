@@ -1,4 +1,4 @@
--- FutStats account watchlists. Personal data only; sports data stays in Neon/Prisma.
+-- CornerMaximo account watchlists. Personal data only; sports data stays in Neon/Prisma.
 
 create table if not exists public.user_watchlists (
   id uuid primary key default gen_random_uuid(),

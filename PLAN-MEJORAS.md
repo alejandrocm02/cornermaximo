@@ -1,7 +1,7 @@
-# FutStats — Plan de mejoras
+# CornerMaximo — Plan de mejoras
 
 Elaborado el 27/07/2026 tras auditar el código local y navegar la web en producción
-(`futstats-b87781hgo-corner-maximo.vercel.app`).
+(`cornermaximo-b87781hgo-corner-maximo.vercel.app`).
 
 > El repositorio local está al día con producción (`main`, commit `fd262c4`). Nota: el modo
 > carrera vive en `/modo-carrera`, no en `/mi-carrera`.

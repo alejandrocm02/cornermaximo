@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from '@futstats/db';
+import { prisma, type Prisma } from '@cornermaximo/db';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -16,7 +16,7 @@ export async function generateMetadata({
   const sp = await searchParams;
   const hasFilters = ['club', 'tipo', 'liga', 'pagina'].some((k) => sp[k] != null && sp[k] !== '');
   return {
-    title: { absolute: 'Fichajes de fútbol: rumores y confirmados | FutStats' },
+    title: { absolute: 'Fichajes de fútbol: rumores y confirmados | CornerMaximo' },
     description:
       'Mercado de fichajes: traspasos y cesiones confirmados por club y liga, más rumores de medios claramente etiquetados.',
     alternates: { canonical: '/fichajes' },

@@ -1,6 +1,6 @@
 /** GET /api/players/:slug — perfil + agregados de temporada. */
-import { prisma } from '@futstats/db';
-import { percentage } from '@futstats/stats';
+import { prisma } from '@cornermaximo/db';
+import { percentage } from '@cornermaximo/stats';
 import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
 

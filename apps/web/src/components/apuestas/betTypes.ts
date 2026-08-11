@@ -3,7 +3,7 @@
  * Los datos se guardan únicamente en localStorage de este navegador:
  * no hay dinero real, ni pagos, ni cuentas de casas de apuestas.
  */
-import type { BetSelection, BetStatus, SelectionOutcome } from '@futstats/stats';
+import type { BetSelection, BetStatus, SelectionOutcome } from '@cornermaximo/stats';
 
 export interface StoredSelection extends BetSelection {
   outcome: SelectionOutcome;

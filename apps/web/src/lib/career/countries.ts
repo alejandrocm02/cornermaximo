@@ -15,7 +15,7 @@
  *   solo se usa para simular resultados internacionales. El valor por defecto
  *   para asociaciones sin tradición reciente es 1.
  * - Las selecciones y torneos se simulan internamente: no usan datos reales
- *   de FutStats.
+ *   de CornerMaximo.
  */
 
 export type Confederation = 'UEFA' | 'CONMEBOL' | 'CONCACAF' | 'CAF' | 'AFC' | 'OFC';

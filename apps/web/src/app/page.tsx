@@ -1,5 +1,5 @@
-import { prisma } from '@futstats/db';
-import { BIG_FIVE_CURRENT_SEASON, BIG_FIVE_PREVIOUS_SEASON, WORLD_CUP_2026 } from '@futstats/shared';
+import { prisma } from '@cornermaximo/db';
+import { BIG_FIVE_CURRENT_SEASON, BIG_FIVE_PREVIOUS_SEASON, WORLD_CUP_2026 } from '@cornermaximo/shared';
 import Link from 'next/link';
 import { MatchRows } from '@/components/MatchRows';
 import { SearchBox } from '@/components/SearchBox';

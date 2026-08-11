@@ -9,7 +9,7 @@
  *  - getPlayerMatchStatistics: 1 por partido (todos los jugadores de golpe)
  *  - getInjuries / getStandings: 1 por competición/temporada
  */
-import { TRACKED_COMPETITIONS } from '@futstats/shared';
+import { TRACKED_COMPETITIONS } from '@cornermaximo/shared';
 import type { FootballDataProvider } from '../FootballDataProvider';
 import type {
   ProviderTransfer,

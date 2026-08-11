@@ -1,12 +1,12 @@
-import { prisma } from '@futstats/db';
-import { WORLD_CUP_2026 } from '@futstats/shared';
+import { prisma } from '@cornermaximo/db';
+import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import Link from 'next/link';
 import { groupLabel, roundLabel } from '@/lib/football';
 import { topPlayerStat } from '@/lib/worldCupStats';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: { absolute: 'Mundial 2026: resultados, calendario y goleadores | FutStats' },
+  title: { absolute: 'Mundial 2026: resultados, calendario y goleadores | CornerMaximo' },
   description:
     'Copa Mundial de la FIFA 2026: grupos, resultados, eliminatorias y estadísticas individuales y por selección, actualizados automáticamente.',
   alternates: { canonical: '/mundial-2026' },
