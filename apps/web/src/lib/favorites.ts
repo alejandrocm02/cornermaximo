@@ -27,9 +27,9 @@ interface FavoriteRow {
   added_at: string;
 }
 
-const STORAGE_KEY = 'futstats.favorites.v1';
-const CHANGE_EVENT = 'futstats:favorites-change';
-const MIGRATION_KEY_PREFIX = 'futstats.favorites.account-migrated.v1';
+const STORAGE_KEY = 'cornermaximo.favorites.v1';
+const CHANGE_EVENT = 'cornermaximo:favorites-change';
+const MIGRATION_KEY_PREFIX = 'cornermaximo.favorites.account-migrated.v1';
 const MAX_FAVORITES = 60;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
