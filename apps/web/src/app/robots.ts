@@ -13,7 +13,6 @@ export default function robots(): MetadataRoute.Robots {
           '/admin',
           '/cuenta',
           '/mi-corner',
-          '/mi-futstats',
           '/favoritos',
           '/watchlists',
           '/alertas',
