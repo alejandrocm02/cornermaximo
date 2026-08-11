@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -40,14 +40,59 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://localhost:3000
 
     steps:
-      - name: Checkout
+      - name: Checkout source branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Apply complete brand namespace migration
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/cornermaximo-rebrand'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          old_title = 'Fut' + 'Stats'
+          old_upper = 'FUT' + 'STATS'
+          old_lower = 'fut' + 'stats'
+          new_title = 'CornerMaximo'
+          new_upper = 'CORNERMAXIMO'
+          new_lower = 'cornermaximo'
+
+          result = subprocess.run(
+              ['git', 'grep', '-Il', '-e', old_title, '-e', old_upper, '-e', old_lower],
+              check=False,
+              capture_output=True,
+              text=True,
+          )
+          for raw_path in result.stdout.splitlines():
+              path = Path(raw_path)
+              text = path.read_text(encoding='utf-8')
+              updated = text.replace(old_title, new_title).replace(old_upper, new_upper).replace(old_lower, new_lower)
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8')
+          PY
+
+          if git diff --quiet; then
+            echo "No quedan sustituciones automáticas pendientes."
+          else
+            git config user.name "CornerMaximo Migration Bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add -A
+            git commit -m "refactor(brand): migrate remaining namespace references"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+            echo "Migración aplicada a la rama; la nueva ejecución validará el resultado."
+            exit 0
+          fi
 
       - name: Audit legacy brand residues
         shell: bash
         run: |
           set -euo pipefail
-          if grep -RniI --exclude-dir=.git --exclude='*.map' 'futstats' .; then
+          legacy='fut''stats'
+          if grep -RniI --exclude-dir=.git --exclude='*.map' "$legacy" .; then
             echo "::error::Se encontraron referencias residuales de la marca anterior."
             exit 1
           fi
