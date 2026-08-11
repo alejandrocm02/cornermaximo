@@ -16,7 +16,7 @@ permissions:
 # Una sincronización nueva espera a que termine la anterior. Cancelar una tanda
 # a mitad podría dejar unidades pendientes y desperdiciar presupuesto de la API.
 concurrency:
-  group: futstats-production-sync
+  group: cornermaximo-production-sync
   cancel-in-progress: false
 
 jobs:
