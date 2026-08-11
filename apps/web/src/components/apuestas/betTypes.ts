@@ -23,8 +23,8 @@ export interface SavedBet {
   notes: string;
 }
 
-export const SLIP_KEY = 'futstats.cupon.v1';
-export const BETS_KEY = 'futstats.apuestas.v1';
+export const SLIP_KEY = 'cornermaximo.cupon.v1';
+export const BETS_KEY = 'cornermaximo.apuestas.v1';
 
 export function loadJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
