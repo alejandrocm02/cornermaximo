@@ -7,7 +7,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'CM Intelligence | Tendencias de fútbol | CornerMaximo',
+  title: 'CM Intelligence | Tendencias de fútbol',
   description:
     'Detecta tendencias históricas de equipos y jugadores con muestras verificables, frecuencia observada y CM Confidence.',
   alternates: { canonical: '/intelligence' },
