@@ -6,9 +6,10 @@ import { FavoritesAccountSync } from '@/components/FavoritesAccountSync';
 import { MainNav } from '@/components/MainNav';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { SiteFooter } from '@/components/SiteFooter';
+import { getSiteUrl } from '@/lib/site-url';
 import './globals.css';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const BASE_URL = getSiteUrl();
 const fontSans = Inter({ subsets:['latin'], display:'swap', variable:'--font-sans' });
 const fontDisplay = Space_Grotesk({ subsets:['latin'], display:'swap', weight:['500','600','700'], variable:'--font-display' });
 
