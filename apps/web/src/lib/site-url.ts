@@ -5,6 +5,7 @@ function withProtocol(value: string): string {
 }
 
 export function getSiteUrl(): string {
+  // Vercel exposes the production hostname at build time, so prefer it after project or domain renames.
   const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   if (vercelProductionUrl) return withProtocol(vercelProductionUrl);
 
