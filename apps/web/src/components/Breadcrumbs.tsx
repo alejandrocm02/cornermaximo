@@ -1,26 +1,26 @@
 import Link from 'next/link';
+import { getSiteUrl } from '@/lib/site-url';
 
 export interface Crumb {
   label: string;
   href?: string;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-
 /** Migas de pan para páginas interiores, con datos estructurados BreadcrumbList. */
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
   if (items.length === 0) return null;
+  const baseUrl = getSiteUrl();
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Inicio', item: BASE_URL },
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: baseUrl },
       ...items.map((item, i) => ({
         '@type': 'ListItem',
         position: i + 2,
         name: item.label,
-        ...(item.href != null ? { item: `${BASE_URL}${item.href}` } : {}),
+        ...(item.href != null ? { item: `${baseUrl}${item.href}` } : {}),
       })),
     ],
   };

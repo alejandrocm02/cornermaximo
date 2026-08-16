@@ -11,6 +11,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/jugadores`, changeFrequency: 'daily', priority: 0.9 },
     { url: `${BASE_URL}/equipos`, changeFrequency: 'daily', priority: 0.8 },
     { url: `${BASE_URL}/ligas`, changeFrequency: 'daily', priority: 0.8 },
+    { url: `${BASE_URL}/intelligence`, changeFrequency: 'hourly', priority: 0.9 },
+    { url: `${BASE_URL}/pro`, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${BASE_URL}/rankings`, changeFrequency: 'daily', priority: 0.85 },
     { url: `${BASE_URL}/comparador`, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE_URL}/scouting`, changeFrequency: 'daily', priority: 0.85 },
