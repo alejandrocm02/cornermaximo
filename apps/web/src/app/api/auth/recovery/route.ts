@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 
 const GENERIC_SUCCESS =
   'Si existe una cuenta con ese correo, recibirás un enlace para cambiar la contraseña.';
+const RATE_LIMIT_MESSAGE =
+  'Has solicitado demasiados enlaces de recuperación en poco tiempo. Inténtalo de nuevo más tarde.';
 
 function jsonNoStore(body: Record<string, string>, status = 200) {
   const response = NextResponse.json(body, { status });
@@ -46,6 +48,10 @@ export async function POST(request: Request) {
   });
 
   if (error) {
+    if (error.status === 429 || error.code === 'over_email_send_rate_limit') {
+      return jsonNoStore({ error: RATE_LIMIT_MESSAGE }, 429);
+    }
+
     return jsonNoStore(
       { error: 'No se ha podido enviar el enlace de recuperación. Inténtalo de nuevo.' },
       400,
