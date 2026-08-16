@@ -28,7 +28,7 @@ type Preferences = {
 type FavoriteRow = { kind: 'player' | 'team' | 'competition'; entity_slug: string };
 type WatchlistPlayerRow = { player_slug: string };
 
-const READ_KEY = 'futstats.alertas.read.v1';
+const READ_KEY = 'cornermaximo.alertas.read.v1';
 const DEFAULT_PREFERENCES: Preferences = {
   result_alerts: true,
   live_alerts: true,

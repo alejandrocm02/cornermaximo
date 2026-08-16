@@ -1,5 +1,5 @@
-import { prisma } from '@futstats/db';
-import type { MatchStatus } from '@futstats/shared';
+import { prisma } from '@cornermaximo/db';
+import type { MatchStatus } from '@cornermaximo/shared';
 import { unstable_cache } from 'next/cache';
 import {
   FOOTBALL_DATA_CACHE_TAG,

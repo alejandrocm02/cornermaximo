@@ -11,12 +11,12 @@ export default async function AccountSecurityPage() {
 
   return (
     <section className="mx-auto max-w-3xl space-y-5">
-      <Link href="/mi-futstats" className="text-sm font-semibold text-pitch-accent hover:underline">← Volver a Mi FutStats</Link>
+      <Link href="/mi-corner" className="text-sm font-semibold text-pitch-accent hover:underline">← Volver a Mi Corner</Link>
       <div className="rounded-2xl border border-pitch-border bg-pitch-card/80 p-6 shadow-xl sm:p-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-pitch-accent">Cuenta y seguridad</p>
-            <h1 className="font-display text-3xl font-bold text-white">Perfil FutStats</h1>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-pitch-accent">CornerMaximo ID · seguridad</p>
+            <h1 className="font-display text-3xl font-bold text-white">Perfil CornerMaximo</h1>
             <p className="mt-2 text-pitch-muted">Tu sesión está protegida por Supabase Auth.</p>
           </div>
           <LogoutButton />
@@ -34,7 +34,7 @@ export default async function AccountSecurityPage() {
         </dl>
 
         <div className="mt-6 rounded-xl border border-pitch-accent/20 bg-pitch-accent/5 p-4 text-sm leading-6 text-pitch-subtle">
-          Las contraseñas no se almacenan en el código ni en la base deportiva de FutStats. Supabase gestiona las credenciales y la sesión.
+          Las contraseñas no se almacenan en el código ni en la base deportiva de CornerMaximo. Supabase gestiona las credenciales y la sesión.
         </div>
 
         <AccountDataControls />

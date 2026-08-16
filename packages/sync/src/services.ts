@@ -2,9 +2,9 @@
  * Servicios de sincronización: proveedor -> base de datos.
  * Todos los upserts usan (providerId, externalId) para evitar duplicados.
  */
-import type { PrismaClient, Prisma } from '@futstats/db';
-import type { FootballDataProvider, ProviderPlayerMatchStats } from '@futstats/providers';
-import { TRACKED_COMPETITIONS, toSlug, type PositionGroup } from '@futstats/shared';
+import type { PrismaClient, Prisma } from '@cornermaximo/db';
+import type { FootballDataProvider, ProviderPlayerMatchStats } from '@cornermaximo/providers';
+import { TRACKED_COMPETITIONS, toSlug, type PositionGroup } from '@cornermaximo/shared';
 
 // ---------- helpers ----------
 

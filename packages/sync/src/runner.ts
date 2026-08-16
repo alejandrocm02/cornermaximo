@@ -14,14 +14,14 @@
  *  5. Clasificación (1 req/competición-temporada, máx. 1 vez/20h)
  *  6. Lesiones (1 req/competición-temporada, máx. 1 vez/20h)
  */
-import type { PrismaClient, SyncEntity } from '@futstats/db';
+import type { PrismaClient, SyncEntity } from '@cornermaximo/db';
 import {
   ApiFootballClient,
   ApiFootballProvider,
   BudgetExceededError,
   type FootballDataProvider,
-} from '@futstats/providers';
-import { TRACKED_COMPETITIONS } from '@futstats/shared';
+} from '@cornermaximo/providers';
+import { TRACKED_COMPETITIONS } from '@cornermaximo/shared';
 import { PrismaBudgetGuard } from './budget';
 import { syncNews } from './news';
 import {

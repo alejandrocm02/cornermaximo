@@ -1,5 +1,5 @@
-import { prisma } from '@futstats/db';
-import { WORLD_CUP_2026 } from '@futstats/shared';
+import { prisma } from '@cornermaximo/db';
+import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description:
       competition == null
         ? undefined
-        : `Clasificación, calendario, equipos y temporadas de ${competition.name} en FutStats.`,
+        : `Clasificación, calendario, equipos y temporadas de ${competition.name} en CornerMaximo.`,
     alternates: { canonical: competition?.type === 'LEAGUE' ? `/ligas/${slug}` : undefined },
   };
 }

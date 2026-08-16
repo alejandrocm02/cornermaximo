@@ -6,7 +6,7 @@
  * que muestra el número de selecciones (cierre con Escape y botón).
  */
 import { useEffect, useRef, useState } from 'react';
-import { BET_MARKETS, type BetMarketId } from '@futstats/stats';
+import { BET_MARKETS, type BetMarketId } from '@cornermaximo/stats';
 import { BetSlipProvider, useBetSlip } from './BetSlipContext';
 import { BetSlip } from './BetSlip';
 

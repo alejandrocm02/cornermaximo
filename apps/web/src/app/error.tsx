@@ -9,7 +9,7 @@ interface ErrorPageProps {
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => {
-    console.error('Unhandled FutStats route error', error);
+    console.error('Unhandled CornerMaximo route error', error);
   }, [error]);
 
   return (

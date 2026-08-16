@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FutStats">
-  <rect width="512" height="512" rx="112" fill="#07130d"/>
-  <path d="M92 120h328v64H164v70h214v62H164v76H92z" fill="#7cff9a"/>
-  <circle cx="390" cy="390" r="46" fill="#7cff9a"/>
-  <path d="M370 390l14 14 28-32" fill="none" stroke="#07130d" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>

@@ -3,7 +3,7 @@
  * Los datos se guardan únicamente en localStorage de este navegador:
  * no hay dinero real, ni pagos, ni cuentas de casas de apuestas.
  */
-import type { BetSelection, BetStatus, SelectionOutcome } from '@futstats/stats';
+import type { BetSelection, BetStatus, SelectionOutcome } from '@cornermaximo/stats';
 
 export interface StoredSelection extends BetSelection {
   outcome: SelectionOutcome;
@@ -23,8 +23,8 @@ export interface SavedBet {
   notes: string;
 }
 
-export const SLIP_KEY = 'futstats.cupon.v1';
-export const BETS_KEY = 'futstats.apuestas.v1';
+export const SLIP_KEY = 'cornermaximo.cupon.v1';
+export const BETS_KEY = 'cornermaximo.apuestas.v1';
 
 export function loadJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;

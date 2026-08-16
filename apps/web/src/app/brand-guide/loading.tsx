@@ -1,0 +1,1 @@
+export default function Loading(){return <div className="space-y-4" aria-label="Cargando"><div className="fs-skeleton h-10 w-72"/><div className="grid gap-3 sm:grid-cols-3"><div className="fs-skeleton h-28"/><div className="fs-skeleton h-28"/><div className="fs-skeleton h-28"/></div></div>}

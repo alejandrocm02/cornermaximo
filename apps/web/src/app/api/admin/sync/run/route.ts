@@ -3,8 +3,8 @@
  * Protegido con Bearer SYNC_SECRET. Ejecuta la cola de sincronización
  * respetando el presupuesto diario de la API.
  */
-import { prisma } from '@futstats/db';
-import { runSync } from '@futstats/sync';
+import { prisma } from '@cornermaximo/db';
+import { runSync } from '@cornermaximo/sync';
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';

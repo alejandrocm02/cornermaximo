@@ -65,7 +65,7 @@ export function FavoriteHomeBanner() {
         <div aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-grad-brand" />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="fs-eyebrow">Tu FutStats · {favorites.length} favoritos</p>
+            <p className="fs-eyebrow">Mi Corner · {favorites.length} favoritos</p>
             {nextMatch == null ? (
               <p className="mt-1 text-sm text-pitch-muted">No hay próximos partidos sincronizados para tu selección.</p>
             ) : (

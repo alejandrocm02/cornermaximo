@@ -22,7 +22,7 @@ import {
   type FootballCountry,
 } from '@/lib/career/countries';
 
-const RECENT_KEY = 'futstats.carrera.paisesRecientes.v1';
+const RECENT_KEY = 'cornermaximo.carrera.paisesRecientes.v1';
 const MAX_RECENT = 6;
 
 function loadRecent(): string[] {

@@ -4,8 +4,8 @@
  * `API_FOOTBALL_DAILY_LIMIT`) y por ejecución (cada tanda de GitHub Actions
  * gasta como máximo `runLimit`).
  */
-import type { PrismaClient } from '@futstats/db';
-import type { RequestBudgetGuard } from '@futstats/providers';
+import type { PrismaClient } from '@cornermaximo/db';
+import type { RequestBudgetGuard } from '@cornermaximo/providers';
 
 function todayUtc(): Date {
   const d = new Date();

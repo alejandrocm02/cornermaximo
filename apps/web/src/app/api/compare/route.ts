@@ -2,7 +2,7 @@
  * GET /api/compare?players=slug1,slug2&periodo=5|10|temporada
  * Comparación de 2 jugadores en la ventana elegida.
  */
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
 import { getLastMatches, type ComparisonWindow } from '@/lib/recent';

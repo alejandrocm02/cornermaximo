@@ -9,7 +9,7 @@ interface GlobalErrorProps {
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   useEffect(() => {
-    console.error('Unhandled FutStats root error', error);
+    console.error('Unhandled CornerMaximo root error', error);
   }, [error]);
 
   return (
@@ -23,7 +23,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             />
             <p className="fs-eyebrow">
               <span className="h-1.5 w-1.5 rounded-full bg-pitch-danger" />
-              FutStats no está disponible
+              CornerMaximo no está disponible
             </p>
             <h1 className="mt-3 text-3xl font-bold sm:text-4xl">Se ha producido un error general</h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-pitch-muted">
@@ -32,7 +32,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={reset} className="fs-btn-primary">
-                Reiniciar FutStats
+                Reiniciar CornerMaximo
               </button>
               <a href="/" className="fs-btn-ghost">
                 Recargar la portada

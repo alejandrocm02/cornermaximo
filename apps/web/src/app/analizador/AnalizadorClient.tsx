@@ -47,8 +47,8 @@ interface LegacyBet {
   notes?: string;
 }
 
-const STORAGE_KEY = 'futstats.analizador.v1';
-const LEGACY_STORAGE_KEY = 'futstats.apuestas.v1';
+const STORAGE_KEY = 'cornermaximo.analizador.v1';
+const LEGACY_STORAGE_KEY = 'cornermaximo.apuestas.v1';
 const DEFAULT_BANKROLL_ID = 'bankroll-principal';
 
 const MARKETS = [
@@ -333,7 +333,7 @@ export function AnalizadorClient() {
 
   function exportJson(): void {
     downloadFile(
-      `futstats-analizador-${today()}.json`,
+      `cornermaximo-analizador-${today()}.json`,
       JSON.stringify({ exportedAt: new Date().toISOString(), ...currentState }, null, 2),
       'application/json',
     );
@@ -352,7 +352,7 @@ export function AnalizadorClient() {
       ].map(csvCell).join(',');
     });
     downloadFile(
-      `futstats-analizador-${today()}.csv`,
+      `cornermaximo-analizador-${today()}.csv`,
       `\uFEFF${[header.map(csvCell).join(','), ...rows].join('\n')}`,
       'text/csv;charset=utf-8',
     );

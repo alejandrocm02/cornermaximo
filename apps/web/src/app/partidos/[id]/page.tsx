@@ -1,4 +1,4 @@
-import type { MatchStatus } from '@futstats/shared';
+import type { MatchStatus } from '@cornermaximo/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';

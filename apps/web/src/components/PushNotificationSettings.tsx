@@ -164,7 +164,7 @@ export function PushNotificationSettings() {
             Notificaciones en este dispositivo
           </h2>
           <p className="mt-2 text-sm leading-6 text-pitch-muted">
-            Recibe avisos de directos, resultados y próximos partidos aunque FutStats no esté abierto. La suscripción queda vinculada a tu cuenta y a este navegador.
+            Recibe avisos de directos, resultados y próximos partidos aunque CornerMaximo no esté abierto. La suscripción queda vinculada a tu cuenta y a este navegador.
           </p>
         </div>
 
@@ -184,13 +184,13 @@ export function PushNotificationSettings() {
         {state === 'enabled' && <p className="text-pitch-accent">● Push activo en este dispositivo.</p>}
         {state === 'disabled' && <p className="text-pitch-muted">Push disponible, pero todavía no está activado.</p>}
         {state === 'signed-out' && <p className="text-pitch-muted">Inicia sesión para vincular notificaciones a tu cuenta.</p>}
-        {state === 'unsupported' && <p className="text-pitch-muted">Este navegador no ofrece Web Push. Puedes seguir usando el centro de alertas dentro de FutStats.</p>}
+        {state === 'unsupported' && <p className="text-pitch-muted">Este navegador no ofrece Web Push. Puedes seguir usando el centro de alertas dentro de CornerMaximo.</p>}
         {state === 'blocked' && <p className="text-pitch-danger">Las notificaciones están bloqueadas en el navegador. Debes permitirlas desde los ajustes del sitio.</p>}
       </div>
 
       {message && <p className="mt-3 text-xs text-pitch-muted" role="status">{message}</p>}
       <p className="mt-4 text-xs leading-5 text-pitch-muted">
-        En iPhone/iPad, Web Push funciona cuando FutStats se instala en la pantalla de inicio como aplicación web.
+        En iPhone/iPad, Web Push funciona cuando CornerMaximo se instala en la pantalla de inicio como aplicación web.
       </p>
     </section>
   );

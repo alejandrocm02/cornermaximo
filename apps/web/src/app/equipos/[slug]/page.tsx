@@ -1,5 +1,5 @@
-import { prisma } from '@futstats/db';
-import { WORLD_CUP_2026 } from '@futstats/shared';
+import { prisma } from '@cornermaximo/db';
+import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description:
       team == null
         ? undefined
-        : `${team.isNational ? 'Selección' : 'Club'} ${team.name}: plantilla, clasificación, actualidad y estadísticas en FutStats.`,
+        : `${team.isNational ? 'Selección' : 'Club'} ${team.name}: plantilla, clasificación, actualidad y estadísticas en CornerMaximo.`,
     alternates: { canonical: `/equipos/${slug}` },
   };
 }

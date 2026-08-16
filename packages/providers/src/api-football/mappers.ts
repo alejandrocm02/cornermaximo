@@ -2,7 +2,7 @@
  * Mappers: formato crudo de API-Football -> DTOs neutrales.
  * Regla: si el proveedor no da un campo => null. NUNCA inventar ni asumir 0.
  */
-import type { MatchPlayerRole, MatchStatus, PositionGroup } from '@futstats/shared';
+import type { MatchPlayerRole, MatchStatus, PositionGroup } from '@cornermaximo/shared';
 import type {
   ProviderFixture,
   ProviderInjury,

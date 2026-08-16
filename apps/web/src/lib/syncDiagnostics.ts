@@ -1,4 +1,4 @@
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { getPublicDataHealth } from '@/lib/dataHealth';
 
 function hoursSince(date: Date | null | undefined): number | null {

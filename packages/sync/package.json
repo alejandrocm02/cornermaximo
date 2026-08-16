@@ -1,5 +1,5 @@
 {
-  "name": "@futstats/sync",
+  "name": "@cornermaximo/sync",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@futstats/db": "*",
-    "@futstats/providers": "*",
-    "@futstats/shared": "*"
+    "@cornermaximo/db": "*",
+    "@cornermaximo/providers": "*",
+    "@cornermaximo/shared": "*"
   }
 }

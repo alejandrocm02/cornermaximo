@@ -1,5 +1,5 @@
 /** GET /api/news/updates?since=ISO — nº de noticias nuevas desde esa fecha (para el aviso en vivo). */
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';

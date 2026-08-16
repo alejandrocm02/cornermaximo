@@ -1,4 +1,4 @@
-# FutStats
+# CornerMaximo
 
 Base de datos y análisis de futbolistas de las 5 grandes ligas europeas — temporadas
 **2025-26** y **2026-27** — más una sección dedicada al **Mundial 2026** (Canadá,

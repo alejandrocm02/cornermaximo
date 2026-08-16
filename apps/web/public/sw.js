@@ -1,10 +1,10 @@
-/* FutStats Web Push service worker */
+/* CornerMaximo Web Push service worker */
 self.addEventListener('push', (event) => {
   let payload = {
-    title: 'FutStats',
+    title: 'CornerMaximo',
     body: 'Tienes una nueva alerta en tu seguimiento.',
     url: '/alertas',
-    tag: 'futstats-alert',
+    tag: 'cornermaximo-alert',
   };
 
   if (event.data) {
@@ -18,8 +18,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/futstats-icon.svg',
-      badge: '/futstats-icon.svg',
+      icon: '/cornermaximo-icon.svg',
+      badge: '/cornermaximo-icon.svg',
       tag: payload.tag,
       renotify: true,
       data: { url: payload.url || '/alertas' },

@@ -2,7 +2,7 @@
  * Rankings agregados de las ligas de clubes (excluye competiciones de selecciones),
  * agrupando por el club actual del jugador. Usado en la home.
  */
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
 

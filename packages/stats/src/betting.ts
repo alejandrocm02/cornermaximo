@@ -34,7 +34,7 @@ export type BetMarketId = keyof typeof BET_MARKETS;
 export type BetOptionId<M extends BetMarketId = BetMarketId> = keyof (typeof BET_MARKETS)[M]['options'] & string;
 
 export interface BetSelection {
-  /** Identificador interno del partido en FutStats. */
+  /** Identificador interno del partido en CornerMaximo. */
   matchId: number;
   competition: string;
   matchLabel: string; // "Equipo A – Equipo B"

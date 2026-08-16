@@ -1,4 +1,4 @@
-import { WORLD_CUP_2026 } from '@futstats/shared';
+import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import Link from 'next/link';
 import { topPlayerStat, type WorldCupStatMetric } from '@/lib/worldCupStats';
 import { Breadcrumbs } from '@/components/Breadcrumbs';

@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export const SYNC_ADMIN_COOKIE = 'futstats_sync_admin';
-const SESSION_CONTEXT = 'futstats-sync-dashboard-v2';
+export const SYNC_ADMIN_COOKIE = 'cornermaximo_sync_admin';
+const SESSION_CONTEXT = 'cornermaximo-sync-dashboard-v2';
 const SESSION_DURATION_SECONDS = 4 * 60 * 60;
 const CLOCK_SKEW_SECONDS = 60;
 

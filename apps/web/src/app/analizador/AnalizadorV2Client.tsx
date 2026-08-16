@@ -7,7 +7,7 @@ type Bankroll = { id: string; name: string; initialBalance: number; createdAt: s
 type Entry = { id: string; bankrollId: string; date: string; event: string; competition: string; market: string; category: string; bookmaker: string; tipster: string; odds: number; stake: number; status: Status; isLive: boolean; notes: string; createdAt: string };
 type State = { version: 1; bankrolls: Bankroll[]; bets: Entry[]; activeBankrollId: string };
 
-const KEY = 'futstats.analizador.v1';
+const KEY = 'cornermaximo.analizador.v1';
 
 function validState(value: unknown): value is State {
   if (value == null || typeof value !== 'object') return false;
@@ -140,7 +140,7 @@ export function AnalizadorV2Client() {
         <div className="flex flex-wrap gap-2">
           <input ref={inputRef} className="hidden" type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file != null) void restore(file); event.currentTarget.value = ''; }} />
           <button type="button" className="fs-btn-ghost" onClick={() => inputRef.current?.click()}>Restaurar JSON</button>
-          <button type="button" className="fs-btn-ghost" onClick={() => saveFile(`futstats-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(current, null, 2))}>Crear copia</button>
+          <button type="button" className="fs-btn-ghost" onClick={() => saveFile(`cornermaximo-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(current, null, 2))}>Crear copia</button>
         </div>
         {message !== '' && <p className="w-full text-xs text-pitch-accent" aria-live="polite">{message}</p>}
       </section>

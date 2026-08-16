@@ -3,9 +3,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: futstats
-      POSTGRES_PASSWORD: futstats
-      POSTGRES_DB: futstats
+      POSTGRES_USER: cornermaximo
+      POSTGRES_PASSWORD: cornermaximo
+      POSTGRES_DB: cornermaximo
     ports:
       - "5432:5432"
     volumes:

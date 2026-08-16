@@ -1,5 +1,5 @@
 /**
- * @futstats/shared — enums, constantes y tipos comunes a toda la plataforma.
+ * @cornermaximo/shared — enums, constantes y tipos comunes a toda la plataforma.
  * Los enums replican los del schema de Prisma para no acoplar el frontend al cliente de BD.
  */
 

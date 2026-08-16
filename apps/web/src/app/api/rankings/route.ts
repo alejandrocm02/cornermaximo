@@ -2,7 +2,7 @@
  * GET /api/rankings?metric=goals&scope=season|last5&position=&league=&limit=
  * Métricas en lista blanca -> SQL raw seguro (el nombre de columna nunca viene del usuario).
  */
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { jsonError } from '@/lib/api';

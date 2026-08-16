@@ -23,8 +23,8 @@ export function CookieNotice() {
       setSettings(true);
       setVisible(true);
     };
-    window.addEventListener('futstats:open-consent-settings', openSettings);
-    return () => window.removeEventListener('futstats:open-consent-settings', openSettings);
+    window.addEventListener('cornermaximo:open-consent-settings', openSettings);
+    return () => window.removeEventListener('cornermaximo:open-consent-settings', openSettings);
   }, []);
 
   function save(nextAnalytics: boolean) {
@@ -43,7 +43,7 @@ export function CookieNotice() {
     >
       <div className="space-y-4">
         <div>
-          <h2 className="font-display text-lg font-bold text-white">Tu privacidad en FutStats</h2>
+          <h2 className="font-display text-lg font-bold text-white">Tu privacidad en CornerMaximo</h2>
           <p className="mt-1 text-sm leading-6 text-pitch-subtle">
             Las tecnologías necesarias para sesión, seguridad y preferencias básicas funcionan siempre. La analítica es opcional y permanece desactivada hasta que la aceptes. No hay publicidad comportamental activa. Puedes cambiar tu decisión en cualquier momento.{' '}
             <Link href="/cookies" className="font-semibold text-pitch-accent hover:underline">Política de cookies</Link>.
@@ -62,7 +62,7 @@ export function CookieNotice() {
             <label className="flex items-start justify-between gap-4 border-t border-pitch-border/60 pt-3">
               <span>
                 <span className="font-semibold text-white">Analítica</span>
-                <span className="mt-1 block text-xs leading-5 text-pitch-muted">Medición de uso para mejorar FutStats. Ningún servicio de analítica se cargará sin esta autorización.</span>
+                <span className="mt-1 block text-xs leading-5 text-pitch-muted">Medición de uso para mejorar CornerMaximo. Ningún servicio de analítica se cargará sin esta autorización.</span>
               </span>
               <input type="checkbox" checked={analytics} onChange={(event) => setAnalytics(event.target.checked)} className="mt-1 h-5 w-5" />
             </label>

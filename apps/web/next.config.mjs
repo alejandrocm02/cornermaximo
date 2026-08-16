@@ -42,11 +42,11 @@ const privateNoStoreHeaders = [
 
 const nextConfig = {
   transpilePackages: [
-    '@futstats/db',
-    '@futstats/providers',
-    '@futstats/shared',
-    '@futstats/stats',
-    '@futstats/sync',
+    '@cornermaximo/db',
+    '@cornermaximo/providers',
+    '@cornermaximo/shared',
+    '@cornermaximo/stats',
+    '@cornermaximo/sync',
   ],
   images: {
     remotePatterns: [

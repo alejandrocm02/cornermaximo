@@ -8,7 +8,7 @@
  * una competición de selecciones eso es siempre la selección nacional, nunca el
  * club — lo correcto para un ranking de goleadores del Mundial.
  */
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
 

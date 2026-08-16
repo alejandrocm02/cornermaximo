@@ -1,5 +1,5 @@
 // =====================================================================
-// FUTSTATS — Schema de base de datos
+// CORNERMAXIMO — Schema de base de datos
 // PostgreSQL + Prisma. Métricas en columnas tipadas e indexables.
 // JSON solo para respuestas originales del proveedor (auditoría).
 // NULL = "dato no disponible en el proveedor" (distinto de 0).

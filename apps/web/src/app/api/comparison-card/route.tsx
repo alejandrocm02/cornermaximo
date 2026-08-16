@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { prisma } from '@futstats/db';
+import { prisma } from '@cornermaximo/db';
 import { getPlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
 
 export const runtime = 'nodejs';
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#07130d', color: 'white', padding: 56, fontFamily: 'Arial' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', fontSize: 30, fontWeight: 800 }}>FutStats</div>
+          <div style={{ display: 'flex', fontSize: 30, fontWeight: 800 }}>CornerMaximo</div>
           <div style={{ display: 'flex', fontSize: 18, color: '#7fffb2' }}>COMPARADOR 2.0</div>
         </div>
         <div style={{ display: 'flex', marginTop: 36, gap: 24, flex: 1 }}>
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, color: '#82988a', fontSize: 13 }}>
           <div style={{ display: 'flex' }}>Datos de temporada · métricas por 90 y percentiles posicionales</div>
-          <div style={{ display: 'flex' }}>futstats-web-neon.vercel.app</div>
+          <div style={{ display: 'flex' }}>CornerMaximo · Sports Intelligence</div>
         </div>
       </div>
     ),

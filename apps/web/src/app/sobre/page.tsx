@@ -1,27 +1,8 @@
 export const metadata = {
-  title: 'Sobre FutStats',
-  description: 'Qué es FutStats: base de datos y análisis de rendimiento de futbolistas de las grandes ligas y el Mundial 2026.',
+  title: 'Sobre CornerMaximo',
+  description: 'Qué es CornerMaximo: plataforma de Sports Intelligence para seguimiento, estadísticas, scouting, rankings y análisis de fútbol.',
 };
 
 export default function AboutPage() {
-  return (
-    <article className="prose-invert max-w-2xl space-y-4">
-      <h1 className="text-3xl font-bold sm:text-4xl">Sobre FutStats</h1>
-      <p className="text-sm leading-relaxed text-pitch-muted">
-        FutStats es una plataforma de estadísticas de fútbol centrada en el rendimiento reciente de
-        los jugadores: sus últimos partidos, medias por partido y por 90 minutos, rankings y
-        comparaciones directas. Cubre las cinco grandes ligas europeas (temporadas 2025-26 y
-        2026-27) y la Copa Mundial de la FIFA 2026.
-      </p>
-      <p className="text-sm leading-relaxed text-pitch-muted">
-        Los datos se sincronizan automáticamente cada hora desde API-Football. Consulta la{' '}
-        <a href="/metodologia" className="text-pitch-accent hover:underline">metodología</a> para
-        saber cómo se calculan las métricas.
-      </p>
-      <p className="rounded-lg border border-dashed border-pitch-border p-3 text-xs text-pitch-muted">
-        Canal de contacto y reporte de errores: pendiente de definir. Cuando exista una vía
-        pública se publicará en esta página.
-      </p>
-    </article>
-  );
+  return <article className="max-w-3xl space-y-6"><header className="fs-panel p-6 sm:p-8"><p className="fs-eyebrow">CORNERMAXIMO · SPORTS INTELLIGENCE</p><h1 className="mt-2 text-3xl font-bold sm:text-4xl">Sobre CornerMaximo</h1><p className="mt-3 text-sm leading-7 text-pitch-muted">CornerMaximo es una plataforma deportiva de inteligencia y análisis centrada inicialmente en fútbol. Reúne seguimiento de partidos, estadísticas, scouting, rankings, comparaciones y herramientas personales en una experiencia preparada para crecer hacia nuevos deportes y productos premium.</p></header><section className="space-y-3 text-sm leading-7 text-pitch-muted"><h2 className="font-display text-xl font-bold text-white">Qué hacemos</h2><p>El producto conecta datos de jugadores, equipos, competiciones y partidos con herramientas orientadas a entender mejor el rendimiento: métricas por partido y por 90 minutos, forma reciente, rankings, CM Scout, CM Compare, favoritos, alertas y watchlists.</p><p>El fútbol es el producto principal actual, incluyendo las principales ligas europeas y la Copa Mundial de la FIFA 2026 cuando existen datos disponibles del proveedor.</p></section><section className="space-y-3 text-sm leading-7 text-pitch-muted"><h2 className="font-display text-xl font-bold text-white">Fuente de datos</h2><p>Los datos deportivos se sincronizan desde API-Football. Consulta la <a href="/metodologia" className="text-pitch-accent hover:underline">fuente y metodología</a> para conocer criterios de actualización, tratamiento de datos ausentes y cálculo de métricas.</p></section><p className="rounded-lg border border-dashed border-pitch-border p-3 text-xs text-pitch-muted">Canal de contacto y reporte de errores: pendiente de definir. Cuando exista una vía pública se publicará en esta página.</p></article>;
 }

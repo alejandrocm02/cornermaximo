@@ -4,7 +4,7 @@ import { AnalizadorClient } from './AnalizadorClient';
 import { AnalizadorV2Client } from './AnalizadorV2Client';
 
 export const metadata: Metadata = {
-  title: { absolute: 'Analizador de bankroll y rendimiento | FutStats' },
+  title: { absolute: 'Analizador de bankroll y rendimiento | CornerMaximo' },
   description:
     'Registra tus operaciones deportivas, controla varios bankrolls y analiza balance, ROI, acierto, drawdown y rendimiento por mercado.',
   alternates: { canonical: '/analizador' },
@@ -32,7 +32,7 @@ export default function AnalizadorPage() {
       </div>
 
       <div className="fs-panel border-pitch-warning/35 bg-pitch-warning/5 p-4 text-xs text-pitch-muted">
-        FutStats no es una casa de apuestas, no muestra cuotas oficiales y no procesa depósitos,
+        CornerMaximo no es una casa de apuestas, no muestra cuotas oficiales y no procesa depósitos,
         retiradas ni dinero real. Esta herramienta sirve únicamente para registrar y analizar datos
         introducidos por ti. Las estadísticas pasadas no garantizan resultados futuros.
       </div>

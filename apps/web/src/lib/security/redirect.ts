@@ -1,4 +1,4 @@
-const INTERNAL_BASE = 'https://futstats.invalid';
+const INTERNAL_BASE = 'https://cornermaximo.invalid';
 
 /**
  * Accepts only same-origin relative paths. Values such as //evil.example,

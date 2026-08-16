@@ -3,7 +3,7 @@
  * ?q= texto | league= slug | team= slug | position= GK/DF/MF/FW
  * ?nationality= | minAge= | maxAge= | page= | pageSize=
  */
-import { prisma, type Prisma } from '@futstats/db';
+import { prisma, type Prisma } from '@cornermaximo/db';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { jsonError } from '@/lib/api';

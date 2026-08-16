@@ -2,7 +2,7 @@
 
 /**
  * Historial de apuestas simuladas guardadas en este navegador.
- * Actualiza resultados con el marcador final registrado en FutStats sin
+ * Actualiza resultados con el marcador final registrado en CornerMaximo sin
  * modificar retrospectivamente las selecciones ni las cuotas originales.
  */
 import Link from 'next/link';
@@ -14,7 +14,7 @@ import {
   resolveBetStatus,
   resolveSelection,
   type BetMarketId,
-} from '@futstats/stats';
+} from '@cornermaximo/stats';
 import {
   BET_STATUS_LABELS,
   BETS_KEY,
@@ -95,7 +95,7 @@ export function MisApuestasClient() {
         return { ...bet, selections, status: resolveBetStatus(selections.map((s) => s.outcome)) };
       });
       persist(next);
-      setMessage('Resultados actualizados con el marcador registrado en FutStats.');
+      setMessage('Resultados actualizados con el marcador registrado en CornerMaximo.');
     } catch {
       setMessage('No se pudieron consultar los resultados. Inténtalo de nuevo más tarde.');
     } finally {

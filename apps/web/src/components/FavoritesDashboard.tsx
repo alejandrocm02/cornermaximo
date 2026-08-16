@@ -175,7 +175,7 @@ export function FavoritesDashboard() {
           <p className="font-semibold">{favorites.length} favorito{favorites.length === 1 ? '' : 's'}</p>
           <p className="mt-1 text-xs text-pitch-muted">
             {storageMode === 'account'
-              ? 'Sincronizados de forma privada con tu cuenta de FutStats.'
+              ? 'Sincronizados de forma privada con tu cuenta de CornerMaximo.'
               : 'Guardados en este navegador. Inicia sesión para sincronizarlos con tu cuenta.'}
           </p>
         </div>

@@ -1,4 +1,4 @@
-import { TRACKED_COMPETITIONS } from '@futstats/shared';
+import { TRACKED_COMPETITIONS } from '@cornermaximo/shared';
 import { describe, expect, it } from 'vitest';
 import {
   ApiFootballClient,

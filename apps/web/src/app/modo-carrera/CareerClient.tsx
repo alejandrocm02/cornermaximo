@@ -147,7 +147,7 @@ export function CareerClient() {
 
   const shareCard = async (cardData: CareerCard) => {
     const text = [
-      `Mi Carrera en FutStats — ${cardData.name} (${POSITION_LABELS[cardData.position]}, ${cardData.countryName})`,
+      `Mi Carrera en CornerMaximo — ${cardData.name} (${POSITION_LABELS[cardData.position]}, ${cardData.countryName})`,
       `${cardData.seasons} temporadas · ${cardData.pj} partidos · ${cardData.goles} goles · ${cardData.asistencias} asistencias`,
       `Títulos: ${cardData.titles.length > 0 ? cardData.titles.join(', ') : 'ninguno'}`,
       `Selección: ${cardData.caps} internacionalidades`,

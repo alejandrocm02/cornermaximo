@@ -1,4 +1,4 @@
-import { formatSeasonLabel, type MatchStatus, type SeasonFormat } from '@futstats/shared';
+import { formatSeasonLabel, type MatchStatus, type SeasonFormat } from '@cornermaximo/shared';
 
 /**
  * Etiqueta de temporada. El formato depende de la competición: las ligas de
