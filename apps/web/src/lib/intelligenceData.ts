@@ -35,10 +35,10 @@ interface PlayerSampleRow extends PlayerIntelligenceSample {
   kickoffAt: Date;
 }
 
-function byEntity<T extends { [key: string]: unknown }>(rows: T[], idKey: keyof T): Map<number, T[]> {
+function byEntity<T>(rows: T[], getId: (row: T) => number): Map<number, T[]> {
   const groups = new Map<number, T[]>();
   for (const row of rows) {
-    const id = Number(row[idKey]);
+    const id = getId(row);
     const current = groups.get(id);
     if (current) current.push(row);
     else groups.set(id, [row]);
@@ -97,7 +97,7 @@ const getTeamSignalsCached = unstable_cache(
     `;
 
     const signals: EntityIntelligenceSignal[] = [];
-    for (const [teamId, samples] of byEntity(rows, 'teamId')) {
+    for (const [teamId, samples] of byEntity(rows, (row) => row.teamId)) {
       const latest = samples[0];
       if (!latest) continue;
       const entitySignals = buildTeamIntelligenceSignals(samples);
@@ -173,7 +173,7 @@ const getPlayerSignalsCached = unstable_cache(
     `;
 
     const signals: EntityIntelligenceSignal[] = [];
-    for (const [playerId, samples] of byEntity(rows, 'playerId')) {
+    for (const [playerId, samples] of byEntity(rows, (row) => row.playerId)) {
       const latest = samples[0];
       if (!latest) continue;
       const entitySignals = buildPlayerIntelligenceSignals(samples);
