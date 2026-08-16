@@ -6,10 +6,21 @@ interface StripeErrorEnvelope {
   error?: { message?: string };
 }
 
+interface StripeRequestOptions {
+  apiVersion?: string;
+}
+
 function getSecretKey(): string {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error('Stripe secret key is not configured.');
   return key;
+}
+
+function stripeHeaders(options?: StripeRequestOptions): HeadersInit {
+  return {
+    Authorization: `Bearer ${getSecretKey()}`,
+    ...(options?.apiVersion ? { 'Stripe-Version': options.apiVersion } : {}),
+  };
 }
 
 async function parseStripeResponse<T>(response: Response): Promise<T> {
@@ -20,11 +31,15 @@ async function parseStripeResponse<T>(response: Response): Promise<T> {
   return body;
 }
 
-export async function stripePost<T>(path: string, params: URLSearchParams): Promise<T> {
+export async function stripePost<T>(
+  path: string,
+  params: URLSearchParams,
+  options?: StripeRequestOptions,
+): Promise<T> {
   const response = await fetch(`${STRIPE_API_BASE}${path}`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${getSecretKey()}`,
+      ...stripeHeaders(options),
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: params.toString(),
@@ -33,10 +48,10 @@ export async function stripePost<T>(path: string, params: URLSearchParams): Prom
   return parseStripeResponse<T>(response);
 }
 
-export async function stripeGet<T>(path: string): Promise<T> {
+export async function stripeGet<T>(path: string, options?: StripeRequestOptions): Promise<T> {
   const response = await fetch(`${STRIPE_API_BASE}${path}`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${getSecretKey()}` },
+    headers: stripeHeaders(options),
     cache: 'no-store',
   });
   return parseStripeResponse<T>(response);
