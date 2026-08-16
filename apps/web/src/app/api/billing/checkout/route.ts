@@ -8,6 +8,8 @@ interface StripeCheckoutSession {
   url: string | null;
 }
 
+const MANAGED_PAYMENTS_API_VERSION = '2026-03-04.preview';
+
 function backToPro(reason: string) {
   return NextResponse.redirect(`${getSiteUrl()}/pro?billing=${encodeURIComponent(reason)}`, 303);
 }
@@ -38,6 +40,7 @@ export async function POST() {
 
   const params = new URLSearchParams();
   params.set('mode', 'subscription');
+  params.set('managed_payments[enabled]', 'true');
   params.set('line_items[0][price]', priceId);
   params.set('line_items[0][quantity]', '1');
   params.set('success_url', `${getSiteUrl()}/pro?checkout=success`);
@@ -54,7 +57,9 @@ export async function POST() {
   }
 
   try {
-    const session = await stripePost<StripeCheckoutSession>('/checkout/sessions', params);
+    const session = await stripePost<StripeCheckoutSession>('/checkout/sessions', params, {
+      apiVersion: MANAGED_PAYMENTS_API_VERSION,
+    });
     if (!session.url) return backToPro('checkout-url-missing');
     return NextResponse.redirect(session.url, 303);
   } catch {
