@@ -3,7 +3,7 @@ import { getCurrentEntitlement } from '@/lib/entitlements';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'CornerMaximo Pro | Sports Intelligence',
+  title: 'Pro | Sports Intelligence',
   description:
     'Desbloquea CM Intelligence completo, filtros avanzados, búsquedas guardadas y alertas estadísticas con CornerMaximo Pro.',
   alternates: { canonical: '/pro' },
