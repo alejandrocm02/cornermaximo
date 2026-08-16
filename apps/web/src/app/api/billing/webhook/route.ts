@@ -11,15 +11,19 @@ interface StripeEvent {
   data: { object: Record<string, unknown> };
 }
 
+interface StripeSubscriptionItem {
+  current_period_start?: number;
+  current_period_end?: number;
+  price?: { id?: string };
+}
+
 interface StripeSubscription {
   id: string;
   customer: string | { id?: string };
   status: string;
   metadata?: Record<string, string>;
-  current_period_start?: number;
-  current_period_end?: number;
   cancel_at_period_end?: boolean;
-  items?: { data?: Array<{ price?: { id?: string } }> };
+  items?: { data?: StripeSubscriptionItem[] };
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -96,7 +100,8 @@ async function persistSubscription(subscription: StripeSubscription, fallbackUse
   if (!userId) throw new Error('Unable to resolve Supabase user for Stripe subscription.');
 
   const customerId = idOf(subscription.customer);
-  const priceId = subscription.items?.data?.[0]?.price?.id ?? null;
+  const primaryItem = subscription.items?.data?.[0];
+  const priceId = primaryItem?.price?.id ?? null;
   const toIso = (seconds?: number) =>
     typeof seconds === 'number' && Number.isFinite(seconds)
       ? new Date(seconds * 1000).toISOString()
@@ -110,8 +115,8 @@ async function persistSubscription(subscription: StripeSubscription, fallbackUse
       stripe_customer_id: customerId,
       stripe_subscription_id: subscription.id,
       stripe_price_id: priceId,
-      current_period_start: toIso(subscription.current_period_start),
-      current_period_end: toIso(subscription.current_period_end),
+      current_period_start: toIso(primaryItem?.current_period_start),
+      current_period_end: toIso(primaryItem?.current_period_end),
       cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
       updated_at: new Date().toISOString(),
     },
