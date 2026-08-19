@@ -86,6 +86,53 @@ describe('errores del proveedor', () => {
     await expect(client.get('/x', {})).rejects.toThrow();
     expect(calls).toBe(1);
   });
+
+  it('reintenta errores de red, aplica timeout y contabiliza cada intento', async () => {
+    let calls = 0;
+    let receivedSignal: AbortSignal | null = null;
+    const budget = new InMemoryBudgetGuard(100);
+    const flakyFetch: typeof fetch = (async (_input, init) => {
+      calls += 1;
+      receivedSignal = init?.signal ?? null;
+      if (calls === 1) throw new TypeError('network unavailable');
+      return new Response(JSON.stringify(envelope([])), { status: 200 });
+    }) as typeof fetch;
+
+    const client = new ApiFootballClient({
+      apiKey: 'test',
+      baseUrl: 'https://v3.football.api-sports.io',
+      budget,
+      fetchFn: flakyFetch,
+      sleepFn: noSleep,
+      requestTimeoutMs: 50,
+    });
+
+    await expect(client.get('/teams')).resolves.toEqual([]);
+    expect(calls).toBe(2);
+    expect(receivedSignal).toBeInstanceOf(AbortSignal);
+    expect(budget.usedToday).toBe(2);
+  });
+
+  it('no permite que los reintentos sobrepasen el presupuesto', async () => {
+    let calls = 0;
+    const budget = new InMemoryBudgetGuard(1);
+    const failingFetch: typeof fetch = (async () => {
+      calls += 1;
+      throw new TypeError('network unavailable');
+    }) as typeof fetch;
+
+    const client = new ApiFootballClient({
+      apiKey: 'test',
+      baseUrl: 'https://v3.football.api-sports.io',
+      budget,
+      fetchFn: failingFetch,
+      sleepFn: noSleep,
+    });
+
+    await expect(client.get('/teams')).rejects.toBeInstanceOf(BudgetExceededError);
+    expect(calls).toBe(1);
+    expect(budget.usedToday).toBe(1);
+  });
 });
 
 describe('mapMatchStatus', () => {
