@@ -40,7 +40,7 @@
   .fs-eyebrow { @apply inline-flex items-center gap-2 text-2xs font-semibold uppercase tracking-[0.18em] text-pitch-muted; }
   .fs-gradient-text { @apply bg-grad-brand bg-clip-text text-transparent; }
   .fs-chip { @apply inline-flex items-center gap-1.5 rounded-full border border-pitch-border bg-pitch-elevated px-3 py-1 text-2xs font-medium text-pitch-subtle; }
-  .fs-btn-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-pitch-accent px-5 py-3 text-sm font-semibold text-white shadow-glow-soft transition duration-200 hover:bg-pitch-accent2 active:translate-y-px; }
+  .fs-btn-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#0F65D8] px-5 py-3 text-sm font-semibold text-white shadow-glow-soft transition duration-200 hover:bg-[#0E5BC7] active:translate-y-px; }
   .fs-btn-ghost { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-pitch-border-strong bg-pitch-card/60 px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:border-pitch-accent/60 hover:bg-pitch-elevated; }
   .fs-input { @apply min-h-11 w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-4 py-3 text-sm text-white placeholder:text-pitch-muted focus:border-pitch-accent/60; }
   .fs-stat { @apply font-display text-2xl font-bold tabular-nums text-white; }
