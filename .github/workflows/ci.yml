@@ -50,7 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           legacy='fut''stats'
-          if grep -RniI --exclude-dir=.git --exclude='*.map' "$legacy" .; then
+          # Historical migrations must retain the identifiers they replace so
+          # already-provisioned projects can be upgraded safely.
+          if git grep -ni "$legacy" -- . ':(exclude)supabase/migrations/**'; then
             echo "::error::Se encontraron referencias residuales de la marca anterior."
             exit 1
           fi
