@@ -19,7 +19,7 @@ const eslintConfig = [
     extends: ['next/core-web-vitals', 'next/typescript'],
     settings: {
       next: {
-        rootDir: 'apps/web',
+        rootDir: new URL('./apps/web/', import.meta.url).pathname,
       },
     },
   }),
