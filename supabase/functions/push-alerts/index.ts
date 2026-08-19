@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.110.5';
+import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import webpush from 'npm:web-push@3.6.7';
 
 type Preference = {

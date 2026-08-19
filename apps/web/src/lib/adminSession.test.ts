@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSyncAdminSession, validSyncAdminSession, verifySyncAdminSecret } from './adminSession';
+import {
+  createSyncAdminRateLimitKey,
+  createSyncAdminSession,
+  validSyncAdminSession,
+  verifySyncAdminSecret,
+} from './adminSession';
 
 const SECRET = 's'.repeat(64);
 
@@ -34,5 +39,14 @@ describe('adminSession', () => {
     process.env.SYNC_SECRET = 'short';
     expect(createSyncAdminSession()).toBeNull();
     expect(verifySyncAdminSecret('short')).toBe(false);
+    expect(createSyncAdminRateLimitKey('127.0.0.1')).toBeNull();
+  });
+
+  it('creates stable, non-reversible rate-limit keys per client address', () => {
+    const first = createSyncAdminRateLimitKey('203.0.113.8');
+    expect(first).toMatch(/^[0-9a-f]{64}$/);
+    expect(first).toBe(createSyncAdminRateLimitKey('203.0.113.8'));
+    expect(first).not.toBe(createSyncAdminRateLimitKey('203.0.113.9'));
+    expect(first).not.toContain('203.0.113.8');
   });
 });

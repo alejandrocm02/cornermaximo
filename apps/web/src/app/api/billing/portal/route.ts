@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSiteUrl } from '@/lib/site-url';
@@ -37,7 +38,12 @@ export async function POST() {
   params.set('return_url', `${getSiteUrl()}/pro`);
 
   try {
-    const portal = await stripePost<StripePortalSession>('/billing_portal/sessions', params);
+    const idempotencyKey = `cornermaximo-portal-${createHash('sha256')
+      .update(`${user.id}:${Math.floor(Date.now() / 60_000)}`)
+      .digest('hex')}`;
+    const portal = await stripePost<StripePortalSession>('/billing_portal/sessions', params, {
+      idempotencyKey,
+    });
     return NextResponse.redirect(portal.url, 303);
   } catch {
     return backToPro('portal-error');

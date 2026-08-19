@@ -1,5 +1,5 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import { verifyStripeSignature } from '@/lib/security/stripe-signature';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripeGet } from '@/lib/stripe-rest';
 
@@ -8,6 +8,7 @@ export const runtime = 'nodejs';
 interface StripeEvent {
   id: string;
   type: string;
+  created: number;
   data: { object: Record<string, unknown> };
 }
 
@@ -27,41 +28,12 @@ interface StripeSubscription {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SIGNATURE_TOLERANCE_SECONDS = 300;
-
 function idOf(value: unknown): string | null {
   if (typeof value === 'string') return value;
   if (value && typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string') {
     return (value as { id: string }).id;
   }
   return null;
-}
-
-function verifyStripeSignature(payload: string, header: string, secret: string): boolean {
-  let timestamp: string | null = null;
-  const signatures: string[] = [];
-
-  for (const item of header.split(',')) {
-    const separator = item.indexOf('=');
-    if (separator < 1) continue;
-    const key = item.slice(0, separator).trim();
-    const value = item.slice(separator + 1).trim();
-    if (key === 't') timestamp = value;
-    if (key === 'v1') signatures.push(value);
-  }
-
-  if (!timestamp || signatures.length === 0) return false;
-  const timestampSeconds = Number(timestamp);
-  if (!Number.isFinite(timestampSeconds)) return false;
-  if (Math.abs(Date.now() / 1000 - timestampSeconds) > SIGNATURE_TOLERANCE_SECONDS) return false;
-
-  const expected = createHmac('sha256', secret).update(`${timestamp}.${payload}`, 'utf8').digest('hex');
-  const expectedBuffer = Buffer.from(expected, 'utf8');
-
-  return signatures.some((signature) => {
-    const provided = Buffer.from(signature, 'utf8');
-    return provided.length === expectedBuffer.length && timingSafeEqual(provided, expectedBuffer);
-  });
 }
 
 async function resolveUserId(subscription: StripeSubscription): Promise<string | null> {
@@ -92,7 +64,15 @@ async function resolveUserId(subscription: StripeSubscription): Promise<string |
   return null;
 }
 
-async function persistSubscription(subscription: StripeSubscription, fallbackUserId?: string | null) {
+async function persistSubscription(
+  subscription: StripeSubscription,
+  event: StripeEvent,
+  fallbackUserId?: string | null,
+) {
+  if (!subscription.id || !subscription.status) {
+    throw new Error('Invalid Stripe subscription payload.');
+  }
+
   const admin = createAdminClient();
   const userId = fallbackUserId && UUID_RE.test(fallbackUserId)
     ? fallbackUserId
@@ -107,21 +87,19 @@ async function persistSubscription(subscription: StripeSubscription, fallbackUse
       ? new Date(seconds * 1000).toISOString()
       : null;
 
-  const { error } = await admin.from('billing_subscriptions').upsert(
-    {
-      user_id: userId,
-      plan: 'PRO',
-      status: subscription.status,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      stripe_price_id: priceId,
-      current_period_start: toIso(primaryItem?.current_period_start),
-      current_period_end: toIso(primaryItem?.current_period_end),
-      cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id' },
-  );
+  const { error } = await admin.rpc('apply_stripe_subscription_event', {
+    p_event_id: event.id,
+    p_event_type: event.type,
+    p_event_created: new Date(event.created * 1000).toISOString(),
+    p_user_id: userId,
+    p_status: subscription.status,
+    p_customer_id: customerId,
+    p_subscription_id: subscription.id,
+    p_price_id: priceId,
+    p_current_period_start: toIso(primaryItem?.current_period_start),
+    p_current_period_end: toIso(primaryItem?.current_period_end),
+    p_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+  });
 
   if (error) throw error;
 }
@@ -140,7 +118,20 @@ export async function POST(request: Request) {
 
   let event: StripeEvent;
   try {
-    event = JSON.parse(payload) as StripeEvent;
+    const parsed = JSON.parse(payload) as unknown;
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      typeof (parsed as Partial<StripeEvent>).id !== 'string' ||
+      typeof (parsed as Partial<StripeEvent>).type !== 'string' ||
+      typeof (parsed as Partial<StripeEvent>).created !== 'number' ||
+      !Number.isFinite((parsed as Partial<StripeEvent>).created) ||
+      !(parsed as Partial<StripeEvent>).data ||
+      typeof (parsed as Partial<StripeEvent>).data?.object !== 'object'
+    ) {
+      throw new Error('Invalid Stripe event shape.');
+    }
+    event = parsed as StripeEvent;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
   }
@@ -158,7 +149,7 @@ export async function POST(request: Request) {
 
       if (subscriptionId) {
         const subscription = await stripeGet<StripeSubscription>(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
-        await persistSubscription(subscription, fallbackUserId);
+        await persistSubscription(subscription, event, fallbackUserId);
       }
     }
 
@@ -167,7 +158,7 @@ export async function POST(request: Request) {
       event.type === 'customer.subscription.updated' ||
       event.type === 'customer.subscription.deleted'
     ) {
-      await persistSubscription(event.data.object as unknown as StripeSubscription);
+      await persistSubscription(event.data.object as unknown as StripeSubscription, event);
     }
   } catch {
     // Non-2xx makes Stripe retry the event, which is safer than silently losing entitlement changes.
