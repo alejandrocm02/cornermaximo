@@ -23,6 +23,7 @@ const privateNoStoreHeaders = [
 ];
 
 const nextConfig = {
+  poweredByHeader: false,
   transpilePackages: [
     '@cornermaximo/db',
     '@cornermaximo/providers',

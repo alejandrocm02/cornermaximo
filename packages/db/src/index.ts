@@ -4,13 +4,14 @@
  */
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './generated/prisma/client';
+import { normalizeDatabaseUrl } from './connection-url';
 
 function requireDatabaseUrl(): string {
   const value = process.env.DATABASE_URL;
   if (!value) {
     throw new Error('DATABASE_URL es obligatoria para inicializar Prisma.');
   }
-  return value;
+  return normalizeDatabaseUrl(value);
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
