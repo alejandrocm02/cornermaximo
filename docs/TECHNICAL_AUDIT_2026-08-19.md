@@ -126,13 +126,13 @@ protocolo, pero conviene monitorizar su crecimiento y dividirlo antes de 50.000 
 | Tests | 94/94 pasan con Vitest 3.2.6 |
 | Prisma schema | Válido |
 | Build local | Compila y valida tipos; el prerender de `/equipos` no puede completar sin PostgreSQL local |
-| Build Vercel de `main` | Correcto, 38/38 páginas estáticas y deployment READY |
+| Build Vercel de la rama | Correcto, 38/38 páginas estáticas y deployment preview READY |
 | npm audit inicial | 9 vulnerabilidades: 1 crítica, 5 altas, 3 moderadas |
 | npm audit tras cambios | 3 altas transitivas de Next 15; 0 críticas |
-| CodeQL de `main` | Correcto |
-| CI de `main` | Correcto |
+| CodeQL de la PR | Correcto |
+| CI de la PR | Correcto: lint, Prisma, tipos, 94 tests, build y audit crítico |
 | Workflow `sync` de `main` | Error: 20 fallos consecutivos observados por HTTP 404 |
 
-El build local completo requiere la base efímera que el workflow CI ya provisiona.
-La validación definitiva de esta rama debe hacerse con el build de preview/CI de la
-Pull Request antes de fusionarla.
+El build local completo requiere la base efímera que el workflow CI provisiona.
+La preview de Vercel y todos los checks de la Pull Request terminaron correctamente;
+la fusión queda deliberadamente pendiente de revisión humana.
