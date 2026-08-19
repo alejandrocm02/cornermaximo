@@ -1,6 +1,7 @@
 import { prisma } from '@cornermaximo/db';
 import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import Link from 'next/link';
+import { JsonLd } from '@/components/JsonLd';
 import { groupLabel, roundLabel } from '@/lib/football';
 import { topPlayerStat } from '@/lib/worldCupStats';
 
@@ -93,7 +94,7 @@ export default async function WorldCupPage() {
   return (
     <div className="space-y-10">
       {eventsJsonLd.length > 0 && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(eventsJsonLd) }} />
+        <JsonLd data={eventsJsonLd} />
       )}
       <section className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-pitch-accent">En juego · Canadá · México · EE. UU.</p>

@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
     "db:generate": "npm run generate -w @cornermaximo/db",
     "db:migrate": "npm run migrate -w @cornermaximo/db",
     "db:deploy": "npm run deploy -w @cornermaximo/db",
@@ -20,13 +21,21 @@
     "db:validate": "npm run validate -w @cornermaximo/db"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.3",
-    "eslint": "^9.39.1",
-    "eslint-config-next": "^15.5.23",
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.62.1",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.1",
     "typescript": "^5.5.4",
     "vitest": "^3.2.6"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24 <25"
+  },
+  "overrides": {
+    "prisma": {
+      "@prisma/config": {
+        "deepmerge-ts": "8.0.1"
+      }
+    }
   }
 }

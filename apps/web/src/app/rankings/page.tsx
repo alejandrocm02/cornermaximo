@@ -1,6 +1,7 @@
 import { prisma } from '@cornermaximo/db';
 import { ALL_TRACKED_SEASONS, BIG_FIVE_PREVIOUS_SEASON, seasonsOf, type SeasonFormat } from '@cornermaximo/shared';
 import Link from 'next/link';
+import { JsonLd } from '@/components/JsonLd';
 import { seasonLabel } from '@/lib/football';
 import { rankingRows, type RankingMetric } from '@/lib/leaderboards';
 
@@ -82,7 +83,7 @@ export default async function RankingsPage({
   return (
     <div className="space-y-6">
       {itemListJsonLd != null && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+        <JsonLd data={itemListJsonLd} />
       )}
       <div>
         <p className="fs-eyebrow">

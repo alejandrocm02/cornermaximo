@@ -1,5 +1,6 @@
 import { prisma } from '@cornermaximo/db';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { JsonLd } from '@/components/JsonLd';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
@@ -53,7 +54,7 @@ export default async function TeamProfileLayout({
   return (
     <div className="space-y-3">
       {jsonLd != null && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <JsonLd data={jsonLd} />
       )}
       {team != null && (
         <div className="flex justify-end">

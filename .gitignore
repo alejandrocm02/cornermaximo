@@ -5,3 +5,9 @@ dist/
 .env.local
 *.tsbuildinfo
 coverage/
+playwright-report/
+test-results/
+packages/db/src/generated/
+# next-agents-md
+.next-docs/
+supabase/.temp/

@@ -4,6 +4,8 @@
 
 :root {
   color-scheme: dark;
+  --font-sans: 'Inter Variable';
+  --font-display: 'Space Grotesk Variable';
   --pitch-bg: 5 7 11;
   --pitch-card: 16 20 30;
   --pitch-elevated: 10 13 20;

@@ -1,3 +1,4 @@
 import { CMBadge, CMCard, CMSection, CMStat } from '@/components/CMPrimitives';
+
 export const metadata={title:'CornerMaximo Brand QA',robots:{index:false,follow:false}};
 export default function BrandGuide(){return <div className="space-y-10"><header><p className="fs-eyebrow">CM Sports Intelligence</p><h1 className="mt-2 text-4xl font-bold">CORNER<span className="text-pitch-accent">MAXIMO</span></h1><p className="mt-3 text-pitch-muted">TU DEPORTE. TUS DATOS. TU VENTAJA.</p></header><CMSection eyebrow="Design system" title="Datos"><div className="grid gap-3 sm:grid-cols-3"><CMStat label="Rating" value="8.4"/><CMStat label="Goles / 90" value="0.82"/><CMStat label="Percentil" value="91"/></div></CMSection><CMSection eyebrow="Estados" title="Semántica"><CMCard className="flex flex-wrap gap-3 p-4"><CMBadge tone="info">Datos</CMBadge><CMBadge tone="live">En directo</CMBadge><CMBadge>Finalizado</CMBadge></CMCard></CMSection></div>}

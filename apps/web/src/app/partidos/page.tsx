@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { MatchCard } from '@/components/MatchCard';
 import { adjacentMadridDate, getMatchCenterPage } from '@/lib/matchCenterPage';
 import { getMatchFilters,isValidMatchDate,todayInMadrid,type MatchCenterView,type MatchListItem } from '@/lib/matches';
+
 export const dynamic='force-dynamic';
 export const metadata:Metadata={title:'Partidos | CornerMaximo',description:'Partidos de hoy, próximos encuentros y resultados con contexto deportivo y filtros por fecha, competición y equipo.',alternates:{canonical:'/partidos'}};
 const VIEW_LABEL:Record<MatchCenterView,string>={today:'Hoy',upcoming:'Próximos',recent:'Resultados'};

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { JsonLd } from '@/components/JsonLd';
 import { getSiteUrl } from '@/lib/site-url';
 
 export interface Crumb {
@@ -27,7 +28,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
 
   return (
     <nav aria-label="Migas de pan" className="text-2xs text-pitch-muted">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <JsonLd data={jsonLd} />
       <ol className="flex flex-wrap items-center gap-1.5">
         <li>
           <Link href="/" className="rounded py-1 transition-colors hover:text-white">

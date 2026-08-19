@@ -1,4 +1,5 @@
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { JsonLd } from '@/components/JsonLd';
 import { getFavoriteCompetitionIdentity } from '@/lib/favoriteEntities';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -31,7 +32,7 @@ export default async function CompetitionProfileLayout({
   return (
     <div className="space-y-3">
       {jsonLd != null && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <JsonLd data={jsonLd} />
       )}
       {competition != null && (
         <div className="flex justify-end">

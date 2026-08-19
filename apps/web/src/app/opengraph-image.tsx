@@ -10,7 +10,7 @@ export default function OpenGraphImage() {
     <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', overflow: 'hidden', background: '#05070B', color: '#F5F7FA', padding: 64, fontFamily: 'Arial' }}>
       <div style={{ position: 'absolute', width: 520, height: 520, borderRadius: 520, background: '#1677FF', opacity: 0.16, right: -120, top: -180 }} />
       <div style={{ position: 'absolute', width: 360, height: 360, borderRadius: 360, background: '#FF2438', opacity: 0.1, left: -120, bottom: -160 }} />
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: '100%', zIndex: 1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <div style={{ width: 88, height: 88, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 20, background: '#10141E', border: '1px solid #2A3140', fontSize: 34, fontWeight: 800 }}>CM</div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>

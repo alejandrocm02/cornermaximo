@@ -11,8 +11,29 @@ function markPrivateNoStore(response: NextResponse): NextResponse {
   return response;
 }
 
-export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+function isMissingRefreshToken(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'refresh_token_not_found',
+  );
+}
+
+function clearStaleAuthCookies(request: NextRequest, response: NextResponse): void {
+  for (const { name } of request.cookies.getAll()) {
+    if (!name.startsWith('sb-') || !name.includes('-auth-token')) continue;
+    request.cookies.delete(name);
+    response.cookies.set(name, '', { path: '/', maxAge: 0 });
+  }
+}
+
+export async function updateSession(request: NextRequest, requestHeaders?: Headers) {
+  const nextResponse = () =>
+    requestHeaders
+      ? NextResponse.next({ request: { headers: requestHeaders } })
+      : NextResponse.next({ request });
+  let response = nextResponse();
   let refreshedSession = false;
 
   const supabase = createServerClient(
@@ -26,7 +47,7 @@ export async function updateSession(request: NextRequest) {
         setAll(cookiesToSet) {
           refreshedSession = cookiesToSet.length > 0;
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = nextResponse();
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -37,7 +58,16 @@ export async function updateSession(request: NextRequest) {
 
   // Supabase recomienda validar/refrescar la identidad con getClaims() en SSR.
   // No se confía en getSession() para decisiones de autorización del servidor.
-  await supabase.auth.getClaims();
+  try {
+    const { error } = await supabase.auth.getClaims();
+    if (isMissingRefreshToken(error)) clearStaleAuthCookies(request, response);
+  } catch (error) {
+    if (isMissingRefreshToken(error)) {
+      clearStaleAuthCookies(request, response);
+    } else {
+      throw error;
+    }
+  }
 
   // Evita que una CDN almacene una respuesta con Set-Cookie y la sirva a otro usuario.
   // También evita cachear respuestas públicas visitadas por un usuario autenticado.
