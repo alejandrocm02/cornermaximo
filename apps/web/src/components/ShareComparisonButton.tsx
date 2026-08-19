@@ -8,7 +8,6 @@ export function ShareComparisonButton({ p1, p2 }: { p1: string; p2: string }) {
 
   async function share() {
     setMessage(null);
-    const absoluteImage = new URL(imageUrl, window.location.origin).toString();
     const comparisonUrl = window.location.href;
     try {
       if (navigator.share) {

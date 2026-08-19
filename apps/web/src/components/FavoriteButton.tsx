@@ -17,7 +17,8 @@ export function FavoriteButton({ item }: { item: FavoriteButtonItem }) {
   const [syncFailed, setSyncFailed] = useState(false);
 
   useEffect(() => {
-    const update = () => setActive(hasFavorite(item));
+    const identity = { kind: item.kind, slug: item.slug };
+    const update = () => setActive(hasFavorite(identity));
     setMounted(true);
     update();
     return subscribeFavorites(update);

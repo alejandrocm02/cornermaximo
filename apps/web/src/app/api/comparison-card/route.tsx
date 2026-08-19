@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- ImageResponse renderiza JSX a PNG y no admite next/image. */
 import { ImageResponse } from 'next/og';
 import { prisma } from '@cornermaximo/db';
 import { getPlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
           {entries.map((entry) => (
             <div key={entry.name} style={{ display: 'flex', flexDirection: 'column', flex: 1, border: '1px solid #214333', borderRadius: 24, padding: 28, background: '#0b1b13' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-                {entry.photoUrl ? <img src={entry.photoUrl} width="84" height="84" style={{ borderRadius: 42, objectFit: 'cover' }} /> : null}
+                {entry.photoUrl ? <img src={entry.photoUrl} alt="" width="84" height="84" style={{ borderRadius: 42, objectFit: 'cover' }} /> : null}
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', fontSize: 27, fontWeight: 800 }}>{entry.name}</div>
                   <div style={{ display: 'flex', fontSize: 15, color: '#a8b8ae', marginTop: 5 }}>{entry.team} · {entry.position}</div>

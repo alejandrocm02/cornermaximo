@@ -18,6 +18,8 @@ export interface ApiFootballConfig {
   maxRetries?: number;
   /** Separación mínima entre requests (plan Pro: 300/min => 200ms es de sobra). */
   minIntervalMs?: number;
+  /** Tiempo máximo de cada intento HTTP antes de reintentarlo. */
+  requestTimeoutMs?: number;
   /** Inyectable para tests. */
   fetchFn?: typeof fetch;
   /** Inyectable para tests (sin esperas reales). */
@@ -38,6 +40,7 @@ export class ApiFootballClient {
   private readonly fetchFn: typeof fetch;
   private readonly sleepFn: (ms: number) => Promise<void>;
   private readonly minIntervalMs: number;
+  private readonly requestTimeoutMs: number;
   private lastRequestAt = 0;
 
   constructor(private readonly config: ApiFootballConfig) {
@@ -45,6 +48,7 @@ export class ApiFootballClient {
     this.fetchFn = config.fetchFn ?? fetch;
     this.sleepFn = config.sleepFn ?? defaultSleep;
     this.minIntervalMs = config.minIntervalMs ?? 200;
+    this.requestTimeoutMs = config.requestTimeoutMs ?? 8_000;
   }
 
   /**
@@ -69,10 +73,6 @@ export class ApiFootballClient {
     path: string,
     params: Record<string, string | number>,
   ): Promise<ApiFootballEnvelope<T>> {
-    if (!(await this.config.budget.canSpend(1))) {
-      throw new BudgetExceededError();
-    }
-
     const url = new URL(path, this.config.baseUrl);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, String(v));
@@ -80,6 +80,11 @@ export class ApiFootballClient {
 
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      // Cada reintento también consume cuota: se vuelve a comprobar el límite
+      // antes de enviar la petición, no solo antes del primer intento.
+      if (!(await this.config.budget.canSpend(1))) {
+        throw new BudgetExceededError();
+      }
       if (attempt > 0) {
         // 429 => esperar más que el minuto de la ventana de rate limit
         await this.sleepFn(attempt === 1 ? 7_000 : 15_000 * (attempt - 1));
@@ -92,9 +97,24 @@ export class ApiFootballClient {
       }
       this.lastRequestAt = Date.now();
 
-      const res = await this.fetchFn(url.toString(), {
-        headers: { 'x-apisports-key': this.config.apiKey },
-      });
+      let res: Response;
+      try {
+        res = await this.fetchFn(url.toString(), {
+          headers: { 'x-apisports-key': this.config.apiKey },
+          signal: AbortSignal.timeout(this.requestTimeoutMs),
+        });
+      } catch (cause) {
+        // Una petición que llega a salir puede consumir cuota aunque la red se
+        // corte o venza el timeout, por lo que se contabiliza antes de reintentar.
+        await this.config.budget.record(1);
+        lastError = new ProviderHttpError(
+          0,
+          url.toString(),
+          cause instanceof Error ? cause.message : 'Error de red del proveedor',
+        );
+        if (attempt === this.maxRetries) throw lastError;
+        continue;
+      }
       await this.config.budget.record(1);
 
       if (res.ok) {

@@ -33,6 +33,7 @@ const querySchema = z.object({
   ]),
   league: z.string().trim().max(50).optional(),
   position: z.enum(['GK', 'DF', 'MF', 'FW']).optional(),
+  scope: z.enum(['season', 'last5']).default('season'),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
   if (!parsed.success) {
     return jsonError(422, 'INVALID_QUERY', parsed.error.issues.map((i) => i.message).join('; '));
   }
-  const { metric, league, position, limit } = parsed.data;
+  const { metric, league, position, scope, limit } = parsed.data;
 
   const isGk = metric in GK_METRICS;
   const column = isGk
@@ -59,36 +60,54 @@ export async function GET(request: Request) {
     : FIELD_METRICS[metric as keyof typeof FIELD_METRICS];
   const table = isGk ? '"GoalkeeperMatchStatistics"' : '"PlayerMatchStatistics"';
 
-  // Filtros dinámicos parametrizados
-  const conditions: string[] = [`s.${column} IS NOT NULL`];
+  // Filtros dinámicos parametrizados. El ranking nunca mezcla partidos
+  // pendientes ni temporadas históricas cuando se solicita la temporada actual.
+  const appearanceConditions: string[] = [`m.status = 'FINISHED'`];
+  const resultConditions: string[] = [`s.${column} IS NOT NULL`];
   const params: unknown[] = [];
   if (league != null) {
     params.push(league);
-    conditions.push(`c.slug = $${params.length}`);
+    appearanceConditions.push(`c.slug = $${params.length}`);
+  }
+  if (scope === 'season') {
+    appearanceConditions.push(`se."isCurrent" = true`);
+  } else {
+    resultConditions.push('r."appearanceRank" <= 5');
   }
   if (position != null) {
     params.push(position);
-    conditions.push(
+    resultConditions.push(
       `EXISTS (SELECT 1 FROM "PlayerPosition" pp WHERE pp."playerId" = p.id AND pp."isPrimary" = true AND pp."group" = $${params.length}::"PositionGroup")`,
     );
   }
   params.push(limit);
 
   const sql = `
+    WITH ranked_appearances AS (
+      SELECT mp.id,
+             mp."playerId",
+             mp."minutesPlayed",
+             ROW_NUMBER() OVER (
+               PARTITION BY mp."playerId"
+               ORDER BY m."kickoffAt" DESC, m.id DESC
+             ) AS "appearanceRank"
+      FROM "MatchPlayer" mp
+      JOIN "Match" m       ON m.id = mp."matchId"
+      JOIN "Season" se      ON se.id = m."seasonId"
+      JOIN "Competition" c  ON c.id = se."competitionId"
+      WHERE ${appearanceConditions.join(' AND ')}
+    )
     SELECT p.slug,
            COALESCE(p."knownAs", p."fullName") AS name,
            p."photoUrl"                        AS "photoUrl",
            t.name                              AS team,
            SUM(s.${column})                    AS total,
-           SUM(mp."minutesPlayed")             AS minutes
+           SUM(r."minutesPlayed")              AS minutes
     FROM ${table} s
-    JOIN "MatchPlayer" mp ON mp.id = s."matchPlayerId"
-    JOIN "Player" p       ON p.id = mp."playerId"
+    JOIN ranked_appearances r ON r.id = s."matchPlayerId"
+    JOIN "Player" p       ON p.id = r."playerId"
     LEFT JOIN "Team" t    ON t.id = p."currentTeamId"
-    JOIN "Match" m        ON m.id = mp."matchId"
-    JOIN "Season" se      ON se.id = m."seasonId"
-    JOIN "Competition" c  ON c.id = se."competitionId"
-    WHERE ${conditions.join(' AND ')}
+    WHERE ${resultConditions.join(' AND ')}
     GROUP BY p.slug, p."knownAs", p."fullName", p."photoUrl", t.name
     ORDER BY total DESC
     LIMIT $${params.length}
@@ -98,6 +117,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     metric,
+    scope,
     results: rows.map((r, i) => ({
       rank: i + 1,
       slug: r.slug,
