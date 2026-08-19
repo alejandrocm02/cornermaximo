@@ -14,6 +14,7 @@ colectivas por competición.
 | Datos | API-Football, plan **Pro** (7 500 req/día, 300 req/min, todas las temporadas y competiciones) |
 | Web | Vercel Hobby |
 | PostgreSQL | Neon |
+| Cuentas y datos personales | Supabase Auth + Postgres con RLS |
 | Caché | Upstash Redis (opcional) |
 | Sincronización | GitHub Actions (cron cada hora) |
 
@@ -45,7 +46,7 @@ packages/
                 # primera pasada post-partido + verificación a las 24h,
                 # multi-temporada y multi-competición (ligas + Mundial)
 apps/
-└─ web/         # Next.js 15: API interna + páginas (inicio, jugadores,
+└─ web/         # Next.js 16 + React 19: API interna + páginas (inicio, jugadores,
                 # perfil con últimos 5, equipos, ligas con selector de
                 # temporada, Mundial 2026, rankings, comparador)
 ```
@@ -60,23 +61,33 @@ apps/
    En el repo: Settings → Secrets and variables → Actions → añade `SYNC_SECRET` y `APP_URL`.
 3. **Neon** (PostgreSQL, gratis) — https://neon.tech
    Crea un proyecto → copia la "Connection string" → variable `DATABASE_URL`.
-4. **Vercel** (hosting, gratis) — https://vercel.com/signup (entra con tu cuenta de GitHub)
+4. **Supabase** — Auth, favoritos, alertas, watchlists, comparaciones y estado del Analizador con RLS.
+5. **Vercel** (hosting, gratis) — https://vercel.com/signup (entra con tu cuenta de GitHub)
    Importa el repositorio. Configuración del proyecto:
    - Root Directory: `apps/web`
-   - Variables de entorno: `DATABASE_URL`, `API_FOOTBALL_KEY`, `API_FOOTBALL_DAILY_LIMIT`, `SYNC_SECRET`, `NEXT_PUBLIC_APP_URL`
-5. **Upstash** (Redis, opcional, gratis) — https://upstash.com — solo cuando quieras activar la caché.
+   - Variables de entorno: usa `.env.example` como inventario; no expongas claves de servidor con prefijo `NEXT_PUBLIC_`.
+6. **Stripe** (opcional) — necesario únicamente para CornerMaximo Pro; configura webhook e identificador de precio según `.env.example`.
+7. **Upstash** (Redis, opcional, gratis) — https://upstash.com — solo cuando quieras activar la caché.
 
 ## Puesta en marcha (desarrollo local)
 
 ```bash
-npm install
+nvm use                         # Node 24, definido en .nvmrc
+npm ci
 cp .env.example .env          # añade tu API_FOOTBALL_KEY
 docker compose up -d          # Postgres + Redis locales
 npm run db:generate
-npm run db:migrate            # crea las tablas
-npm test                      # 36 tests
+npm run db:push               # solo contra la base local/efímera
+npm run lint
+npm run typecheck
+npm test
+npm run build
 npm run dev -w web            # http://localhost:3000
 ```
+
+La suite E2E (`npm run test:e2e`) usa Playwright y Axe. Requiere un build previo y,
+cuando se ejecuta localmente, una base PostgreSQL preparada. CI provisiona
+PostgreSQL 16, ejecuta lint, tipos, tests, build, E2E/WCAG, `npm audit` y CodeQL.
 
 Primera carga de datos (con el servidor en marcha; cada tanda gasta hasta
 `maxRequests` peticiones, así que puedes lanzar varias seguidas):
@@ -90,9 +101,10 @@ curl -X POST -H "Authorization: Bearer TU_SYNC_SECRET" \
 ## Puesta en marcha (producción)
 
 1. Crea las cuentas de arriba y despliega en Vercel.
-2. Ejecuta las migraciones contra Neon: `DATABASE_URL="postgres://..." npm run db:migrate`.
-   (Si vienes de una versión anterior de este proyecto, esto añade la columna
-   `group` a `Standing`, usada por la fase de grupos del Mundial.)
+2. Para una base Neon existente, no uses `db:push`: crea/revisa una migración
+   Prisma y ensáyala antes de `npm run db:deploy`. El esquema histórico actual
+   todavía necesita una migración baseline antes de automatizar ese paso.
+   Las migraciones de datos personales se versionan en `supabase/migrations/`.
 3. Lanza la primera sincronización con el `curl` anterior apuntando a tu dominio de Vercel,
    o espera al cron de GitHub Actions (cada hora).
 4. El bootstrap completo (5 ligas × 2 temporadas + Mundial 2026: ~110 equipos,
