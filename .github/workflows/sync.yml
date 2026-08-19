@@ -1,5 +1,6 @@
 # GitHub Actions llama al endpoint protegido de la app en Vercel.
-# Cada invocación trabaja ~45s (límite de Vercel Hobby) y respeta el rate
+# Cada invocación inicia trabajo durante ~35s y reserva margen frente al límite
+# de 60s de la función. También respeta el rate
 # limit del plan Pro de API-Football (300 req/min, 7 500 req/día), así que
 # encadenamos varias tandas por ejecución. Corre cada hora: con el Mundial
 # 2026 en juego interesa refrescar resultados y clasificación con frecuencia.
