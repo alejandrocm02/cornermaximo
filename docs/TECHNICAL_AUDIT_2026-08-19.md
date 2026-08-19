@@ -156,8 +156,8 @@ para la base deportiva histórica antes de automatizar `prisma migrate deploy`.
 | Responsive automatizado | ✅ 320/768/1440 px sin overflow |
 | Accesibilidad automatizada | ✅ Axe WCAG 2.2 AA en 3 rutas; revisión manual amplia sigue recomendada |
 | SEO técnico | ✅ controles esenciales comprobados |
-| CI de la rama | ⏳ se completa tras publicar la PR |
-| Deployment actualizado | ⏳ se completa tras fusionar la PR |
+| CI de la rama | ✅ GitHub Actions y CodeQL correctos en PR #69 |
+| Deployment actualizado | ✅ preview Vercel READY; producción se comprueba después del merge y se registra en la entrega final |
 
 ## Inventario de cambios
 
