@@ -25,26 +25,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
 
   const [appearances, fieldTotals, gkTotals] = await Promise.all([
     prisma.matchPlayer.aggregate({
-      where: { playerId: player.id, match: { status: 'FINISHED' } },
+      where: { playerId: player.id, match: { status: 'FINISHED', season: { isCurrent: true } } },
       _sum: { minutesPlayed: true },
       _count: { _all: true },
       _avg: { rating: true },
     }),
     prisma.playerMatchStatistics.aggregate({
-      where: { matchPlayer: { playerId: player.id } },
+      where: { matchPlayer: { playerId: player.id, match: { status: 'FINISHED', season: { isCurrent: true } } } },
       _sum: { goals: true, assists: true, yellowCards: true, redCards: true, keyPasses: true, passesAttempted: true, passesCompleted: true },
     }),
     prisma.goalkeeperMatchStatistics.aggregate({
-      where: { matchPlayer: { playerId: player.id } },
+      where: { matchPlayer: { playerId: player.id, match: { status: 'FINISHED', season: { isCurrent: true } } } },
       _sum: { saves: true, goalsConceded: true, shotsOnTargetFaced: true },
     }),
   ]);
 
   const starts = await prisma.matchPlayer.count({
-    where: { playerId: player.id, role: 'STARTER', match: { status: 'FINISHED' } },
+    where: { playerId: player.id, role: 'STARTER', match: { status: 'FINISHED', season: { isCurrent: true } } },
   });
   const played = await prisma.matchPlayer.count({
-    where: { playerId: player.id, minutesPlayed: { gt: 0 }, match: { status: 'FINISHED' } },
+    where: { playerId: player.id, minutesPlayed: { gt: 0 }, match: { status: 'FINISHED', season: { isCurrent: true } } },
   });
 
   const age =
