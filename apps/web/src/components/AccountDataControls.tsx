@@ -59,9 +59,15 @@ export function AccountDataControls() {
 
       try {
         localStorage.removeItem('cornermaximo.favorites.v1');
+        localStorage.removeItem('cornermaximo.analizador.v1');
+        localStorage.removeItem('cornermaximo.comparisons.v1');
         for (let index = localStorage.length - 1; index >= 0; index -= 1) {
           const key = localStorage.key(index);
-          if (key?.startsWith('cornermaximo.favorites.account-migrated.v1:')) localStorage.removeItem(key);
+          if (
+            key?.startsWith('cornermaximo.favorites.account-migrated.v1:') ||
+            key?.includes('.account-owner') ||
+            key?.includes('.account-dirty')
+          ) localStorage.removeItem(key);
         }
         sessionStorage.clear();
       } catch {
@@ -81,7 +87,7 @@ export function AccountDataControls() {
       <section className="rounded-xl border border-pitch-border bg-pitch-bg/45 p-5">
         <h2 className="font-display text-xl font-bold text-white">Tus datos</h2>
         <p className="mt-2 text-sm leading-6 text-pitch-muted">
-          Descarga en JSON los datos personales que CornerMaximo conserva en el servidor: cuenta, favoritos, watchlists, preferencias y actividad de alertas.
+          Descarga en JSON los datos personales que CornerMaximo conserva en el servidor: cuenta, favoritos, watchlists, alertas, comparaciones y estado del Analizador.
         </p>
         <button type="button" onClick={exportData} disabled={exporting} className="fs-btn-ghost mt-4 justify-center disabled:opacity-50">
           {exporting ? 'Preparando exportación…' : 'Descargar mis datos'}

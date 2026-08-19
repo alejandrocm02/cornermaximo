@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import Link from 'next/link';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useSyncedAccountState } from '@/lib/useSyncedAccountState';
 
 type BetStatus = 'PENDIENTE' | 'GANADA' | 'PERDIDA' | 'ANULADA';
 
@@ -49,6 +51,7 @@ interface LegacyBet {
 
 const STORAGE_KEY = 'cornermaximo.analizador.v1';
 const LEGACY_STORAGE_KEY = 'cornermaximo.apuestas.v1';
+const LEGACY_STORAGE_KEYS = [LEGACY_STORAGE_KEY];
 const DEFAULT_BANKROLL_ID = 'bankroll-principal';
 
 const MARKETS = [
@@ -153,6 +156,49 @@ function loadState(): AnalyzerState {
   }
 }
 
+function isAnalyzerState(value: unknown): value is AnalyzerState {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<AnalyzerState>;
+  if (
+    candidate.version !== 1 ||
+    typeof candidate.activeBankrollId !== 'string' ||
+    !Array.isArray(candidate.bankrolls) ||
+    !Array.isArray(candidate.bets) ||
+    candidate.bankrolls.length === 0 ||
+    candidate.bankrolls.length > 100 ||
+    candidate.bets.length > 5000
+  ) return false;
+
+  const bankrollsValid = candidate.bankrolls.every((bankroll) =>
+    bankroll &&
+    typeof bankroll.id === 'string' &&
+    bankroll.id.length <= 100 &&
+    typeof bankroll.name === 'string' &&
+    bankroll.name.length <= 120 &&
+    typeof bankroll.initialBalance === 'number' &&
+    Number.isFinite(bankroll.initialBalance) &&
+    typeof bankroll.createdAt === 'string',
+  );
+  const statuses: BetStatus[] = ['PENDIENTE', 'GANADA', 'PERDIDA', 'ANULADA'];
+  const betsValid = candidate.bets.every((bet) =>
+    bet &&
+    typeof bet.id === 'string' &&
+    typeof bet.bankrollId === 'string' &&
+    typeof bet.date === 'string' &&
+    typeof bet.event === 'string' &&
+    typeof bet.odds === 'number' &&
+    Number.isFinite(bet.odds) &&
+    typeof bet.stake === 'number' &&
+    Number.isFinite(bet.stake) &&
+    typeof bet.status === 'string' &&
+    statuses.includes(bet.status as BetStatus) &&
+    typeof bet.createdAt === 'string',
+  );
+
+  return bankrollsValid && betsValid &&
+    candidate.bankrolls.some((bankroll) => bankroll.id === candidate.activeBankrollId);
+}
+
 function profitOf(bet: BetEntry): number {
   if (bet.status === 'GANADA') return bet.stake * (bet.odds - 1);
   if (bet.status === 'PERDIDA') return -bet.stake;
@@ -187,19 +233,17 @@ function downloadFile(name: string, content: string, type: string): void {
 }
 
 export function AnalizadorClient() {
-  const [state, setState] = useState<AnalyzerState | null>(null);
+  const { state, setState, authenticated, status: syncStatus, error: syncError } =
+    useSyncedAccountState<AnalyzerState>({
+      stateKey: 'analyzer',
+      storageKey: STORAGE_KEY,
+      legacyStorageKeys: LEGACY_STORAGE_KEYS,
+      loadLocal: loadState,
+      isValid: isAnalyzerState,
+    });
   const [showBankrollForm, setShowBankrollForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'TODAS' | BetStatus>('TODAS');
   const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    setState(loadState());
-  }, []);
-
-  useEffect(() => {
-    if (state == null) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
 
   const activeBankroll = state?.bankrolls.find((bankroll) => bankroll.id === state.activeBankrollId) ?? null;
   const activeBets = useMemo(
@@ -384,6 +428,15 @@ export function AnalizadorClient() {
             <button type="button" onClick={exportJson} className="fs-btn-ghost px-4 py-2.5">Copia JSON</button>
           </div>
         </div>
+        <p role="status" className="mt-3 text-xs text-pitch-muted">
+          {authenticated
+            ? syncStatus === 'syncing'
+              ? 'Guardando en tu cuenta…'
+              : syncStatus === 'error'
+                ? syncError
+                : 'Copia local y cuenta sincronizadas entre dispositivos.'
+            : <><Link href="/auth/login?next=/analizador" className="font-semibold text-pitch-accent hover:underline">Inicia sesión</Link> para sincronizar este Analizador entre dispositivos.</>}
+        </p>
         {showBankrollForm && <BankrollForm onCreate={addBankroll} onCancel={() => setShowBankrollForm(false)} />}
       </section>
 
