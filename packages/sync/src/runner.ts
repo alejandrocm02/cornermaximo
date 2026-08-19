@@ -39,7 +39,10 @@ import {
 const STALE_HOURS = 20;
 const VERIFY_AFTER_HOURS = 24;
 /** Margen frente al límite de 60s de Vercel Hobby: paramos limpiamente antes (no depende del plan de API-Football). */
-const TIME_BUDGET_MS = 45_000;
+// Leave enough headroom for the current unit, response serialization and the
+// platform boundary. Starting new work at 45s caused occasional 60s function
+// timeouts when a provider request was slower than usual.
+const TIME_BUDGET_MS = 35_000;
 
 class TimeBudgetExceededError extends Error {
   constructor() {
