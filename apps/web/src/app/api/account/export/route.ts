@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const userId = user.id;
-  const [profile, favorites, watchlists, watchlistPlayers, alertPreferences, alertReads, pushSubscriptions, pushDeliveries] = await Promise.all([
+  const [profile, favorites, watchlists, watchlistPlayers, alertPreferences, alertReads, pushSubscriptions, pushDeliveries, appState] = await Promise.all([
     supabase.from('user_profiles').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('user_favorites').select('*').eq('user_id', userId).order('added_at'),
     supabase.from('user_watchlists').select('*').eq('user_id', userId).order('created_at'),
@@ -19,9 +19,10 @@ export async function GET() {
     supabase.from('user_alert_reads').select('*').eq('user_id', userId).order('read_at'),
     supabase.from('user_push_subscriptions').select('id,user_id,endpoint,user_agent,created_at,updated_at').eq('user_id', userId).order('created_at'),
     supabase.from('user_push_deliveries').select('*').eq('user_id', userId).order('delivered_at'),
+    supabase.from('user_app_state').select('state_key,payload,revision,updated_at').eq('user_id', userId).order('state_key'),
   ]);
 
-  const queryError = [profile, favorites, watchlists, watchlistPlayers, alertPreferences, alertReads, pushSubscriptions, pushDeliveries]
+  const queryError = [profile, favorites, watchlists, watchlistPlayers, alertPreferences, alertReads, pushSubscriptions, pushDeliveries, appState]
     .map((result) => result.error)
     .find(Boolean);
 
@@ -51,7 +52,8 @@ export async function GET() {
     alertReads: alertReads.data ?? [],
     pushSubscriptions: pushSubscriptions.data ?? [],
     pushDeliveries: pushDeliveries.data ?? [],
-    note: 'Los datos deportivos públicos de CornerMaximo no forman parte de esta exportación porque no son datos personales de la cuenta. Los datos que solo existen en localStorage permanecen exclusivamente en este navegador y no se conservan en el servidor.',
+    appState: appState.data ?? [],
+    note: 'Los datos deportivos públicos de CornerMaximo no forman parte de esta exportación porque no son datos personales de la cuenta. Las preferencias exclusivamente locales del navegador tampoco se conservan en el servidor.',
   };
 
   const date = exportedAt.slice(0, 10);

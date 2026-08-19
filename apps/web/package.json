@@ -4,34 +4,41 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate --schema ../../packages/db/prisma/schema.prisma && next build",
+    "build": "prisma generate --schema ../../packages/db/prisma/schema.prisma && next build --webpack",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@cornermaximo/db": "*",
     "@cornermaximo/shared": "*",
     "@cornermaximo/stats": "*",
     "@cornermaximo/sync": "*",
-    "@supabase/ssr": "0.12.3",
-    "@supabase/supabase-js": "2.110.5",
-    "next": "^15.5.23",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "@supabase/ssr": "0.12.4",
+    "@supabase/supabase-js": "2.112.3",
+    "next": "16.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "server-only": "^0.0.1",
-    "zod": "^3.24.1"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.3",
-    "eslint": "^9.39.1",
-    "eslint-config-next": "^15.5.23",
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
     "autoprefixer": "^10.4.20",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.1",
     "postcss": "^8.5.26",
-    "prisma": "^5.19.0",
+    "prisma": "^7.9.1",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.6"
+  },
+  "overrides": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4"
   }
 }

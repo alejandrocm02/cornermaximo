@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Space_Grotesk } from 'next/font/google';
+import { headers } from 'next/headers';
+import '@fontsource-variable/inter/wght.css';
+import '@fontsource-variable/space-grotesk/wght.css';
 import { CookieNotice } from '@/components/CookieNotice';
+import { CspNonceProvider } from '@/components/CspNonceProvider';
 import { FavoriteHomeBanner } from '@/components/FavoriteHomeBanner';
 import { FavoritesAccountSync } from '@/components/FavoritesAccountSync';
+import { JsonLd } from '@/components/JsonLd';
 import { MainNav } from '@/components/MainNav';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { SiteFooter } from '@/components/SiteFooter';
@@ -10,8 +14,6 @@ import { getSiteUrl } from '@/lib/site-url';
 import './globals.css';
 
 const BASE_URL = getSiteUrl();
-const fontSans = Inter({ subsets:['latin'], display:'swap', variable:'--font-sans' });
-const fontDisplay = Space_Grotesk({ subsets:['latin'], display:'swap', weight:['500','600','700'], variable:'--font-display' });
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -36,14 +38,17 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor:'#05070B', colorScheme:'dark' };
 const websiteJsonLd = { '@context':'https://schema.org', '@type':'WebSite', name:'CornerMaximo', alternateName:'CM Sports Intelligence', url:BASE_URL, inLanguage:'es' };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="es" className={`${fontSans.variable} ${fontDisplay.variable}`}><body className="min-h-dvh pb-16 md:pb-0">
-    <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(websiteJsonLd)}} />
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+  return <html lang="es"><body className="min-h-dvh pb-16 md:pb-0">
+    <CspNonceProvider nonce={nonce}>
+    <JsonLd data={websiteJsonLd} />
     <FavoritesAccountSync />
     <a href="#contenido" className="sr-only z-50 rounded-lg bg-pitch-accent px-4 py-2 font-semibold text-white focus:not-sr-only focus:absolute focus:left-4 focus:top-4">Saltar al contenido principal</a>
     <header className="sticky top-0 z-30 border-b border-pitch-border/70 bg-pitch-bg/90 backdrop-blur-xl"><MainNav /><div aria-hidden="true" className="fs-rule absolute inset-x-0 bottom-0" /></header>
     <FavoriteHomeBanner />
     <main id="contenido" tabIndex={-1} className="mx-auto w-full max-w-7xl px-4 py-7 outline-none sm:px-6 lg:px-8 lg:py-10">{children}</main>
     <SiteFooter /><MobileBottomNav /><CookieNotice />
+    </CspNonceProvider>
   </body></html>;
 }

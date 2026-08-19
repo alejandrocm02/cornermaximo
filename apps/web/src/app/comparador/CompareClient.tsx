@@ -9,8 +9,22 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { SearchBox } from '@/components/SearchBox';
+import { useSyncedAccountState } from '@/lib/useSyncedAccountState';
 
 interface Selected { slug: string; name: string }
+
+interface SavedComparison {
+  id: string;
+  p1: Selected;
+  p2: Selected;
+  periodo: string;
+  savedAt: string;
+}
+
+interface ComparisonState {
+  version: 1;
+  items: SavedComparison[];
+}
 
 interface MetricSummary { total: number | null; perMatch: number | null; per90: number | null }
 
@@ -67,6 +81,36 @@ const EXAMPLES: Array<{ label: string; p1: string; p2: string }> = [
   { label: 'Kane vs Guirassy', p1: 'h-kane', p2: 's-guirassy' },
 ];
 
+const COMPARISONS_STORAGE_KEY = 'cornermaximo.comparisons.v1';
+
+function loadSavedComparisons(): ComparisonState {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(COMPARISONS_STORAGE_KEY) ?? 'null') as unknown;
+    if (isComparisonState(parsed)) return parsed;
+  } catch {
+    // A malformed local snapshot must not make the comparison page unusable.
+  }
+  return { version: 1, items: [] };
+}
+
+function isComparisonState(value: unknown): value is ComparisonState {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<ComparisonState>;
+  return candidate.version === 1 &&
+    Array.isArray(candidate.items) &&
+    candidate.items.length <= 20 &&
+    candidate.items.every((item) =>
+      item &&
+      typeof item.id === 'string' &&
+      typeof item.p1?.slug === 'string' &&
+      typeof item.p1?.name === 'string' &&
+      typeof item.p2?.slug === 'string' &&
+      typeof item.p2?.name === 'string' &&
+      PERIODS.some((period) => period.value === item.periodo) &&
+      typeof item.savedAt === 'string',
+    );
+}
+
 const fmt = (v: number | null | undefined) => (v == null ? '—' : v.toLocaleString('es-ES'));
 
 export function CompareClient() {
@@ -79,6 +123,18 @@ export function CompareClient() {
   const [data, setData] = useState<CompareData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    state: savedComparisons,
+    setState: setSavedComparisons,
+    authenticated,
+    status: syncStatus,
+    error: syncError,
+  } = useSyncedAccountState<ComparisonState>({
+    stateKey: 'comparisons',
+    storageKey: COMPARISONS_STORAGE_KEY,
+    loadLocal: loadSavedComparisons,
+    isValid: isComparisonState,
+  });
 
   const syncUrl = useCallback(
     (pa: Selected | null, pb: Selected | null, per: string) => {
@@ -167,6 +223,38 @@ export function CompareClient() {
     void compare(sa, sb, periodo);
   }
 
+  function saveCurrentComparison() {
+    if (data == null) return;
+    const first = { slug: data.players[0]!.slug, name: data.players[0]!.name };
+    const second = { slug: data.players[1]!.slug, name: data.players[1]!.name };
+    const id = `${[first.slug, second.slug].sort().join('|')}|${data.periodo}`;
+    const item: SavedComparison = {
+      id,
+      p1: first,
+      p2: second,
+      periodo: data.periodo,
+      savedAt: new Date().toISOString(),
+    };
+    setSavedComparisons((current) => ({
+      version: 1,
+      items: [item, ...(current?.items ?? []).filter((saved) => saved.id !== id)].slice(0, 20),
+    }));
+  }
+
+  function loadSaved(item: SavedComparison) {
+    setA(item.p1);
+    setB(item.p2);
+    setPeriodo(item.periodo);
+    syncUrl(item.p1, item.p2, item.periodo);
+    void compare(item.p1, item.p2, item.periodo);
+  }
+
+  function removeSaved(id: string) {
+    setSavedComparisons((current) => current == null
+      ? current
+      : { ...current, items: current.items.filter((item) => item.id !== id) });
+  }
+
   const rows = data?.template === 'goalkeeper' ? GK_ROWS : FIELD_ROWS;
   const periodLabel = PERIODS.find((p) => p.value === (data?.periodo ?? periodo))?.label ?? '';
 
@@ -244,6 +332,36 @@ export function CompareClient() {
         </div>
       )}
 
+      {(savedComparisons?.items.length ?? 0) > 0 && (
+        <section className="fs-panel p-4" aria-labelledby="comparaciones-guardadas">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="comparaciones-guardadas" className="text-base font-bold">Comparaciones guardadas</h2>
+            <span className="text-xs text-pitch-muted">
+              {authenticated
+                ? syncStatus === 'syncing' ? 'Sincronizando…' : syncStatus === 'error' ? syncError : 'Sincronizadas'
+                : 'Solo en este dispositivo'}
+            </span>
+          </div>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {savedComparisons!.items.map((item) => (
+              <li key={item.id} className="flex items-center gap-2 rounded-lg border border-pitch-border bg-pitch-bg/50 p-2">
+                <button type="button" onClick={() => loadSaved(item)} className="min-w-0 flex-1 rounded px-2 py-1 text-left text-sm font-medium hover:text-pitch-accent">
+                  <span className="block truncate">{item.p1.name} vs {item.p2.name}</span>
+                  <span className="block text-xs font-normal text-pitch-muted">{PERIODS.find((period) => period.value === item.periodo)?.label}</span>
+                </button>
+                <button type="button" onClick={() => removeSaved(item.id)} aria-label={`Eliminar ${item.p1.name} vs ${item.p2.name}`} className="min-h-11 rounded px-3 text-pitch-muted hover:text-pitch-danger">×</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {!authenticated && (
+        <p className="text-xs text-pitch-muted">
+          <a href="/auth/login?next=/comparador" className="font-semibold text-pitch-accent hover:underline">Inicia sesión</a> para sincronizar tus comparaciones guardadas entre dispositivos.
+        </p>
+      )}
+
       {/* Estados */}
       {loading && (
         <div className="space-y-2" aria-live="polite">
@@ -265,6 +383,9 @@ export function CompareClient() {
       {/* Resultado */}
       {data != null && !loading && (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <button type="button" onClick={saveCurrentComparison} className="fs-btn-ghost px-4 py-2.5">Guardar comparación</button>
+          </div>
           {data.warning != null && (
             <p className="rounded-lg border border-yellow-600/40 bg-yellow-500/10 px-4 py-2 text-sm text-yellow-300">
               {data.warning}

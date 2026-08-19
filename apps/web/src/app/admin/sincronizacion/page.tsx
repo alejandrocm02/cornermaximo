@@ -42,6 +42,7 @@ function formatDate(value: Date | string | null | undefined): string {
 
 function LoginPanel({ error }: { error: string | undefined }) {
   const configurationError = error === 'configuracion';
+  const rateLimitError = error === 'limite';
   return (
     <div className="mx-auto max-w-md py-12">
       <section className="fs-panel relative overflow-hidden p-6 sm:p-8">
@@ -56,6 +57,8 @@ function LoginPanel({ error }: { error: string | undefined }) {
           <p role="alert" className="mt-4 rounded-lg border border-pitch-danger/40 bg-pitch-danger/10 px-3 py-2 text-sm text-pitch-danger">
             {configurationError
               ? 'SYNC_SECRET no está configurado en este despliegue.'
+              : rateLimitError
+                ? 'Demasiados intentos fallidos. Espera 15 minutos antes de volver a intentarlo.'
               : 'La credencial indicada no es válida.'}
           </p>
         )}

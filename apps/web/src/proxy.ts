@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { createContentSecurityPolicy } from '@/lib/security/csp';
 import { updateSession } from '@/lib/supabase/middleware';
 
 function canonicalAuthRedirect(request: NextRequest): NextResponse | null {
@@ -18,11 +19,25 @@ function canonicalAuthRedirect(request: NextRequest): NextResponse | null {
   return NextResponse.redirect(canonicalUrl, 307);
 }
 
-export async function middleware(request: NextRequest) {
-  const canonicalRedirect = canonicalAuthRedirect(request);
-  if (canonicalRedirect) return canonicalRedirect;
+export async function proxy(request: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const contentSecurityPolicy = createContentSecurityPolicy(
+    nonce,
+    process.env.NODE_ENV === 'development',
+  );
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', contentSecurityPolicy);
 
-  return updateSession(request);
+  const canonicalRedirect = canonicalAuthRedirect(request);
+  if (canonicalRedirect) {
+    canonicalRedirect.headers.set('Content-Security-Policy', contentSecurityPolicy);
+    return canonicalRedirect;
+  }
+
+  const response = await updateSession(request, requestHeaders);
+  response.headers.set('Content-Security-Policy', contentSecurityPolicy);
+  return response;
 }
 
 export const config = {

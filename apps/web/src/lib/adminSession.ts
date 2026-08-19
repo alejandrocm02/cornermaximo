@@ -63,6 +63,14 @@ export function verifySyncAdminSecret(candidate: string): boolean {
   return secret != null && candidate !== '' && safeEqual(candidate, secret);
 }
 
+export function createSyncAdminRateLimitKey(clientAddress: string): string | null {
+  const secret = syncSecret();
+  if (secret == null) return null;
+  return createHmac('sha256', secret)
+    .update(`${SESSION_CONTEXT}.rate-limit.${clientAddress}`)
+    .digest('hex');
+}
+
 export function validSyncAdminSession(cookieValue: string | undefined): boolean {
   const secret = syncSecret();
   return secret != null && cookieValue != null && parseSession(cookieValue, secret) != null;

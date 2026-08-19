@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { JsonLd } from '@/components/JsonLd';
 import { roundLabel, statusLabel } from '@/lib/football';
 import { getMatchDetail, type MatchDetail, type MatchDetailPlayer, type MatchListTeam } from '@/lib/matches';
 
@@ -108,7 +109,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-8">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }} />
+      <JsonLd data={eventJsonLd} />
       <Breadcrumbs items={[{ label: 'Partidos', href: '/partidos' }, { label: `${match.home?.name ?? 'Local'} vs ${match.away?.name ?? 'Visitante'}` }]} />
 
       <header className="fs-panel relative overflow-hidden p-5 sm:p-8">

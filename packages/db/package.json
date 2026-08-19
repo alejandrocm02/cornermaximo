@@ -14,9 +14,13 @@
     "studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "^5.19.0"
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
-    "prisma": "^5.19.0"
+    "@types/pg": "^8.15.5",
+    "dotenv": "^17.2.3",
+    "prisma": "^7.9.1"
   }
 }

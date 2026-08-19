@@ -2,6 +2,7 @@ import { prisma, type Prisma } from '@cornermaximo/db';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { JsonLd } from '@/components/JsonLd';
 import { LiveNews } from '@/components/LiveNews';
 import { CATEGORY_LABELS, timeAgo } from '@/lib/marketLabels';
 
@@ -102,7 +103,7 @@ export default async function NewsPage({
   return (
     <div className="space-y-6">
       {itemListJsonLd != null && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+        <JsonLd data={itemListJsonLd} />
       )}
       <Breadcrumbs items={[{ label: 'Noticias' }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">

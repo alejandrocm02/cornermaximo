@@ -2,6 +2,7 @@
 
 import Script from 'next/script';
 import { useCallback, useEffect, useRef } from 'react';
+import { useCspNonce } from '@/components/CspNonceProvider';
 
 type TurnstileApi = {
   render: (
@@ -26,6 +27,7 @@ declare global {
 export const TURNSTILE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export function TurnstileChallenge({ onToken }: { onToken: (token: string | null) => void }) {
+  const nonce = useCspNonce();
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -60,6 +62,7 @@ export function TurnstileChallenge({ onToken }: { onToken: (token: string | null
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         strategy="afterInteractive"
+        nonce={nonce}
         onLoad={renderWidget}
       />
       <div ref={containerRef} className="min-h-[65px] overflow-hidden rounded-xl" />

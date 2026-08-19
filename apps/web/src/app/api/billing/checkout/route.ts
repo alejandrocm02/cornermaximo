@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getSiteUrl } from '@/lib/site-url';
@@ -10,6 +11,13 @@ interface StripeCheckoutSession {
 
 function backToPro(reason: string) {
   return NextResponse.redirect(`${getSiteUrl()}/pro?billing=${encodeURIComponent(reason)}`, 303);
+}
+
+function checkoutIdempotencyKey(userId: string, priceId: string): string {
+  const fiveMinuteWindow = Math.floor(Date.now() / 300_000);
+  return `cornermaximo-checkout-${createHash('sha256')
+    .update(`${userId}:${priceId}:${fiveMinuteWindow}`)
+    .digest('hex')}`;
 }
 
 export async function POST() {
@@ -46,6 +54,7 @@ export async function POST() {
   params.set('metadata[supabase_user_id]', user.id);
   params.set('subscription_data[metadata][supabase_user_id]', user.id);
   params.set('allow_promotion_codes', 'true');
+  params.set('managed_payments[enabled]', 'true');
 
   if (billing?.stripe_customer_id) {
     params.set('customer', billing.stripe_customer_id);
@@ -54,7 +63,9 @@ export async function POST() {
   }
 
   try {
-    const session = await stripePost<StripeCheckoutSession>('/checkout/sessions', params);
+    const session = await stripePost<StripeCheckoutSession>('/checkout/sessions', params, {
+      idempotencyKey: checkoutIdempotencyKey(user.id, priceId),
+    });
     if (!session.url) return backToPro('checkout-url-missing');
     return NextResponse.redirect(session.url, 303);
   } catch {

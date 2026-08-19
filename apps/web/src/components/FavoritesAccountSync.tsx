@@ -5,6 +5,7 @@ import {
   clearFavoriteCacheAfterSignOut,
   syncFavoritesWithAccount,
 } from '@/lib/favorites';
+import { clearSyncedAccountCachesAfterSignOut } from '@/lib/useSyncedAccountState';
 import { createClient } from '@/lib/supabase/client';
 
 export function FavoritesAccountSync() {
@@ -16,6 +17,7 @@ export function FavoritesAccountSync() {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         clearFavoriteCacheAfterSignOut();
+        clearSyncedAccountCachesAfterSignOut();
         return;
       }
 

@@ -1,28 +1,24 @@
-import { FlatCompat } from '@eslint/eslintrc';
+import { defineConfig, globalIgnores } from 'eslint/config';
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTypeScript from 'eslint-config-next/typescript';
 
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-});
-
-const eslintConfig = [
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTypeScript,
   {
-    ignores: [
-      '**/.next/**',
-      '**/coverage/**',
-      '**/dist/**',
-      '**/node_modules/**',
-      '**/next-env.d.ts',
-      'supabase/.temp/**',
-    ],
-  },
-  ...compat.config({
-    extends: ['next/core-web-vitals', 'next/typescript'],
     settings: {
       next: {
         rootDir: new URL('./apps/web/', import.meta.url).pathname,
       },
     },
-  }),
+    rules: {
+      // React Compiler no está habilitado. Estas reglas de "recommended-latest"
+      // clasifican como render efectos legítimos de hidratación/localStorage y
+      // callbacks de eventos; se mantienen activas el resto de reglas de Hooks.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/purity': 'off',
+    },
+  },
   {
     files: ['supabase/functions/**/*.ts'],
     languageOptions: {
@@ -31,6 +27,14 @@ const eslintConfig = [
       },
     },
   },
-];
+  globalIgnores([
+    '**/.next/**',
+    '**/coverage/**',
+    '**/dist/**',
+    '**/node_modules/**',
+    '**/next-env.d.ts',
+    'supabase/.temp/**',
+  ]),
+]);
 
 export default eslintConfig;
