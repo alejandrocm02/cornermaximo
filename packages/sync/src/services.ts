@@ -4,7 +4,7 @@
  */
 import type { PrismaClient, Prisma } from '@cornermaximo/db';
 import type { FootballDataProvider, ProviderPlayerMatchStats } from '@cornermaximo/providers';
-import { TRACKED_COMPETITIONS, toSlug, type PositionGroup } from '@cornermaximo/shared';
+import { TRACKED_COMPETITIONS, toSlug } from '@cornermaximo/shared';
 
 // ---------- helpers ----------
 

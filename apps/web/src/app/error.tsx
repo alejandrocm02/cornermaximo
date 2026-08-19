@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect } from 'react';
 
 interface ErrorPageProps {
@@ -33,9 +34,9 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           <button type="button" onClick={reset} className="fs-btn-primary">
             Volver a intentar
           </button>
-          <a href="/" className="fs-btn-ghost">
+          <Link href="/" className="fs-btn-ghost">
             Ir a la portada
-          </a>
+          </Link>
         </div>
       </div>
     </section>

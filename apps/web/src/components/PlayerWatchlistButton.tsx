@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 type Watchlist = {
@@ -27,7 +27,7 @@ export function PlayerWatchlistButton({ player }: Props) {
   const [memberships, setMemberships] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     const supabase = createClient();
@@ -62,11 +62,11 @@ export function PlayerWatchlistButton({ player }: Props) {
       setMemberships(new Set((membershipResult.data ?? []).map((row) => row.watchlist_id as string)));
     }
     setLoading(false);
-  }
+  }, [player.slug]);
 
   useEffect(() => {
     if (open) void load();
-  }, [open]);
+  }, [load, open]);
 
   async function toggle(watchlistId: string) {
     if (!userId) return;

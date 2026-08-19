@@ -70,6 +70,9 @@ jobs:
       - name: Prepare ephemeral database
         run: npm run db:push
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -78,3 +81,9 @@ jobs:
 
       - name: Build web application
         run: npm run build -w web
+
+      # Las vulnerabilidades HIGH restantes pertenecen a dependencias internas
+      # de Next 15 y requieren una migración mayor a Next 16. Mientras se valida
+      # esa migración, ninguna vulnerabilidad CRITICAL puede entrar en main.
+      - name: Audit critical production dependencies
+        run: npm audit --omit=dev --audit-level=critical

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect } from 'react';
 
 interface GlobalErrorProps {
@@ -34,9 +35,9 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               <button type="button" onClick={reset} className="fs-btn-primary">
                 Reiniciar CornerMaximo
               </button>
-              <a href="/" className="fs-btn-ghost">
+              <Link href="/" className="fs-btn-ghost">
                 Recargar la portada
-              </a>
+              </Link>
             </div>
           </section>
         </main>

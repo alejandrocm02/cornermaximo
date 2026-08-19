@@ -70,7 +70,7 @@ async function resolveUserId(subscription: StripeSubscription): Promise<string |
 
   const admin = createAdminClient();
   const customerId = idOf(subscription.customer);
-  let query = admin
+  const query = admin
     .from('billing_subscriptions')
     .select('user_id')
     .eq('stripe_subscription_id', subscription.id)
