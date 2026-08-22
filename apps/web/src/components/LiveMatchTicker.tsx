@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const LIVE_CORE_INTERVAL_MS = 15_000;
-const WARMUP_CORE_INTERVAL_MS = 30_000;
-const DETAIL_INTERVAL_MS = 60_000;
+// El marcador/estado global se actualiza cada 15 s mediante LiveScoreboardController.
+// Aquí reservamos llamadas por partido para eventos y detalle, que son más costosas.
+const LIVE_CORE_INTERVAL_MS = 60_000;
+const WARMUP_CORE_INTERVAL_MS = 60_000;
+const DETAIL_INTERVAL_MS = 180_000;
 const WARMUP_BEFORE_MS = 2 * 60 * 60 * 1000;
 const WARMUP_AFTER_MS = 4 * 60 * 60 * 1000;
 
@@ -94,7 +96,7 @@ export function LiveMatchTicker({
       if (!document.hidden) await refreshCore();
       if (cancelled) return;
       const delay = status === 'LIVE' ? LIVE_CORE_INTERVAL_MS : WARMUP_CORE_INTERVAL_MS;
-      timer = setTimeout(loop, document.hidden ? Math.max(delay, 45_000) : delay);
+      timer = setTimeout(loop, document.hidden ? Math.max(delay, 120_000) : delay);
     };
 
     void loop();
@@ -114,7 +116,7 @@ export function LiveMatchTicker({
       if (cancelled) return;
       if (!document.hidden) await refreshDetail();
       if (cancelled) return;
-      timer = setTimeout(loop, document.hidden ? 120_000 : DETAIL_INTERVAL_MS);
+      timer = setTimeout(loop, document.hidden ? 300_000 : DETAIL_INTERVAL_MS);
     };
 
     void loop();

@@ -1,33 +1,43 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
-const INTERVAL_MS = 15_000;
+const LIVE_INTERVAL_MS = 15_000;
+const IDLE_INTERVAL_MS = 60_000;
+const HIDDEN_INTERVAL_MS = 120_000;
+
+interface ScoreboardSnapshot {
+  live: number;
+}
 
 export function LiveScoreboardController() {
   const router = useRouter();
-  const pathname = usePathname();
-  const isMatchDetail = /^\/partidos\/\d+$/.test(pathname);
 
   useEffect(() => {
-    if (isMatchDetail) return;
-
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const loop = async () => {
       if (cancelled) return;
+      let delay = IDLE_INTERVAL_MS;
       try {
         if (!document.hidden) {
           const response = await fetch('/api/live/scoreboard');
-          if (response.ok) router.refresh();
+          if (response.ok) {
+            const snapshot = (await response.json()) as ScoreboardSnapshot;
+            delay = snapshot.live > 0 ? LIVE_INTERVAL_MS : IDLE_INTERVAL_MS;
+            router.refresh();
+          }
+        } else {
+          delay = HIDDEN_INTERVAL_MS;
         }
       } catch {
-        // El marcador conserva el último estado conocido si el proveedor falla.
+        // Conserva el último estado conocido y reduce presión sobre el proveedor.
+        delay = IDLE_INTERVAL_MS;
       }
       if (cancelled) return;
-      timer = setTimeout(loop, document.hidden ? 45_000 : INTERVAL_MS);
+      timer = setTimeout(loop, delay);
     };
 
     void loop();
@@ -35,7 +45,7 @@ export function LiveScoreboardController() {
       cancelled = true;
       if (timer != null) clearTimeout(timer);
     };
-  }, [isMatchDetail, router]);
+  }, [router]);
 
   return null;
 }
