@@ -20,7 +20,7 @@ export function LiveScoreboardController() {
       if (cancelled) return;
       try {
         if (!document.hidden) {
-          const response = await fetch('/api/live/scoreboard', { cache: 'no-store' });
+          const response = await fetch('/api/live/scoreboard');
           if (response.ok) router.refresh();
         }
       } catch {
