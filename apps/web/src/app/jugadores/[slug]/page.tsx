@@ -162,7 +162,7 @@ export default async function PlayerPage({
             <p className="text-xs text-pitch-muted">{seasonData.summary.matches} partidos · {seasonData.summary.minutes} min</p>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {defensiveMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric]} value={fmt(seasonData.summary.metrics[metric]?.total)} sub={seasonData.summary.metrics[metric]?.per90 != null ? `${seasonData.summary.metrics[metric]!.per90}/90'` : undefined} />)}
+            {defensiveMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric] ?? metric} value={fmt(seasonData.summary.metrics[metric]?.total)} sub={seasonData.summary.metrics[metric]?.per90 != null ? `${seasonData.summary.metrics[metric]!.per90}/90'` : undefined} />)}
           </div>
           <p className="mt-4 text-xs leading-5 text-pitch-muted">“Entradas” corresponde a <code>tackles.total</code> del proveedor. No mostramos “entradas ganadas” como dato separado porque API-Football no lo distingue de forma fiable en las estadísticas por jugador de partido.</p>
         </section>
