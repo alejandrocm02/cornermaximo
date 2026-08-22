@@ -1,14 +1,18 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 const INTERVAL_MS = 15_000;
 
 export function LiveScoreboardController() {
   const router = useRouter();
+  const pathname = usePathname();
+  const isMatchDetail = /^\/partidos\/\d+$/.test(pathname);
 
   useEffect(() => {
+    if (isMatchDetail) return;
+
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -31,7 +35,7 @@ export function LiveScoreboardController() {
       cancelled = true;
       if (timer != null) clearTimeout(timer);
     };
-  }, [router]);
+  }, [isMatchDetail, router]);
 
   return null;
 }
