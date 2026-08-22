@@ -12,7 +12,9 @@ const CORE_RUN_LIMIT = 8;
 const DETAIL_RUN_LIMIT = 8;
 const SCOREBOARD_RUN_LIMIT = 24;
 const MAX_TERMINAL_PROBES = 8;
-const DEFAULT_DAILY_LIMIT = 5_000;
+const CONTRACT_DAILY_LIMIT = 5_000;
+const MAX_DAILY_USAGE_RATIO = 0.75;
+const SAFE_DAILY_LIMIT = Math.floor(CONTRACT_DAILY_LIMIT * MAX_DAILY_USAGE_RATIO);
 
 interface RawFixtureEvent {
   time: { elapsed: number | null; extra: number | null };
@@ -85,12 +87,12 @@ function mapEventType(type: string, detail: string | null): EventType | null {
 async function createClient(providerDbId: number, runLimit: number): Promise<ApiFootballClient> {
   const apiKey = process.env.API_FOOTBALL_KEY;
   if (!apiKey) throw new Error('Falta API_FOOTBALL_KEY');
-  const configured = Number(process.env.API_FOOTBALL_DAILY_LIMIT ?? DEFAULT_DAILY_LIMIT);
-  // El límite efectivo nunca puede superar el plan contratado por defecto.
-  // Si se configura un valor menor, se respeta para dejar más margen de seguridad.
+  const configured = Number(process.env.API_FOOTBALL_DAILY_LIMIT ?? SAFE_DAILY_LIMIT);
+  // Límite global compartido: nunca más del 75% de 5.000 requests/día.
+  // Se puede configurar un valor menor para reservar todavía más cuota.
   const dailyLimit = Number.isFinite(configured)
-    ? Math.min(Math.max(1, configured), DEFAULT_DAILY_LIMIT)
-    : DEFAULT_DAILY_LIMIT;
+    ? Math.min(Math.max(1, configured), SAFE_DAILY_LIMIT)
+    : SAFE_DAILY_LIMIT;
   const budget = new PrismaBudgetGuard(prisma, providerDbId, dailyLimit, runLimit);
   return new ApiFootballClient({
     apiKey,
