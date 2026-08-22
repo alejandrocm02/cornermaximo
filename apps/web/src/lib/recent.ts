@@ -49,15 +49,17 @@ export interface LastMatchesResponse {
 }
 
 type Mp = Awaited<ReturnType<typeof fetchPlayed>>[number];
-
 export type ComparisonWindow = number | 'season';
 
-function fetchPlayed(playerId: number, take?: number) {
+function fetchPlayed(playerId: number, take?: number, currentSeasonOnly = false) {
   return prisma.matchPlayer.findMany({
     where: {
       playerId,
       minutesPlayed: { gt: 0 },
-      match: { status: 'FINISHED' },
+      match: {
+        status: 'FINISHED',
+        ...(currentSeasonOnly ? { season: { isCurrent: true } } : {}),
+      },
     },
     include: {
       fieldStats: true,
@@ -153,9 +155,10 @@ async function getLastMatchesUncached(
   isGoalkeeper: boolean,
   window: ComparisonWindow = RECENT_MATCHES_WINDOW,
 ): Promise<LastMatchesResponse> {
-  const played = await fetchPlayed(playerId, window === 'season' ? undefined : window * 2);
-  const recent = window === 'season' ? played : played.slice(0, window);
-  const previous = window === 'season' ? [] : played.slice(window);
+  const isSeason = window === 'season';
+  const played = await fetchPlayed(playerId, isSeason ? undefined : window * 2, isSeason);
+  const recent = isSeason ? played : played.slice(0, window);
+  const previous = isSeason ? [] : played.slice(window);
 
   const newestDate = recent[0]?.match.kickoffAt;
   const oldestDate = recent[recent.length - 1]?.match.kickoffAt;
@@ -165,14 +168,17 @@ async function getLastMatchesUncached(
           where: {
             playerId,
             role: 'BENCH_UNUSED',
-            match: { status: 'FINISHED', kickoffAt: { gte: oldestDate, lte: newestDate } },
+            match: {
+              status: 'FINISHED',
+              kickoffAt: { gte: oldestDate, lte: newestDate },
+              ...(isSeason ? { season: { isCurrent: true } } : {}),
+            },
           },
           include: { match: { include: { teams: { include: { team: { select: { name: true } } } } } } },
         })
       : [];
 
   const minutes = (list: Mp[]) => list.reduce((a, m) => a + m.minutesPlayed, 0);
-
   let summary: RecentSummary;
   const trends: Record<string, TrendResult> = {};
 
@@ -180,76 +186,32 @@ async function getLastMatchesUncached(
     const recentLines = recent.map(toGkLine);
     const prevLines = previous.map(toGkLine);
     summary = aggregateGoalkeeper(recentLines);
-    trends.saves = computeTrend({
-      recentTotal: sumOrNull(recentLines.map((l) => l.saves)),
-      recentMinutes: minutes(recent),
-      previousTotal: sumOrNull(prevLines.map((l) => l.saves)),
-      previousMinutes: minutes(previous),
-    });
-    trends.goalsConceded = computeTrend({
-      recentTotal: sumOrNull(recentLines.map((l) => l.goalsConceded)),
-      recentMinutes: minutes(recent),
-      previousTotal: sumOrNull(prevLines.map((l) => l.goalsConceded)),
-      previousMinutes: minutes(previous),
-      lowerIsBetter: true,
-    });
+    trends.saves = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.saves)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.saves)), previousMinutes: minutes(previous) });
+    trends.goalsConceded = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.goalsConceded)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.goalsConceded)), previousMinutes: minutes(previous), lowerIsBetter: true });
   } else {
     const recentLines = recent.map(toFieldLine);
     const prevLines = previous.map(toFieldLine);
     summary = aggregateFieldPlayer(recentLines);
-    trends.goalContributions = computeTrend({
-      recentTotal: sumOrNull(recentLines.map((l) => sumOrNull([l.goals, l.assists]))),
-      recentMinutes: minutes(recent),
-      previousTotal: sumOrNull(prevLines.map((l) => sumOrNull([l.goals, l.assists]))),
-      previousMinutes: minutes(previous),
-    });
-    trends.keyPasses = computeTrend({
-      recentTotal: sumOrNull(recentLines.map((l) => l.keyPasses)),
-      recentMinutes: minutes(recent),
-      previousTotal: sumOrNull(prevLines.map((l) => l.keyPasses)),
-      previousMinutes: minutes(previous),
-    });
-    trends.tackles = computeTrend({
-      recentTotal: sumOrNull(recentLines.map((l) => l.tacklesAttempted)),
-      recentMinutes: minutes(recent),
-      previousTotal: sumOrNull(prevLines.map((l) => l.tacklesAttempted)),
-      previousMinutes: minutes(previous),
-    });
-    trends.foulsCommitted = computeTrend({
-      recentTotal: sumOrNull(recentLines.map((l) => l.foulsCommitted)),
-      recentMinutes: minutes(recent),
-      previousTotal: sumOrNull(prevLines.map((l) => l.foulsCommitted)),
-      previousMinutes: minutes(previous),
-      lowerIsBetter: true,
-    });
+    trends.goalContributions = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => sumOrNull([l.goals, l.assists]))), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => sumOrNull([l.goals, l.assists]))), previousMinutes: minutes(previous) });
+    trends.keyPasses = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.keyPasses)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.keyPasses)), previousMinutes: minutes(previous) });
+    trends.tackles = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.tacklesAttempted)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.tacklesAttempted)), previousMinutes: minutes(previous) });
+    trends.foulsCommitted = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.foulsCommitted)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.foulsCommitted)), previousMinutes: minutes(previous), lowerIsBetter: true });
   }
 
   return {
     isGoalkeeper,
     matches: recent.map(toDetail),
-    benchOnly: bench.map((b) => ({
-      matchId: b.matchId,
-      date: b.match.kickoffAt.toISOString(),
-      rival: b.match.teams.find((t) => t.teamId !== b.teamId)?.team.name ?? '',
-    })),
+    benchOnly: bench.map((b) => ({ matchId: b.matchId, date: b.match.kickoffAt.toISOString(), rival: b.match.teams.find((t) => t.teamId !== b.teamId)?.team.name ?? '' })),
     summary,
     trends,
   };
 }
 
-const getCachedLastMatches = unstable_cache(
-  getLastMatchesUncached,
-  ['player-last-matches'],
-  {
-    revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
-    tags: [FOOTBALL_DATA_CACHE_TAG],
-  },
-);
+const getCachedLastMatches = unstable_cache(getLastMatchesUncached, ['player-last-matches'], {
+  revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
+  tags: [FOOTBALL_DATA_CACHE_TAG],
+});
 
-export async function getLastMatches(
-  playerId: number,
-  isGoalkeeper: boolean,
-  window: ComparisonWindow = RECENT_MATCHES_WINDOW,
-): Promise<LastMatchesResponse> {
+export async function getLastMatches(playerId: number, isGoalkeeper: boolean, window: ComparisonWindow = RECENT_MATCHES_WINDOW): Promise<LastMatchesResponse> {
   return getCachedLastMatches(playerId, isGoalkeeper, window);
 }
