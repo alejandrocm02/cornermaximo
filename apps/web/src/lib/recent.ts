@@ -31,6 +31,9 @@ export interface RecentMatchDetail {
   rating: number | null;
   goals: number | null;
   assists: number | null;
+  tackles: number | null;
+  foulsCommitted: number | null;
+  foulsDrawn: number | null;
   yellowCards: number | null;
   redCards: number | null;
   saves: number | null;
@@ -90,6 +93,9 @@ function toDetail(mp: Mp): RecentMatchDetail {
     rating: mp.rating,
     goals: mp.fieldStats?.goals ?? null,
     assists: mp.fieldStats?.assists ?? null,
+    tackles: mp.fieldStats?.tacklesAttempted ?? null,
+    foulsCommitted: mp.fieldStats?.foulsCommitted ?? null,
+    foulsDrawn: mp.fieldStats?.foulsDrawn ?? null,
     yellowCards: mp.fieldStats?.yellowCards ?? null,
     redCards: mp.fieldStats?.redCards ?? null,
     saves: mp.gkStats?.saves ?? null,
@@ -112,6 +118,7 @@ function toFieldLine(mp: Mp): PlayerMatchLine {
     keyPasses: s?.keyPasses ?? null,
     foulsCommitted: s?.foulsCommitted ?? null,
     foulsDrawn: s?.foulsDrawn ?? null,
+    tacklesAttempted: s?.tacklesAttempted ?? null,
     tacklesWon: s?.tacklesWon ?? null,
     interceptions: s?.interceptions ?? null,
     recoveries: s?.recoveries ?? null,
@@ -201,6 +208,19 @@ async function getLastMatchesUncached(
       recentMinutes: minutes(recent),
       previousTotal: sumOrNull(prevLines.map((l) => l.keyPasses)),
       previousMinutes: minutes(previous),
+    });
+    trends.tackles = computeTrend({
+      recentTotal: sumOrNull(recentLines.map((l) => l.tacklesAttempted)),
+      recentMinutes: minutes(recent),
+      previousTotal: sumOrNull(prevLines.map((l) => l.tacklesAttempted)),
+      previousMinutes: minutes(previous),
+    });
+    trends.foulsCommitted = computeTrend({
+      recentTotal: sumOrNull(recentLines.map((l) => l.foulsCommitted)),
+      recentMinutes: minutes(recent),
+      previousTotal: sumOrNull(prevLines.map((l) => l.foulsCommitted)),
+      previousMinutes: minutes(previous),
+      lowerIsBetter: true,
     });
   }
 
