@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { MatchDetail, MatchDetailPlayer } from '@/lib/matches';
 
 type TeamSide = 'home' | 'away';
+type PositionGroup = 'GK' | 'DF' | 'MF' | 'FW';
 
 type TeamAggregate = {
   shots: number | null;
@@ -42,39 +43,82 @@ function bestPlayer(players: MatchDetailPlayer[]): MatchDetailPlayer | null {
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] ?? null;
 }
 
-function groupPosition(position: string | null): 'GK' | 'DF' | 'MF' | 'FW' {
-  const value = position?.toUpperCase() ?? '';
-  if (/GOAL|KEEP|PORT|GK/.test(value)) return 'GK';
-  if (/BACK|DEF|CENTRE-BACK|FULL-BACK|DF/.test(value)) return 'DF';
-  if (/MID|WING|MF/.test(value)) return 'MF';
-  return 'FW';
+function groupPosition(player: MatchDetailPlayer): PositionGroup {
+  const value = player.positionPlayed?.trim().toUpperCase() ?? '';
+
+  if (
+    value === 'G' || value === 'GK' ||
+    /GOALKEEPER|GOAL KEEPER|KEEPER|PORTERO/.test(value) ||
+    player.goalkeeperStats != null
+  ) return 'GK';
+
+  if (
+    value === 'D' || value === 'DF' ||
+    /DEFENDER|DEFENCE|DEFENSE|CENTRE[- ]?BACK|CENTER[- ]?BACK|FULL[- ]?BACK|LEFT[- ]?BACK|RIGHT[- ]?BACK|BACK/.test(value)
+  ) return 'DF';
+
+  if (
+    value === 'M' || value === 'MF' ||
+    /MIDFIELDER|MIDFIELD|CENTRAL MID|DEFENSIVE MID|ATTACKING MID|WINGER|WING/.test(value)
+  ) return 'MF';
+
+  if (
+    value === 'F' || value === 'FW' || value === 'A' ||
+    /FORWARD|ATTACKER|STRIKER|CENTRE[- ]?FORWARD|CENTER[- ]?FORWARD/.test(value)
+  ) return 'FW';
+
+  return 'MF';
 }
+
+const POSITION_LABEL: Record<PositionGroup, string> = {
+  GK: 'Portero',
+  DF: 'Defensa',
+  MF: 'Centrocampo',
+  FW: 'Ataque',
+};
 
 function PitchLineup({ title, players }: { title: string; players: MatchDetailPlayer[] }) {
   const starters = players.filter((player) => player.role === 'STARTER').slice(0, 11);
-  const groups = {
-    GK: starters.filter((player) => groupPosition(player.positionPlayed) === 'GK'),
-    DF: starters.filter((player) => groupPosition(player.positionPlayed) === 'DF'),
-    MF: starters.filter((player) => groupPosition(player.positionPlayed) === 'MF'),
-    FW: starters.filter((player) => groupPosition(player.positionPlayed) === 'FW'),
+  const groups: Record<PositionGroup, MatchDetailPlayer[]> = {
+    GK: starters.filter((player) => groupPosition(player) === 'GK'),
+    DF: starters.filter((player) => groupPosition(player) === 'DF'),
+    MF: starters.filter((player) => groupPosition(player) === 'MF'),
+    FW: starters.filter((player) => groupPosition(player) === 'FW'),
   };
+  const formation = [groups.DF.length, groups.MF.length, groups.FW.length]
+    .filter((count) => count > 0)
+    .join('-');
 
   return (
     <article>
-      <h3 className="mb-2 text-center font-display text-sm font-semibold text-white">{title}</h3>
-      <div className="relative min-h-[390px] overflow-hidden rounded-2xl border border-pitch-accent/30 bg-[linear-gradient(180deg,rgba(48,229,157,0.14),rgba(8,45,33,0.6))] p-4">
+      <div className="mb-2 flex items-center justify-center gap-2">
+        <h3 className="text-center font-display text-sm font-semibold text-white">{title}</h3>
+        {formation && <span className="fs-chip text-[9px]">{formation}</span>}
+      </div>
+      <div className="relative min-h-[470px] overflow-hidden rounded-2xl border border-pitch-accent/30 bg-[linear-gradient(180deg,rgba(48,229,157,0.16),rgba(8,45,33,0.72))] px-2 py-4 sm:min-h-[520px] sm:px-4">
         <div aria-hidden="true" className="absolute inset-4 rounded-xl border border-white/20" />
         <div aria-hidden="true" className="absolute inset-x-4 top-1/2 border-t border-white/20" />
         <div aria-hidden="true" className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" />
-        <div className="relative z-10 flex min-h-[356px] flex-col justify-between py-2">
+        <div aria-hidden="true" className="absolute left-1/2 top-4 h-14 w-36 -translate-x-1/2 border-x border-b border-white/20 sm:h-16 sm:w-44" />
+        <div aria-hidden="true" className="absolute bottom-4 left-1/2 h-14 w-36 -translate-x-1/2 border-x border-t border-white/20 sm:h-16 sm:w-44" />
+
+        <div className="relative z-10 grid min-h-[438px] grid-rows-4 items-center py-3 sm:min-h-[488px]">
           {(['FW', 'MF', 'DF', 'GK'] as const).map((group) => (
-            <div key={group} className="flex min-h-16 items-center justify-center gap-2">
+            <div key={group} className="relative flex min-h-20 items-center justify-evenly gap-1 px-1 sm:gap-3 sm:px-4">
+              <span className="pointer-events-none absolute left-1 top-0 text-[8px] font-semibold uppercase tracking-[0.16em] text-white/30 sm:left-3 sm:text-[9px]">
+                {POSITION_LABEL[group]}
+              </span>
               {groups[group].map((player) => (
-                <Link key={player.id} href={`/jugadores/${player.slug}`} className="flex w-20 flex-col items-center text-center text-[10px] text-white hover:text-pitch-accent">
-                  <span className="grid h-9 w-9 place-items-center rounded-full border border-white/30 bg-pitch-bg/90 font-bold shadow-lg">
+                <Link
+                  key={player.id}
+                  href={`/jugadores/${player.slug}`}
+                  title={`${player.name}${player.positionPlayed ? ` · ${player.positionPlayed}` : ''}`}
+                  className="flex min-w-0 max-w-24 flex-1 flex-col items-center text-center text-[9px] text-white transition hover:-translate-y-0.5 hover:text-pitch-accent sm:max-w-28 sm:text-[10px]"
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/35 bg-pitch-bg/95 font-bold shadow-lg sm:h-10 sm:w-10">
                     {player.shirtNumber ?? '·'}
                   </span>
-                  <span className="mt-1 line-clamp-2 leading-tight">{player.name}</span>
+                  <span className="mt-1 line-clamp-2 min-h-[2.2em] max-w-full leading-tight">{player.name}</span>
                 </Link>
               ))}
             </div>
@@ -83,7 +127,7 @@ function PitchLineup({ title, players }: { title: string; players: MatchDetailPl
       </div>
       {starters.length > 0 && (
         <p className="mt-2 text-center text-2xs text-pitch-muted">
-          Distribución aproximada por la posición registrada en el acta; no representa coordenadas tácticas oficiales.
+          Distribución por líneas según la posición registrada por el proveedor. La ubicación lateral dentro de cada línea es orientativa.
         </p>
       )}
     </article>
