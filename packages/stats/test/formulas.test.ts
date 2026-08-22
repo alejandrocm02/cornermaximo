@@ -59,6 +59,7 @@ const line = (overrides: Partial<PlayerMatchLine> & { matchId: number }): Player
   keyPasses: null,
   foulsCommitted: null,
   foulsDrawn: null,
+  tacklesAttempted: null,
   tacklesWon: null,
   interceptions: null,
   recoveries: null,

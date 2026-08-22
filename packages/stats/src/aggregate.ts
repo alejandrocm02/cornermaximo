@@ -18,6 +18,9 @@ export interface PlayerMatchLine {
   keyPasses: number | null;
   foulsCommitted: number | null;
   foulsDrawn: number | null;
+  /** API-Football `tackles.total`: entradas registradas para el jugador. */
+  tacklesAttempted: number | null;
+  /** Se conserva para proveedores que sí distingan entradas ganadas. API-Football no lo hace en fixtures/players. */
   tacklesWon: number | null;
   interceptions: number | null;
   recoveries: number | null;
@@ -105,6 +108,7 @@ export function aggregateFieldPlayer(lines: PlayerMatchLine[]): RecentSummary {
     keyPasses: t('keyPasses'),
     foulsCommitted: t('foulsCommitted'),
     foulsDrawn: t('foulsDrawn'),
+    tackles: t('tacklesAttempted'),
     tacklesWon: t('tacklesWon'),
     interceptions: t('interceptions'),
     recoveries: t('recoveries'),
