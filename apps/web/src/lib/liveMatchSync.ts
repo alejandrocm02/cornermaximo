@@ -12,6 +12,7 @@ const CORE_RUN_LIMIT = 8;
 const DETAIL_RUN_LIMIT = 8;
 const SCOREBOARD_RUN_LIMIT = 24;
 const MAX_TERMINAL_PROBES = 8;
+const DEFAULT_DAILY_LIMIT = 5_000;
 
 interface RawFixtureEvent {
   time: { elapsed: number | null; extra: number | null };
@@ -50,6 +51,7 @@ export interface LiveCoreSnapshot {
 }
 
 export interface LiveScoreboardResult {
+  /** Partidos rastreados por CornerMaximo que están realmente en directo. */
   live: number;
   updated: number;
   terminalProbes: number;
@@ -83,7 +85,12 @@ function mapEventType(type: string, detail: string | null): EventType | null {
 async function createClient(providerDbId: number, runLimit: number): Promise<ApiFootballClient> {
   const apiKey = process.env.API_FOOTBALL_KEY;
   if (!apiKey) throw new Error('Falta API_FOOTBALL_KEY');
-  const dailyLimit = Number(process.env.API_FOOTBALL_DAILY_LIMIT ?? 7_500);
+  const configured = Number(process.env.API_FOOTBALL_DAILY_LIMIT ?? DEFAULT_DAILY_LIMIT);
+  // El límite efectivo nunca puede superar el plan contratado por defecto.
+  // Si se configura un valor menor, se respeta para dejar más margen de seguridad.
+  const dailyLimit = Number.isFinite(configured)
+    ? Math.min(Math.max(1, configured), DEFAULT_DAILY_LIMIT)
+    : DEFAULT_DAILY_LIMIT;
   const budget = new PrismaBudgetGuard(prisma, providerDbId, dailyLimit, runLimit);
   return new ApiFootballClient({
     apiKey,
@@ -124,6 +131,8 @@ export async function syncLiveScoreboard(): Promise<LiveScoreboardResult> {
   const provider = await prisma.dataProvider.findUnique({ where: { name: 'api-football' } });
   if (provider == null) throw new Error('Proveedor api-football no inicializado');
 
+  // Una única llamada trae todos los partidos live del proveedor. Después se
+  // cruzan con nuestra BD para actualizar SOLO competiciones/partidos rastreados.
   const client = await createClient(provider.id, SCOREBOARD_RUN_LIMIT);
   const liveRows = await client.get<RawFixtureStatus>('/fixtures', { live: 'all' });
   const liveExternalIds = new Set(liveRows.map((row) => String(row.fixture.id)));
@@ -171,7 +180,7 @@ export async function syncLiveScoreboard(): Promise<LiveScoreboardResult> {
   }
 
   return {
-    live: liveRows.length,
+    live: knownMatches.length,
     updated,
     terminalProbes,
     refreshedAt: new Date().toISOString(),
@@ -185,6 +194,8 @@ export async function syncLiveMatchCore(matchId: number): Promise<LiveCoreSnapsh
   });
   if (match == null) return null;
 
+  // Este endpoint se reserva para eventos/minuto del partido. El marcador y el
+  // estado general ya se actualizan mediante el scoreboard global compartido.
   const client = await createClient(match.providerId, CORE_RUN_LIMIT);
   const [fixtureRows, rawEvents] = await Promise.all([
     client.get<RawFixtureStatus>('/fixtures', { id: match.externalId }),
