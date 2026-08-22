@@ -41,9 +41,9 @@ describe('aggregateFieldPlayer defensive discipline metrics', () => {
       { ...baseLine, tacklesAttempted: null, foulsCommitted: null, foulsDrawn: null },
     ]);
 
-    expect(summary.metrics.tackles.total).toBeNull();
-    expect(summary.metrics.foulsCommitted.total).toBeNull();
-    expect(summary.metrics.foulsDrawn.total).toBeNull();
-    expect(summary.metrics.tacklesWon.total).toBeNull();
+    expect(summary.metrics.tackles!.total).toBeNull();
+    expect(summary.metrics.foulsCommitted!.total).toBeNull();
+    expect(summary.metrics.foulsDrawn!.total).toBeNull();
+    expect(summary.metrics.tacklesWon!.total).toBeNull();
   });
 });
