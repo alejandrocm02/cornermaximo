@@ -1,3 +1,4 @@
+import { LiveMatchTicker } from '@/components/LiveMatchTicker';
 import { MatchAdvancedOverview } from '@/components/MatchAdvancedOverview';
 import { getMatchDetail } from '@/lib/matches';
 
@@ -20,6 +21,11 @@ export default async function MatchDetailLayout({
 
   return (
     <div className="space-y-10">
+      {match != null && (
+        <div className="flex justify-end">
+          <LiveMatchTicker matchId={match.id} initialStatus={match.status} kickoffAt={match.kickoffAt} />
+        </div>
+      )}
       {children}
       {match != null && <MatchAdvancedOverview match={match} />}
     </div>
