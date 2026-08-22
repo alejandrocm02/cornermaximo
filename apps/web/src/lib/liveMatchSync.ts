@@ -10,6 +10,8 @@ import { PrismaBudgetGuard, syncMatchStats } from '@cornermaximo/sync';
 
 const CORE_RUN_LIMIT = 8;
 const DETAIL_RUN_LIMIT = 8;
+const SCOREBOARD_RUN_LIMIT = 24;
+const MAX_TERMINAL_PROBES = 8;
 
 interface RawFixtureEvent {
   time: { elapsed: number | null; extra: number | null };
@@ -44,6 +46,13 @@ export interface LiveCoreSnapshot {
   awayGoals: number | null;
   eventCount: number;
   terminal: boolean;
+  refreshedAt: string;
+}
+
+export interface LiveScoreboardResult {
+  live: number;
+  updated: number;
+  terminalProbes: number;
   refreshedAt: string;
 }
 
@@ -87,14 +96,92 @@ async function createClient(providerDbId: number, runLimit: number): Promise<Api
   });
 }
 
+async function persistFixture(matchId: number, rawFixture: RawFixtureStatus): Promise<void> {
+  const fixture = mapFixture(rawFixture);
+  await prisma.$transaction([
+    prisma.match.update({
+      where: { id: matchId },
+      data: {
+        status: fixture.status,
+        kickoffAt: new Date(fixture.kickoffAt),
+        round: fixture.round,
+        hasExtraTime: fixture.hasExtraTime,
+        hasPenalties: fixture.hasPenalties,
+      },
+    }),
+    prisma.matchTeam.update({
+      where: { matchId_isHome: { matchId, isHome: true } },
+      data: { goals: fixture.homeGoals, penaltyGoals: fixture.homePenaltyGoals },
+    }),
+    prisma.matchTeam.update({
+      where: { matchId_isHome: { matchId, isHome: false } },
+      data: { goals: fixture.awayGoals, penaltyGoals: fixture.awayPenaltyGoals },
+    }),
+  ]);
+}
+
+export async function syncLiveScoreboard(): Promise<LiveScoreboardResult> {
+  const provider = await prisma.dataProvider.findUnique({ where: { name: 'api-football' } });
+  if (provider == null) throw new Error('Proveedor api-football no inicializado');
+
+  const client = await createClient(provider.id, SCOREBOARD_RUN_LIMIT);
+  const liveRows = await client.get<RawFixtureStatus>('/fixtures', { live: 'all' });
+  const liveExternalIds = new Set(liveRows.map((row) => String(row.fixture.id)));
+
+  const knownMatches =
+    liveRows.length === 0
+      ? []
+      : await prisma.match.findMany({
+          where: { providerId: provider.id, externalId: { in: [...liveExternalIds] } },
+          select: { id: true, externalId: true },
+        });
+  const matchIdByExternal = new Map(knownMatches.map((match) => [match.externalId, match.id]));
+
+  let updated = 0;
+  for (const rawFixture of liveRows) {
+    const matchId = matchIdByExternal.get(String(rawFixture.fixture.id));
+    if (matchId == null) continue;
+    await persistFixture(matchId, rawFixture);
+    updated++;
+  }
+
+  // Un partido que acaba deja de aparecer en `live=all`. Sondeamos solo los
+  // encuentros que nuestra BD todavía considera LIVE y que ya no están en la
+  // respuesta para capturar FT/AET/PEN sin esperar al sync general.
+  const staleLive = await prisma.match.findMany({
+    where: {
+      providerId: provider.id,
+      status: 'LIVE',
+      externalId: { notIn: [...liveExternalIds] },
+      kickoffAt: { gte: new Date(Date.now() - 5 * 60 * 60 * 1000) },
+    },
+    select: { id: true, externalId: true },
+    orderBy: { kickoffAt: 'asc' },
+    take: MAX_TERMINAL_PROBES,
+  });
+
+  let terminalProbes = 0;
+  for (const match of staleLive) {
+    const rows = await client.get<RawFixtureStatus>('/fixtures', { id: match.externalId });
+    const rawFixture = rows[0];
+    if (rawFixture == null) continue;
+    await persistFixture(match.id, rawFixture);
+    terminalProbes++;
+    updated++;
+  }
+
+  return {
+    live: liveRows.length,
+    updated,
+    terminalProbes,
+    refreshedAt: new Date().toISOString(),
+  };
+}
+
 export async function syncLiveMatchCore(matchId: number): Promise<LiveCoreSnapshot | null> {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
-    include: {
-      teams: {
-        include: { team: { select: { externalId: true } } },
-      },
-    },
+    select: { id: true, externalId: true, providerId: true },
   });
   if (match == null) return null;
 
@@ -107,9 +194,6 @@ export async function syncLiveMatchCore(matchId: number): Promise<LiveCoreSnapsh
   if (rawFixture == null) return null;
 
   const fixture = mapFixture(rawFixture);
-  const home = match.teams.find((entry) => entry.isHome);
-  const away = match.teams.find((entry) => !entry.isHome);
-
   const externalPlayerIds = [
     ...new Set(
       rawEvents
@@ -146,31 +230,8 @@ export async function syncLiveMatchCore(matchId: number): Promise<LiveCoreSnapsh
     ];
   });
 
+  await persistFixture(matchId, rawFixture);
   await prisma.$transaction(async (tx) => {
-    await tx.match.update({
-      where: { id: matchId },
-      data: {
-        status: fixture.status,
-        kickoffAt: new Date(fixture.kickoffAt),
-        round: fixture.round,
-        hasExtraTime: fixture.hasExtraTime,
-        hasPenalties: fixture.hasPenalties,
-      },
-    });
-
-    if (home != null) {
-      await tx.matchTeam.update({
-        where: { matchId_isHome: { matchId, isHome: true } },
-        data: { goals: fixture.homeGoals, penaltyGoals: fixture.homePenaltyGoals },
-      });
-    }
-    if (away != null) {
-      await tx.matchTeam.update({
-        where: { matchId_isHome: { matchId, isHome: false } },
-        data: { goals: fixture.awayGoals, penaltyGoals: fixture.awayPenaltyGoals },
-      });
-    }
-
     await tx.matchEvent.deleteMany({ where: { matchId } });
     if (events.length > 0) await tx.matchEvent.createMany({ data: events });
   });
