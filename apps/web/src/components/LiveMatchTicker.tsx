@@ -49,7 +49,7 @@ export function LiveMatchTicker({
 
   const refreshDetail = useCallback(async () => {
     try {
-      const response = await fetch(`/api/live/matches/${matchId}/detail`, { cache: 'no-store' });
+      const response = await fetch(`/api/live/matches/${matchId}/detail`);
       if (!response.ok) return;
       setConnected(true);
       router.refresh();
@@ -60,7 +60,7 @@ export function LiveMatchTicker({
 
   const refreshCore = useCallback(async () => {
     try {
-      const response = await fetch(`/api/live/matches/${matchId}/core`, { cache: 'no-store' });
+      const response = await fetch(`/api/live/matches/${matchId}/core`);
       if (!response.ok) {
         setConnected(false);
         return;
