@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CMMark } from './CMBrand';
 
 const PRIMARY = [
@@ -39,7 +40,9 @@ export function MainNav() {
     if (!open) return;
 
     const previousOverflow = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
     document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
@@ -48,9 +51,55 @@ export function MainNav() {
     window.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscroll;
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [open]);
+
+  const mobileMenu = open && typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          id="cm-menu"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menú de navegación"
+          className="fixed inset-x-0 bottom-0 top-16 z-[100] overflow-y-auto overscroll-contain border-t border-pitch-border bg-pitch-bg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 xl:hidden"
+        >
+          <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3">
+            {[...PRIMARY, ...MORE].map(([href, label]) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setOpen(false)}
+                aria-current={active(pathname, href) ? 'page' : undefined}
+                className={`flex min-h-12 items-center rounded-xl border px-4 text-sm transition ${
+                  active(pathname, href)
+                    ? 'border-pitch-accent/60 bg-pitch-accent/10 font-semibold text-white'
+                    : 'border-pitch-border bg-pitch-card text-pitch-subtle hover:border-pitch-accent/40 hover:text-white'
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+            <Link
+              href="/mi-corner"
+              onClick={() => setOpen(false)}
+              className="flex min-h-12 items-center rounded-xl border border-pitch-accent/50 bg-pitch-accent/10 px-4 text-sm font-semibold text-white"
+            >
+              Mi Corner
+            </Link>
+            <Link
+              href="/cuenta"
+              onClick={() => setOpen(false)}
+              className="flex min-h-12 items-center rounded-xl border border-pitch-border bg-pitch-card px-4 text-sm text-pitch-subtle hover:border-pitch-accent/40 hover:text-white"
+            >
+              Perfil
+            </Link>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
 
   return (
     <nav
@@ -98,44 +147,7 @@ export function MainNav() {
         <span aria-hidden="true">{open ? '×' : '☰'}</span>
       </button>
 
-      {open && (
-        <div
-          id="cm-menu"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Menú de navegación"
-          className="fixed inset-x-0 bottom-0 top-16 z-[60] overflow-y-auto border-t border-pitch-border bg-pitch-bg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 xl:hidden"
-        >
-          <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3">
-            {[...PRIMARY, ...MORE].map(([href, label]) => (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active(pathname, href) ? 'page' : undefined}
-                className={`flex min-h-12 items-center rounded-xl border px-4 text-sm transition ${
-                  active(pathname, href)
-                    ? 'border-pitch-accent/60 bg-pitch-accent/10 font-semibold text-white'
-                    : 'border-pitch-border bg-pitch-card text-pitch-subtle hover:border-pitch-accent/40 hover:text-white'
-                }`}
-              >
-                {label}
-              </Link>
-            ))}
-            <Link
-              href="/mi-corner"
-              className="flex min-h-12 items-center rounded-xl border border-pitch-accent/50 bg-pitch-accent/10 px-4 text-sm font-semibold text-white"
-            >
-              Mi Corner
-            </Link>
-            <Link
-              href="/cuenta"
-              className="flex min-h-12 items-center rounded-xl border border-pitch-border bg-pitch-card px-4 text-sm text-pitch-subtle hover:border-pitch-accent/40 hover:text-white"
-            >
-              Perfil
-            </Link>
-          </div>
-        </div>
-      )}
+      {mobileMenu}
     </nav>
   );
 }
