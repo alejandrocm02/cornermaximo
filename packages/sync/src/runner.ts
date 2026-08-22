@@ -38,11 +38,6 @@ import {
 
 const STALE_HOURS = 20;
 const VERIFY_AFTER_HOURS = 24;
-const API_FOOTBALL_CONTRACT_DAILY_LIMIT = 5_000;
-const API_FOOTBALL_MAX_USAGE_RATIO = 0.75;
-const API_FOOTBALL_SAFE_DAILY_LIMIT = Math.floor(
-  API_FOOTBALL_CONTRACT_DAILY_LIMIT * API_FOOTBALL_MAX_USAGE_RATIO,
-);
 /** Margen frente al límite de 60s de Vercel Hobby: paramos limpiamente antes (no depende del plan de API-Football). */
 // Leave enough headroom for the current unit, response serialization and the
 // platform boundary. Starting new work at 45s caused occasional 60s function
@@ -57,7 +52,7 @@ class TimeBudgetExceededError extends Error {
 }
 
 export interface SyncRunOptions {
-  /** Nº máximo de requests a gastar en esta ejecución. */
+  /** Nº máximo de requests a gastar en esta ejecución (plan Pro: hasta 7 500/día). */
   maxRequests?: number;
 }
 
@@ -104,10 +99,7 @@ function hoursAgo(date: Date | null): number {
 }
 
 export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): Promise<SyncRunResult> {
-  const configured = Number(process.env.API_FOOTBALL_DAILY_LIMIT ?? API_FOOTBALL_SAFE_DAILY_LIMIT);
-  const dailyLimit = Number.isFinite(configured)
-    ? Math.min(Math.max(1, configured), API_FOOTBALL_SAFE_DAILY_LIMIT)
-    : API_FOOTBALL_SAFE_DAILY_LIMIT;
+  const dailyLimit = Number(process.env.API_FOOTBALL_DAILY_LIMIT ?? 7_500);
   const maxRequests = options.maxRequests ?? 200;
 
   const providerRow = await db.dataProvider.upsert({
@@ -120,156 +112,259 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
   const provider = createApiFootballProvider(budget);
   const executed: string[] = [];
   const startedAtMs = Date.now();
+
   const failed: string[] = [];
   const skipped: string[] = [];
 
-  const ensureTime = () => {
-    if (Date.now() - startedAtMs >= TIME_BUDGET_MS) throw new TimeBudgetExceededError();
-  };
+  /**
+   * Nº de fallos consecutivos a partir del cual se aparca una unidad.
+   * Un elemento roto de forma permanente (p.ej. un partido cuyas estadísticas
+   * el proveedor nunca entrega) no debe consumir presupuesto en cada tanda.
+   */
+  const MAX_ATTEMPTS = 5;
+  /** Tras este tiempo se vuelve a intentar una unidad aparcada. */
+  const RETRY_AFTER_HOURS = 24;
 
-  const runUnit = async (label: string, task: () => Promise<void>) => {
-    ensureTime();
+  /** ¿Esta unidad ha fallado tantas veces seguidas que conviene aparcarla? */
+  async function isQuarantined(entity: SyncEntity, entityExternalId: string | null): Promise<boolean> {
+    const last = await db.syncJob.findFirst({
+      where: { entity, entityExternalId },
+      orderBy: { finishedAt: 'desc' },
+      select: { status: true, attempts: true, finishedAt: true },
+    });
+    if (last == null || last.status !== 'FAILED') return false;
+    if (last.attempts < MAX_ATTEMPTS) return false;
+    return hoursAgo(last.finishedAt) < RETRY_AFTER_HOURS;
+  }
+
+  /**
+   * Ejecuta una unidad de trabajo con registro en SyncJob/SyncLog.
+   *
+   * Los errores de una unidad NO abortan la ejecución: se registran y se pasa
+   * a la siguiente. Antes cualquier fallo se propagaba hasta arriba, de modo
+   * que un único elemento problemático dejaba congelada toda la cola —y con
+   * ella los resultados y las estadísticas— en cada tanda horaria.
+   *
+   * Solo el agotamiento de presupuesto (requests o tiempo) detiene la
+   * ejecución, porque son condiciones globales y no fallos de la unidad.
+   */
+  async function unit(
+    entity: SyncEntity,
+    entityExternalId: string | null,
+    label: string,
+    priority: number,
+    fn: () => Promise<unknown>,
+  ): Promise<void> {
+    if (Date.now() - startedAtMs > TIME_BUDGET_MS) {
+      throw new TimeBudgetExceededError();
+    }
+    if (await isQuarantined(entity, entityExternalId)) {
+      skipped.push(label);
+      return;
+    }
+    const job = await db.syncJob.create({
+      data: { providerId: providerRow.id, entity, entityExternalId, status: 'RUNNING', priority, startedAt: new Date() },
+    });
     try {
-      await task();
+      await fn();
+      await db.syncJob.update({
+        where: { id: job.id },
+        data: { status: 'SUCCESS', finishedAt: new Date() },
+      });
       executed.push(label);
-    } catch (error) {
-      if (error instanceof BudgetExceededError || error instanceof TimeBudgetExceededError) throw error;
+    } catch (err) {
+      const isBudget = err instanceof BudgetExceededError;
+      const isTime = err instanceof TimeBudgetExceededError;
+
+      // Fallos anteriores de esta misma unidad, para el contador de intentos.
+      const previousAttempts =
+        isBudget || isTime
+          ? 0
+          : (
+              await db.syncJob.findFirst({
+                where: { entity, entityExternalId, status: 'FAILED' },
+                orderBy: { finishedAt: 'desc' },
+                select: { attempts: true },
+              })
+            )?.attempts ?? 0;
+
+      await db.syncJob.update({
+        where: { id: job.id },
+        data: {
+          // Presupuesto agotado => PENDING, se reintenta en la próxima tanda.
+          status: isBudget || isTime ? 'PENDING' : 'FAILED',
+          finishedAt: new Date(),
+          error: String(err instanceof Error ? err.message : err).slice(0, 1000),
+          attempts: isBudget || isTime ? 0 : previousAttempts + 1,
+        },
+      });
+
+      // Presupuesto y tiempo son globales: sí detienen la ejecución.
+      if (isBudget || isTime) throw err;
+
+      await db.syncLog.create({
+        data: { syncJobId: job.id, level: 'error', message: `${label}: ${String(err)}`.slice(0, 900) },
+      });
       failed.push(label);
     }
-  };
+  }
 
   try {
-    await runUnit('competitions', async () => {
-      await syncCompetitions(db, provider, providerRow.id);
+    // 1. Competiciones y TODAS sus temporadas rastreadas (0 requests con API-Football)
+    await unit('COMPETITIONS', null, 'competiciones', 1, () =>
+      syncCompetitions(db, provider, providerRow.id),
+    );
+
+    const competitions = await db.competition.findMany({
+      include: { seasons: { include: { _count: { select: { teams: true, matches: true } } } } },
     });
 
-    for (const tracked of TRACKED_COMPETITIONS) {
-      ensureTime();
-      const competition = await db.competition.findFirst({
-        where: { providerId: providerRow.id, externalId: String(tracked.apiFootballId) },
-        include: { seasons: true },
-      });
-      if (competition == null) continue;
+    // Pares (competición, temporada) a procesar: cada competición puede tener varias
+    // temporadas activas a la vez (p.ej. LaLiga 2025-26 y 2026-27).
+    type CompSeason = { comp: (typeof competitions)[number]; season: (typeof competitions)[number]['seasons'][number] };
+    // Solo se mantienen activamente las temporadas rastreadas; las históricas
+    // (p.ej. 2024-25) quedan en la base de datos pero no gastan requests.
+    const compSeasons: CompSeason[] = competitions.flatMap((comp) => {
+      const tracked = TRACKED_COMPETITIONS.find((t) => String(t.apiFootballId) === comp.externalId);
+      return comp.seasons
+        .filter((season) => tracked?.seasons.includes(season.year) ?? false)
+        .map((season) => ({ comp, season }));
+    });
+    /** Clave estable para trackear frescura por (competición, temporada) en SyncJob. */
+    const key = (comp: { externalId: string }, season: { year: number }) => `${comp.externalId}:${season.year}`;
 
-      for (const seasonConfig of tracked.seasons) {
-        ensureTime();
-        const season = competition.seasons.find((entry) => entry.year === seasonConfig.year);
-        if (season == null) continue;
-        const key = `${competition.externalId}:${season.year}`;
-
-        await runUnit(`teams:${key}`, async () => {
-          const last = await lastSuccessAt(db, 'TEAMS', key);
-          if (hoursAgo(last) < STALE_HOURS) return;
-          await syncTeams(db, provider, providerRow.id, competition.id, competition.externalId, season.year);
-        });
-
-        await runUnit(`fixtures:${key}`, async () => {
-          const pending = await db.match.count({
-            where: { seasonId: season.id, status: { in: ['SCHEDULED', 'LIVE'] } },
-          });
-          const last = await lastSuccessAt(db, 'FIXTURES', key);
-          if (pending === 0 && hoursAgo(last) < STALE_HOURS) return;
-          await syncFixtures(db, provider, providerRow.id, season.id, competition.externalId, season.year);
-        });
-
-        const seasonTeams = await db.seasonTeam.findMany({
-          where: { seasonId: season.id },
-          include: { team: true },
-        });
-        for (const seasonTeam of seasonTeams) {
-          ensureTime();
-          await runUnit(`squad:${seasonTeam.team.externalId}`, async () => {
-            const last = await lastSuccessAt(db, 'SQUADS', seasonTeam.team.externalId);
-            if (hoursAgo(last) < STALE_HOURS) return;
-            await syncSquad(db, provider, providerRow.id, seasonTeam.team.id, seasonTeam.team.externalId);
-          });
-        }
-
-        const recentFinished = await db.match.findMany({
-          where: {
-            seasonId: season.id,
-            status: 'FINISHED',
-            matchPlayers: { none: {} },
-          },
-          orderBy: { kickoffAt: 'desc' },
-          take: 10,
-        });
-        for (const match of recentFinished) {
-          ensureTime();
-          await runUnit(`stats:${match.externalId}`, async () => {
-            await syncMatchStats(db, provider, providerRow.id, match.id, match.externalId);
-          });
-        }
-
-        const verifyBefore = new Date(Date.now() - VERIFY_AFTER_HOURS * 3_600_000);
-        const unverified = await db.match.findMany({
-          where: {
-            seasonId: season.id,
-            status: 'FINISHED',
-            kickoffAt: { lte: verifyBefore },
-            statsVerifiedAt: null,
-            matchPlayers: { some: {} },
-          },
-          orderBy: { kickoffAt: 'desc' },
-          take: 5,
-        });
-        for (const match of unverified) {
-          ensureTime();
-          await runUnit(`verify:${match.externalId}`, async () => {
-            await syncMatchStats(db, provider, providerRow.id, match.id, match.externalId);
-            await db.match.update({ where: { id: match.id }, data: { statsVerifiedAt: new Date() } });
-          });
-        }
-
-        await runUnit(`standings:${key}`, async () => {
-          const last = await lastSuccessAt(db, 'STANDINGS', key);
-          if (hoursAgo(last) < STALE_HOURS) return;
-          await syncStandings(db, provider, providerRow.id, season.id, competition.externalId, season.year);
-        });
-
-        await runUnit(`injuries:${key}`, async () => {
-          const last = await lastSuccessAt(db, 'INJURIES', key);
-          if (hoursAgo(last) < STALE_HOURS) return;
-          await syncInjuries(db, provider, providerRow.id, competition.id, season.year);
-        });
+    // 2. Equipos de competición-temporada sin equipos
+    for (const { comp, season } of compSeasons) {
+      if (season._count.teams === 0) {
+        await unit('TEAMS', key(comp, season), `equipos:${comp.slug}:${season.year}`, 1, () =>
+          syncTeams(db, provider, providerRow.id, comp.externalId, season.year),
+        );
       }
     }
 
-    await runUnit('transfers', async () => {
-      await syncTransfers(db, provider, providerRow.id);
-      await cleanupTransferDuplicates(db);
-    });
-
-    await runUnit('news', async () => {
-      await syncNews(db);
-    });
-
-    return {
-      executed,
-      failed,
-      skipped,
-      requestsUsedThisRun: budget.usedThisRun,
-      stopped: 'completed',
-    };
-  } catch (error) {
-    if (error instanceof BudgetExceededError) {
-      return {
-        executed,
-        failed,
-        skipped,
-        requestsUsedThisRun: budget.usedThisRun,
-        stopped: 'budget_exhausted',
-      };
+    // 3. Calendario: competición-temporada sin partidos, o con resultados pendientes y sync antiguo.
+    // Incluye LIVE: si el proceso deja de consultar fixtures durante un partido,
+    // ese estado puede quedar congelado para siempre aunque el encuentro termine.
+    for (const { comp, season } of compSeasons) {
+      const needsBootstrap = season._count.matches === 0;
+      const pendingResults = await db.match.count({
+        where: {
+          seasonId: season.id,
+          status: { in: ['SCHEDULED', 'LIVE'] },
+          kickoffAt: { lt: new Date() },
+        },
+      });
+      // El Mundial 2026 está en juego: refrescamos su calendario más a menudo (2h) que las ligas (6h).
+      const staleHours = comp.slug === 'mundial-2026' ? 2 : 6;
+      const stale = hoursAgo(await lastSuccessAt(db, 'FIXTURES', key(comp, season))) > staleHours;
+      if (needsBootstrap || (pendingResults > 0 && stale)) {
+        await unit('FIXTURES', key(comp, season), `calendario:${comp.slug}:${season.year}`, 2, () =>
+          syncFixtures(db, provider, providerRow.id, comp.externalId, season.year),
+        );
+      }
     }
-    if (error instanceof TimeBudgetExceededError) {
-      return {
-        executed,
-        failed,
-        skipped,
-        requestsUsedThisRun: budget.usedThisRun,
-        stopped: 'time_budget_exhausted',
-      };
+
+    // 3.5 Clasificación inicial: competición-temporada sin ninguna fila aún.
+    // Va ANTES del backfill masivo de estadísticas para no quedar relegada horas.
+    for (const { comp, season } of compSeasons) {
+      const hasStandings = await db.standing.count({ where: { seasonId: season.id } });
+      if (hasStandings === 0) {
+        await unit('STANDINGS', key(comp, season), `clasificacion:${comp.slug}:${season.year}`, 2, () =>
+          syncStandings(db, provider, providerRow.id, comp.externalId, season.year),
+        );
+      }
     }
-    throw error;
+
+    // 4. Plantillas de equipos sin jugadores (bootstrap progresivo, 1 req/equipo)
+    const teamsWithoutPlayers = await db.team.findMany({
+      where: { players: { none: {} }, seasons: { some: {} } },
+      orderBy: { id: 'asc' },
+    });
+    for (const team of teamsWithoutPlayers) {
+      await unit('SQUADS', team.externalId, `plantilla:${team.slug}`, 2, () =>
+        syncSquad(db, provider, providerRow.id, team.id, team.externalId),
+      );
+    }
+
+    // 5. Primera pasada de stats: partidos FINISHED sin jugadores registrados
+    const unsyncedMatches = await db.match.findMany({
+      where: { status: 'FINISHED', matchPlayers: { none: {} } },
+      orderBy: { kickoffAt: 'desc' }, // los más recientes primero: alimentan "últimos 5"
+      take: 80,
+    });
+    for (const match of unsyncedMatches) {
+      await unit('PLAYER_MATCH_STATS', match.externalId, `stats:${match.externalId}`, 3, () =>
+        syncMatchStats(db, provider, providerRow.id, match.id, match.externalId),
+      );
+    }
+
+    // 6. Segunda pasada (correcciones del proveedor) 24h después
+    const toVerify = await db.match.findMany({
+      where: {
+        status: 'FINISHED',
+        statsVerifiedAt: null,
+        matchPlayers: { some: {} },
+        kickoffAt: { lt: new Date(Date.now() - VERIFY_AFTER_HOURS * 3_600_000) },
+      },
+      orderBy: { kickoffAt: 'asc' },
+      take: 40,
+    });
+    for (const match of toVerify) {
+      await unit('MATCH_DETAILS', match.externalId, `verificacion:${match.externalId}`, 4, async () => {
+        await syncMatchStats(db, provider, providerRow.id, match.id, match.externalId);
+        await db.match.update({ where: { id: match.id }, data: { statsVerifiedAt: new Date() } });
+      });
+    }
+
+    // 7. Clasificación (Mundial en juego: cada 2h; ligas: cada STALE_HOURS)
+    for (const { comp, season } of compSeasons) {
+      const standingsStaleHours = comp.slug === 'mundial-2026' ? 2 : STALE_HOURS;
+      if (hoursAgo(await lastSuccessAt(db, 'STANDINGS', key(comp, season))) > standingsStaleHours) {
+        await unit('STANDINGS', key(comp, season), `clasificacion:${comp.slug}:${season.year}`, 5, () =>
+          syncStandings(db, provider, providerRow.id, comp.externalId, season.year),
+        );
+      }
+    }
+
+    // 7.5 Noticias (RSS, sin coste de API): máx. 1 vez cada 50 minutos
+    if (hoursAgo(await lastSuccessAt(db, 'NEWS', null)) > 0.83) {
+      await unit('NEWS', null, 'noticias', 5, () => syncNews(db));
+    }
+
+    // 7.6 Traspasos por club (1 req/club, máx. 1 vez cada 24h)
+    const clubTeams = await db.team.findMany({
+      where: { isNational: false, seasons: { some: {} } },
+      select: { id: true, externalId: true, slug: true },
+      orderBy: { id: 'asc' },
+    });
+    for (const club of clubTeams) {
+      if (hoursAgo(await lastSuccessAt(db, 'TRANSFERS', club.externalId)) > 24) {
+        await unit('TRANSFERS', club.externalId, `traspasos:${club.slug}`, 5, () =>
+          syncTransfers(db, provider, providerRow.id, club.id, club.externalId),
+        );
+      }
+    }
+
+    // 7.7 Limpieza de operaciones duplicadas del proveedor (sin coste de API)
+    await cleanupTransferDuplicates(db);
+
+    // 8. Lesiones (máx. 1 vez cada STALE_HOURS por competición-temporada)
+    for (const { comp, season } of compSeasons) {
+      if (hoursAgo(await lastSuccessAt(db, 'INJURIES', key(comp, season))) > STALE_HOURS) {
+        await unit('INJURIES', key(comp, season), `lesiones:${comp.slug}:${season.year}`, 6, () =>
+          syncInjuries(db, provider, providerRow.id, comp.externalId, season.year),
+        );
+      }
+    }
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return { executed, failed, skipped, requestsUsedThisRun: budget.usedThisRun, stopped: 'budget_exhausted' };
+    }
+    if (err instanceof TimeBudgetExceededError) {
+      return { executed, failed, skipped, requestsUsedThisRun: budget.usedThisRun, stopped: 'time_budget_exhausted' };
+    }
+    throw err;
   }
+
+  return { executed, failed, skipped, requestsUsedThisRun: budget.usedThisRun, stopped: 'completed' };
 }
