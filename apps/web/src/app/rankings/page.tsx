@@ -1,5 +1,12 @@
 import { prisma } from '@cornermaximo/db';
-import { ALL_TRACKED_SEASONS, BIG_FIVE_PREVIOUS_SEASON, seasonsOf, type SeasonFormat } from '@cornermaximo/shared';
+import {
+  ALL_TRACKED_SEASONS,
+  BIG_FIVE_CURRENT_SEASON,
+  currentSeasonOf,
+  seasonsOf,
+  type SeasonFormat,
+} from '@cornermaximo/shared';
+import Image from 'next/image';
 import Link from 'next/link';
 import { JsonLd } from '@/components/JsonLd';
 import { seasonLabel } from '@/lib/football';
@@ -7,197 +14,252 @@ import { rankingRows, type RankingMetric } from '@/lib/leaderboards';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: { absolute: 'Ranking de goleadores, asistencias y estadísticas | CornerMaximo' },
+  title: { absolute: 'Rankings 2026/27: jugadores y estadísticas | CornerMaximo' },
   description:
-    'Rankings de goles, asistencias, pases clave y paradas por liga y temporada, con datos actualizados automáticamente.',
+    'Centro de rankings de CornerMaximo: goles, asistencias, ratings, entradas, faltas, paradas y más, por liga, temporada y posición.',
   alternates: { canonical: '/rankings' },
 };
 
-const METRICS: Array<{ value: RankingMetric; label: string; unit: string }> = [
-  { value: 'goals', label: 'Goles', unit: 'goles' },
-  { value: 'assists', label: 'Asistencias', unit: 'asistencias' },
-  { value: 'keyPasses', label: 'Pases clave', unit: 'pases clave' },
-  { value: 'shotsOnTarget', label: 'Tiros a puerta', unit: 'tiros a puerta' },
-  { value: 'tacklesWon', label: 'Entradas ganadas', unit: 'entradas ganadas' },
-  { value: 'interceptions', label: 'Intercepciones', unit: 'intercepciones' },
-  { value: 'saves', label: 'Paradas (porteros)', unit: 'paradas' },
+type MetricDef = {
+  value: RankingMetric;
+  label: string;
+  short: string;
+  unit: string;
+  group: 'Ataque' | 'Creación' | 'Defensa' | 'Disciplina' | 'Porteros' | 'Rendimiento';
+  mode?: 'average' | 'minutes';
+};
+
+const METRICS: MetricDef[] = [
+  { value: 'goals', label: 'Goles', short: 'GOL', unit: 'goles', group: 'Ataque' },
+  { value: 'assists', label: 'Asistencias', short: 'AST', unit: 'asistencias', group: 'Ataque' },
+  { value: 'shotsOnTarget', label: 'Tiros a puerta', short: 'TAP', unit: 'tiros a puerta', group: 'Ataque' },
+  { value: 'keyPasses', label: 'Pases clave', short: 'PCL', unit: 'pases clave', group: 'Creación' },
+  { value: 'tackles', label: 'Entradas', short: 'ENT', unit: 'entradas', group: 'Defensa' },
+  { value: 'interceptions', label: 'Intercepciones', short: 'INT', unit: 'intercepciones', group: 'Defensa' },
+  { value: 'foulsDrawn', label: 'Faltas recibidas', short: 'FRC', unit: 'faltas recibidas', group: 'Disciplina' },
+  { value: 'foulsCommitted', label: 'Faltas cometidas', short: 'FCO', unit: 'faltas cometidas', group: 'Disciplina' },
+  { value: 'yellowCards', label: 'Tarjetas amarillas', short: 'TA', unit: 'amarillas', group: 'Disciplina' },
+  { value: 'saves', label: 'Paradas', short: 'PAR', unit: 'paradas', group: 'Porteros' },
+  { value: 'cleanSheets', label: 'Porterías a cero', short: 'PAC', unit: 'porterías a cero', group: 'Porteros' },
+  { value: 'rating', label: 'Valoración media', short: 'RAT', unit: 'de valoración', group: 'Rendimiento', mode: 'average' },
+  { value: 'minutes', label: 'Minutos', short: 'MIN', unit: 'minutos', group: 'Rendimiento', mode: 'minutes' },
 ];
 
-function per90(total: number, minutes: number): string {
+const POSITION_OPTIONS = [
+  ['', 'Todas las posiciones'],
+  ['GK', 'Porteros'],
+  ['DF', 'Defensas'],
+  ['MF', 'Centrocampistas'],
+  ['FW', 'Delanteros'],
+] as const;
+
+const POSITION_LABEL: Record<string, string> = { GK: 'POR', DF: 'DEF', MF: 'MED', FW: 'DEL' };
+
+function displayValue(metric: MetricDef, value: number): string {
+  if (metric.mode === 'average') return value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return value.toLocaleString('es-ES', { maximumFractionDigits: 0 });
+}
+
+function secondaryMetric(metric: MetricDef, total: number, minutes: number): string {
+  if (metric.mode === 'average') return `${minutes.toLocaleString('es-ES')} min`;
+  if (metric.mode === 'minutes') return '—';
   if (minutes <= 0) return '—';
-  return ((total / minutes) * 90).toLocaleString('es-ES', { maximumFractionDigits: 2 });
+  return `${((total / minutes) * 90).toLocaleString('es-ES', { maximumFractionDigits: 2 })} /90`;
+}
+
+function PlayerAvatar({ name, photoUrl, size = 'md' }: { name: string; photoUrl: string | null; size?: 'md' | 'lg' }) {
+  const classes = size === 'lg' ? 'h-20 w-20 sm:h-24 sm:w-24' : 'h-10 w-10';
+  return photoUrl != null ? (
+    <Image src={photoUrl} alt="" width={96} height={96} className={`${classes} rounded-full object-cover ring-1 ring-white/15`} />
+  ) : (
+    <span className={`${classes} grid shrink-0 place-items-center rounded-full bg-pitch-elevated font-display font-bold text-pitch-muted ring-1 ring-pitch-border`}>
+      {name.slice(0, 1)}
+    </span>
+  );
 }
 
 export default async function RankingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ metric?: string; league?: string; temporada?: string }>;
+  searchParams: Promise<{ metric?: string; league?: string; temporada?: string; posicion?: string }>;
 }) {
   const sp = await searchParams;
-  const metricDef = METRICS.find((m) => m.value === sp.metric) ?? METRICS[0]!;
-  const league = (sp.league ?? '').slice(0, 50);
+  const metric = METRICS.find((item) => item.value === sp.metric) ?? METRICS[0]!;
+  const league = (sp.league ?? '').slice(0, 50).trim();
+  const position = POSITION_OPTIONS.some(([value]) => value === sp.posicion) ? (sp.posicion ?? '') : '';
 
-  // Las temporadas disponibles dependen de la competición: una liga de año
-  // natural (Eliteserien, MLS, Brasileirão) no comparte calendario con LaLiga.
-  // Sin liga seleccionada se ofrece la unión de todas las rastreadas.
-  const availableSeasons = league === '' ? ALL_TRACKED_SEASONS : seasonsOf(league);
+  const availableSeasons = league === ''
+    ? [...ALL_TRACKED_SEASONS]
+    : [...seasonsOf(league)].sort((a, b) => b - a);
   const requestedSeason = Number(sp.temporada);
-  const season = availableSeasons.includes(requestedSeason)
-    ? requestedSeason
-    : // por defecto, la última temporada completada (la que ya tiene datos)
-      (availableSeasons[0] ?? BIG_FIVE_PREVIOUS_SEASON);
+  const defaultSeason = league === '' ? (ALL_TRACKED_SEASONS[0] ?? BIG_FIVE_CURRENT_SEASON) : currentSeasonOf(league);
+  const season = availableSeasons.includes(requestedSeason) ? requestedSeason : defaultSeason;
 
   const [leagues, rows, lastSync] = await Promise.all([
-    prisma.competition.findMany({ where: { type: 'LEAGUE' }, orderBy: { name: 'asc' } }),
-    rankingRows({ metric: metricDef.value, league: league === '' ? undefined : league, season, limit: 25 }).catch(
-      () => null, // estado de error controlado
-    ),
+    prisma.competition.findMany({
+      where: { type: 'LEAGUE', seasons: { some: { isCurrent: true } } },
+      select: { id: true, slug: true, name: true, seasonFormat: true },
+      orderBy: { name: 'asc' },
+    }),
+    rankingRows({
+      metric: metric.value,
+      league: league === '' ? undefined : league,
+      season,
+      position: position === '' ? undefined : position,
+      limit: 50,
+    }).catch(() => null),
     prisma.playerMatchStatistics.aggregate({ _max: { syncedAt: true } }),
   ]);
 
-  const selectedLeague = leagues.find((l) => l.slug === league);
-  const leagueName = league === '' ? 'todas las ligas' : selectedLeague?.name ?? league;
+  const selectedLeague = leagues.find((item) => item.slug === league);
+  const leagueName = league === '' ? 'Todas las ligas' : selectedLeague?.name ?? league;
+  const format: SeasonFormat = selectedLeague?.seasonFormat ?? 'SPLIT_YEAR';
+  const label = (year: number) => seasonLabel(year, format);
+  const podium = rows?.slice(0, 3) ?? [];
   const updatedAt = lastSync._max.syncedAt;
-  const leader = rows?.[0];
 
-  // Formato de etiqueta de temporada. Con una liga seleccionada se usa el suyo;
-  // sin filtro se asume temporada partida, que es el formato mayoritario.
-  const fmt: SeasonFormat = selectedLeague?.seasonFormat ?? 'SPLIT_YEAR';
-  const label = (year: number) => seasonLabel(year, fmt);
-
-  const itemListJsonLd =
-    rows != null && rows.length > 0
-      ? {
-          '@context': 'https://schema.org',
-          '@type': 'ItemList',
-          name: `Ranking de ${metricDef.label.toLowerCase()} · ${leagueName} · ${label(season)}`,
-          itemListElement: rows.slice(0, 10).map((r, i) => ({
-            '@type': 'ListItem',
-            position: i + 1,
-            name: r.name,
-            url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/jugadores/${r.slug}`,
-          })),
-        }
-      : null;
+  const jsonLd = rows != null && rows.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `${metric.label} · ${leagueName} · ${label(season)}`,
+    itemListElement: rows.slice(0, 10).map((row, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: row.name,
+      url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/jugadores/${row.slug}`,
+    })),
+  } : null;
 
   return (
-    <div className="space-y-6">
-      {itemListJsonLd != null && (
-        <JsonLd data={itemListJsonLd} />
-      )}
-      <div>
-        <p className="fs-eyebrow">
-          <span aria-hidden="true" className="h-1 w-4 rounded-full bg-grad-brand" />
-          Rankings
-        </p>
-        <h1 className="mt-1 text-3xl font-bold sm:text-4xl">
-          Ranking de {metricDef.label.toLowerCase()} · {leagueName} · {label(season)}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-pitch-muted">
-          Consulta los futbolistas con mejores registros de la temporada seleccionada. Los datos se
-          actualizan automáticamente.
-        </p>
-        {updatedAt != null && (
-          <p className="mt-1 text-xs text-pitch-muted">
-            Datos actualizados: {updatedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}
-          </p>
-        )}
-      </div>
+    <div className="cm-page space-y-7">
+      {jsonLd != null && <JsonLd data={jsonLd} />}
 
-      <form method="GET" action="/rankings" className="flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-pitch-muted">Tipo de ranking</span>
-          <select name="metric" defaultValue={metricDef.value} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
-            {METRICS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+      <header className="cm-hero-panel overflow-hidden p-5 sm:p-7 lg:p-9">
+        <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="cm-kicker">CM Rankings</span>
+              <span className="cm-live-dot"><span aria-hidden="true" /> Temporada vigente</span>
+            </div>
+            <h1 className="mt-4 max-w-4xl text-3xl font-bold sm:text-5xl">
+              El rendimiento de la <span className="fs-gradient-text">temporada actual</span>, sin mezclar históricos.
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-pitch-muted sm:text-base">
+              Podio, ranking completo y filtros profesionales por competición, posición y temporada. El histórico sigue disponible cuando quieras compararlo.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:w-[360px]">
+            <div className="cm-kpi"><span>Temporada</span><strong>{label(season)}</strong></div>
+            <div className="cm-kpi"><span>Métrica</span><strong>{metric.short}</strong></div>
+            <div className="cm-kpi col-span-2 sm:col-span-1"><span>Universo</span><strong>{rows?.length ?? 0}</strong></div>
+          </div>
+        </div>
+      </header>
+
+      <form method="GET" action="/rankings" className="cm-toolbar grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+        <label className="cm-field">
+          <span>Métrica</span>
+          <select name="metric" defaultValue={metric.value}>
+            {Array.from(new Set(METRICS.map((item) => item.group))).map((group) => (
+              <optgroup key={group} label={group}>
+                {METRICS.filter((item) => item.group === group).map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-pitch-muted">Liga</span>
-          <select name="league" defaultValue={league} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
+        <label className="cm-field">
+          <span>Competición</span>
+          <select name="league" defaultValue={league}>
             <option value="">Todas las ligas</option>
-            {leagues.map((l) => (
-              <option key={l.id} value={l.slug}>{l.name}</option>
-            ))}
+            {leagues.map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-pitch-muted">Temporada</span>
-          <select name="temporada" defaultValue={String(season)} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
-            {availableSeasons.map((y) => (
-              <option key={y} value={y}>{label(y)}</option>
-            ))}
+        <label className="cm-field">
+          <span>Posición</span>
+          <select name="posicion" defaultValue={position}>
+            {POSITION_OPTIONS.map(([value, name]) => <option key={value || 'all'} value={value}>{name}</option>)}
           </select>
         </label>
-        <button type="submit" className="rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black">Ver ranking</button>
+        <label className="cm-field">
+          <span>Temporada</span>
+          <select name="temporada" defaultValue={String(season)}>
+            {availableSeasons.map((year) => <option key={year} value={year}>{label(year)}{year === defaultSeason ? ' · actual' : ''}</option>)}
+          </select>
+        </label>
+        <button type="submit" className="fs-btn-primary self-end">Actualizar</button>
       </form>
 
       {rows == null && (
-        <div role="alert" className="rounded-xl border border-pitch-danger/40 bg-pitch-danger/10 px-4 py-3 text-sm text-pitch-danger">
-          No se pudo cargar el ranking. Recarga la página para intentarlo de nuevo.
+        <div role="alert" className="rounded-2xl border border-pitch-danger/40 bg-pitch-danger/10 p-4 text-sm text-pitch-danger">
+          No se pudo cargar el ranking en este momento. Inténtalo de nuevo.
         </div>
       )}
 
-      {leader != null && (
-        <p className="rounded-xl border border-pitch-accent/40 bg-pitch-accent/10 px-4 py-3 text-sm">
-          <Link href={`/jugadores/${leader.slug}`} className="font-semibold hover:underline">{leader.name}</Link>{' '}
-          lidera el ranking con {leader.total.toLocaleString('es-ES')} {metricDef.unit}.
-        </p>
+      {rows != null && rows.length > 0 && (
+        <section aria-labelledby="podio-ranking">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div><p className="cm-kicker">Top 3</p><h2 id="podio-ranking" className="mt-1 text-2xl font-bold">Podio · {metric.label}</h2></div>
+            {updatedAt != null && <p className="hidden text-xs text-pitch-muted sm:block">Actualizado {updatedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {podium.map((row, index) => (
+              <Link key={`${row.slug}-${row.team ?? ''}`} href={`/jugadores/${row.slug}`} className={`cm-podium-card group p-5 ${index === 0 ? 'md:-translate-y-2 md:border-pitch-accent/50' : ''}`}>
+                <div className="flex items-start justify-between gap-4">
+                  <PlayerAvatar name={row.name} photoUrl={row.photoUrl} size="lg" />
+                  <span className={`cm-rank-medal cm-rank-${index + 1}`}>{index + 1}</span>
+                </div>
+                <p className="mt-5 truncate font-display text-xl font-bold text-white group-hover:text-pitch-accent">{row.name}</p>
+                <p className="mt-1 truncate text-xs text-pitch-muted">{row.team ?? '—'}{row.position ? ` · ${POSITION_LABEL[row.position] ?? row.position}` : ''}</p>
+                <div className="mt-5 flex items-end justify-between border-t border-white/8 pt-4">
+                  <div><p className="text-3xl font-bold tabular-nums text-white">{displayValue(metric, row.total)}</p><p className="text-2xs uppercase tracking-widest text-pitch-muted">{metric.unit}</p></div>
+                  <span className="cm-data-pill">{secondaryMetric(metric, row.total, row.minutes)}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       {rows != null && (
-        <>
-        <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">Desliza la tabla lateralmente para ver todas las columnas →</p>
-        <div className="fs-panel overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
-            <caption className="sr-only">
-              Ranking de {metricDef.label.toLowerCase()} en {leagueName}, temporada {label(season)}
-            </caption>
-            <thead className="border-b border-pitch-border/60 bg-pitch-elevated/40 text-left text-2xs uppercase tracking-[0.14em] text-pitch-muted">
-              <tr className="border-b border-pitch-border">
-                <th scope="col" className="px-4 py-2">#</th>
-                <th scope="col" className="px-4 py-2">Jugador</th>
-                <th scope="col" className="px-4 py-2">Equipo</th>
-                <th scope="col" className="px-4 py-2 text-right">{metricDef.label}</th>
-                <th scope="col" className="px-4 py-2 text-right">Minutos</th>
-                <th scope="col" className="px-4 py-2 text-right">Por 90&apos;</th>
-                <th scope="col" className="px-4 py-2"><span className="sr-only">Acciones</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.slug} className="border-b border-pitch-border/50 last:border-0">
-                  <td className="px-4 py-2 text-pitch-muted">{i + 1}</td>
-                  <th scope="row" className="px-4 py-2 text-left font-medium">
-                    <Link href={`/jugadores/${r.slug}`} className="hover:text-pitch-accent">{r.name}</Link>
-                  </th>
-                  <td className="px-4 py-2 text-pitch-muted">{r.team ?? '—'}</td>
-                  <td className="px-4 py-2 text-right font-semibold text-pitch-accent">{r.total.toLocaleString('es-ES')}</td>
-                  <td className="px-4 py-2 text-right text-pitch-muted">{r.minutes.toLocaleString('es-ES')}</td>
-                  <td className="px-4 py-2 text-right text-pitch-muted">{per90(r.total, r.minutes)}</td>
-                  <td className="px-4 py-2 text-right">
-                    <Link
-                      href={`/comparador?p1=${r.slug}`}
-                      className="rounded-lg border border-pitch-border px-3 py-1 text-xs text-pitch-muted outline-none hover:border-pitch-accent hover:text-white focus-visible:ring-2 focus-visible:ring-pitch-accent"
-                    >
-                      Comparar
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
+        <section aria-labelledby="tabla-ranking" className="space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <div><p className="cm-kicker">Clasificación</p><h2 id="tabla-ranking" className="mt-1 text-2xl font-bold">{leagueName} · {label(season)}</h2></div>
+            <span className="cm-data-pill">{position ? POSITION_OPTIONS.find(([value]) => value === position)?.[1] : 'Todas las posiciones'}</span>
+          </div>
+          <p className="text-xs text-pitch-muted sm:hidden">Desliza lateralmente para ver todas las métricas →</p>
+          <div className="cm-table-shell overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <caption className="sr-only">Ranking de {metric.label.toLowerCase()} en {leagueName}, temporada {label(season)}</caption>
+              <thead>
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-pitch-muted">
-                    Todavía no hay datos para esta combinación de liga y temporada. Se incorporarán
-                    automáticamente cuando la fuente los publique.
-                  </td>
+                  <th scope="col">#</th><th scope="col">Jugador</th><th scope="col">Equipo</th><th scope="col">PJ</th>
+                  <th scope="col" className="text-right">{metric.label}</th><th scope="col" className="text-right">Minutos</th><th scope="col" className="text-right">Por 90&apos;</th><th scope="col" />
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        </>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => (
+                  <tr key={`${row.slug}-${row.team ?? ''}`}>
+                    <td><span className={index < 3 ? `cm-table-rank cm-rank-${index + 1}` : 'cm-table-rank'}>{index + 1}</span></td>
+                    <th scope="row">
+                      <Link href={`/jugadores/${row.slug}`} className="flex items-center gap-3 font-semibold text-white hover:text-pitch-accent">
+                        <PlayerAvatar name={row.name} photoUrl={row.photoUrl} /><span className="truncate">{row.name}</span>
+                      </Link>
+                    </th>
+                    <td><span className="text-pitch-muted">{row.team ?? '—'}</span>{row.position && <span className="ml-2 cm-position-tag">{POSITION_LABEL[row.position] ?? row.position}</span>}</td>
+                    <td className="tabular-nums text-pitch-muted">{row.appearances}</td>
+                    <td className="text-right font-display text-base font-bold tabular-nums text-pitch-accent">{displayValue(metric, row.total)}</td>
+                    <td className="text-right tabular-nums text-pitch-muted">{row.minutes.toLocaleString('es-ES')}</td>
+                    <td className="text-right tabular-nums text-pitch-muted">{secondaryMetric(metric, row.total, row.minutes)}</td>
+                    <td className="text-right"><Link href={`/comparador?p1=${row.slug}`} className="cm-inline-action">Comparar</Link></td>
+                  </tr>
+                ))}
+                {rows.length === 0 && <tr><td colSpan={8} className="py-12 text-center text-pitch-muted">Aún no hay datos oficiales para esta combinación. No se rellenan con estadísticas de otra temporada.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
     </div>
   );
