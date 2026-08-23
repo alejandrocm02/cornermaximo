@@ -6,7 +6,10 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CMMark } from './CMBrand';
 
-const GROUPS = [
+type NavRoute = readonly [href: string, label: string];
+type NavGroup = { label: string; routes: readonly NavRoute[] };
+
+const GROUPS: readonly NavGroup[] = [
   {
     label: 'Fútbol',
     routes: [
@@ -38,12 +41,10 @@ const GROUPS = [
   },
 ] as const;
 
-const MOBILE_ROUTES = GROUPS.flatMap((group) => group.routes);
-
 const active = (pathname: string, href: string) =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 
-const groupActive = (pathname: string, routes: readonly (readonly [string, string])[]) =>
+const groupActive = (pathname: string, routes: readonly NavRoute[]) =>
   routes.some(([href]) => active(pathname, href));
 
 function Chevron() {
