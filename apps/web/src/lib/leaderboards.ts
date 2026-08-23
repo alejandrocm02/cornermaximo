@@ -83,7 +83,7 @@ type RankingDefinition = {
   decimals?: number;
 };
 
-const RANKING_DEFINITIONS = {
+const RANKING_DEFINITIONS: Record<string, RankingDefinition> = {
   goals: { source: 'field', expression: 'SUM(s.goals)', presentCondition: 's.goals IS NOT NULL' },
   assists: { source: 'field', expression: 'SUM(s.assists)', presentCondition: 's.assists IS NOT NULL' },
   shotsOnTarget: { source: 'field', expression: 'SUM(s."shotsOnTarget")', presentCondition: 's."shotsOnTarget" IS NOT NULL' },
@@ -97,10 +97,38 @@ const RANKING_DEFINITIONS = {
   cleanSheets: { source: 'gk', expression: 'SUM(CASE WHEN s."cleanSheet" = true THEN 1 ELSE 0 END)', presentCondition: 's."cleanSheet" IS NOT NULL' },
   rating: { source: 'matchPlayer', expression: 'AVG(mp.rating)', presentCondition: 'mp.rating IS NOT NULL', decimals: 2 },
   minutes: { source: 'matchPlayer', expression: 'SUM(mp."minutesPlayed")', presentCondition: 'mp."minutesPlayed" > 0' },
-} as const satisfies Record<string, RankingDefinition>;
+};
 
-export type RankingMetric = keyof typeof RANKING_DEFINITIONS;
-export const RANKING_METRICS = Object.keys(RANKING_DEFINITIONS) as RankingMetric[];
+export type RankingMetric =
+  | 'goals'
+  | 'assists'
+  | 'shotsOnTarget'
+  | 'keyPasses'
+  | 'tackles'
+  | 'interceptions'
+  | 'foulsCommitted'
+  | 'foulsDrawn'
+  | 'yellowCards'
+  | 'saves'
+  | 'cleanSheets'
+  | 'rating'
+  | 'minutes';
+
+export const RANKING_METRICS: RankingMetric[] = [
+  'goals',
+  'assists',
+  'shotsOnTarget',
+  'keyPasses',
+  'tackles',
+  'interceptions',
+  'foulsCommitted',
+  'foulsDrawn',
+  'yellowCards',
+  'saves',
+  'cleanSheets',
+  'rating',
+  'minutes',
+];
 
 export interface RankingRow extends LeaderRow {
   minutes: number;
@@ -115,7 +143,7 @@ async function queryRankingRows(
   position: string,
   limit: number,
 ): Promise<RankingRow[]> {
-  const definition = RANKING_DEFINITIONS[metric];
+  const definition = RANKING_DEFINITIONS[metric]!;
   const params: unknown[] = [];
   const conditions = [`c.type = 'LEAGUE'`, `m.status = 'FINISHED'`, definition.presentCondition];
 
