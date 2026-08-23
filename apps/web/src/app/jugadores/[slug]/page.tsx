@@ -140,8 +140,8 @@ export default async function PlayerPage({
         </section>
       )}
 
-      <section>
-        <div className="mb-3">
+      <section className="fs-panel p-5 sm:p-6">
+        <div className="mb-4">
           <p className="fs-eyebrow">PERFORMANCE</p>
           <h2 className="mt-1 text-xl font-bold">Forma reciente</h2>
         </div>
@@ -150,23 +150,22 @@ export default async function PlayerPage({
           <Stat label="Rating" value={fmt(data.summary.avgRating)} />
           {recentMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric] ?? metric} value={fmt(data.summary.metrics[metric]?.total)} sub={data.summary.metrics[metric]?.per90 != null ? `${data.summary.metrics[metric]!.per90}/90'` : undefined} />)}
         </div>
-      </section>
 
-      {!isGK && (
-        <section className="fs-panel p-5 sm:p-6">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="fs-eyebrow">INTENSIDAD · TEMPORADA ACTUAL</p>
-              <h2 className="mt-1 text-xl font-bold">Entradas y faltas</h2>
+        {!isGK && (
+          <div className="mt-6 border-t border-pitch-border/60 pt-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="fs-eyebrow">INTENSIDAD · TEMPORADA ACTUAL</p>
+                <h2 className="mt-1 text-xl font-bold">Entradas y faltas</h2>
+              </div>
+              <p className="text-xs text-pitch-muted">{seasonData.summary.matches} partidos · {seasonData.summary.minutes} min</p>
             </div>
-            <p className="text-xs text-pitch-muted">{seasonData.summary.matches} partidos · {seasonData.summary.minutes} min</p>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {defensiveMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric] ?? metric} value={fmt(seasonData.summary.metrics[metric]?.total)} sub={seasonData.summary.metrics[metric]?.per90 != null ? `${seasonData.summary.metrics[metric]!.per90}/90'` : undefined} />)}
+            </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {defensiveMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric] ?? metric} value={fmt(seasonData.summary.metrics[metric]?.total)} sub={seasonData.summary.metrics[metric]?.per90 != null ? `${seasonData.summary.metrics[metric]!.per90}/90'` : undefined} />)}
-          </div>
-          <p className="mt-4 text-xs leading-5 text-pitch-muted">“Entradas” corresponde a <code>tackles.total</code> del proveedor. No mostramos “entradas ganadas” como dato separado porque API-Football no lo distingue de forma fiable en las estadísticas por jugador de partido.</p>
-        </section>
-      )}
+        )}
+      </section>
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Partido a partido</h2>

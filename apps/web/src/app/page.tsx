@@ -1,6 +1,7 @@
 import { prisma } from '@cornermaximo/db';
 import { BIG_FIVE_CURRENT_SEASON, WORLD_CUP_2026 } from '@cornermaximo/shared';
 import Link from 'next/link';
+import { LiveScoreboardController } from '@/components/LiveScoreboardController';
 import { MatchRows } from '@/components/MatchRows';
 import { SearchBox } from '@/components/SearchBox';
 import { SectionHeader } from '@/components/SectionHeader';
@@ -85,6 +86,7 @@ export default async function HomePage() {
 
   return (
     <div className="cm-page space-y-8">
+      {hasLive && <LiveScoreboardController />}
       <section className="cm-hero-panel overflow-hidden p-5 sm:p-7 lg:p-8">
         <div className="relative z-10 grid gap-7 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] xl:items-end">
           <div>

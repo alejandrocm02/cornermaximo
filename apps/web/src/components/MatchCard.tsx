@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { roundLabel, statusLabel } from '@/lib/football';
 import type { MatchListItem, MatchListTeam } from '@/lib/matches';
@@ -19,10 +20,9 @@ function competitionLogo(match: MatchListItem): string {
 function TeamRow({ team, side, showScore }: { team: MatchListTeam | null; side: 'home' | 'away'; showScore: boolean }) {
   return (
     <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_3rem] items-center gap-2.5">
-      <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/95 p-1.5 shadow-sm">
+      <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/95 p-1.5 shadow-sm">
         {team?.crestUrl != null ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={team.crestUrl} alt="" width={26} height={26} loading="lazy" decoding="async" className="h-6.5 w-6.5 object-contain" />
+          <Image src={team.crestUrl} alt="" width={24} height={24} sizes="24px" className="block h-6 w-6 object-contain" />
         ) : <span aria-hidden="true" className="h-4 w-4 rounded-full bg-pitch-border" />}
       </span>
       <span className="min-w-0 truncate text-sm font-semibold text-white">{team?.name ?? (side === 'home' ? 'Local' : 'Visitante')}</span>
@@ -43,9 +43,8 @@ export function MatchCard({ match }: { match: MatchListItem }) {
     <article className={`fs-panel-interactive group overflow-hidden ${live ? '!border-pitch-danger/30 shadow-[0_0_35px_-25px_rgba(255,62,82,.65)]' : ''}`}>
       <div className="flex items-center justify-between gap-3 border-b border-pitch-border/60 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white p-1.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={competitionLogo(match)} alt="" width={28} height={28} loading="lazy" decoding="async" className="h-7 w-7 object-contain" />
+          <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-white p-1.5">
+            <Image src={competitionLogo(match)} alt="" width={24} height={24} sizes="24px" className="block h-6 w-6 object-contain" />
           </span>
           <div className="min-w-0"><p className="truncate text-xs font-semibold text-white">{match.competition.name}</p><p className="truncate text-[10px] text-pitch-muted">{translatedRound ?? 'Calendario'}</p></div>
         </div>
