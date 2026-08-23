@@ -87,7 +87,7 @@
     @apply inline-flex items-center gap-1.5 rounded-full border border-pitch-border bg-pitch-elevated/75 px-3 py-1 text-2xs font-medium text-pitch-subtle;
   }
   .fs-btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-pitch-accent/60 bg-pitch-accent px-5 py-3 text-sm font-semibold text-white shadow-glow-soft transition duration-200 hover:-translate-y-0.5 hover:bg-[#1f78ee] hover:shadow-glow active:translate-y-px;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-pitch-accent/60 bg-[#1461c9] px-5 py-3 text-sm font-semibold text-white shadow-glow-soft transition duration-200 hover:-translate-y-0.5 hover:bg-[#0f5fc4] hover:shadow-glow active:translate-y-px;
   }
   .fs-btn-ghost {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-pitch-border-strong bg-pitch-card/65 px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:border-pitch-accent/60 hover:bg-pitch-elevated;
