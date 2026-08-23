@@ -1,6 +1,6 @@
 /**
  * Adaptador de API-Football que implementa FootballDataProvider.
- * Coste en requests (plan Pro, 7 500/día):
+ * Coste en requests (plan contratado, 5 000/día; CornerMaximo limita su uso al 75%):
  *  - getCompetitions: 0 (el catálogo rastreado y sus logos se derivan de ids estables)
  *  - getTeamsByCompetition: 1
  *  - getPlayersByTeam: 1 (endpoint /players/squads)
@@ -38,8 +38,26 @@ function competitionLogoUrl(apiFootballId: number): string {
   return `https://media.api-sports.io/football/leagues/${apiFootballId}.png`;
 }
 
+type RawLineupWithGrid = {
+  startXI?: Array<{ player: { id: number; grid?: string | null } }>;
+};
+
+function rawWithFormationGrid(raw: unknown, formationGrid: string | null): unknown {
+  if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
+    return { ...raw, formationGrid };
+  }
+  return { raw, formationGrid };
+}
+
 export class ApiFootballProvider implements FootballDataProvider {
   readonly name = 'api-football';
+
+  /**
+   * `/fixtures/lineups` y `/fixtures/players` se consultan consecutivamente dentro
+   * de `syncMatchStats`. Conservamos temporalmente el `grid` del primer endpoint y
+   * lo adjuntamos al raw del segundo para persistirlo sin una llamada adicional.
+   */
+  private readonly lineupGridByFixture = new Map<string, Map<string, string>>();
 
   constructor(private readonly client: ApiFootballClient) {}
 
@@ -84,6 +102,18 @@ export class ApiFootballProvider implements FootballDataProvider {
       '/fixtures/lineups',
       { fixture: fixtureExternalId },
     );
+
+    const gridByPlayer = new Map<string, string>();
+    for (const raw of raws as RawLineupWithGrid[]) {
+      for (const entry of raw.startXI ?? []) {
+        const grid = entry.player.grid?.trim();
+        if (grid != null && /^\d+:\d+$/.test(grid)) {
+          gridByPlayer.set(String(entry.player.id), grid);
+        }
+      }
+    }
+    this.lineupGridByFixture.set(fixtureExternalId, gridByPlayer);
+
     return mapLineups(raws);
   }
 
@@ -92,7 +122,16 @@ export class ApiFootballProvider implements FootballDataProvider {
       '/fixtures/players',
       { fixture: fixtureExternalId },
     );
-    return mapFixturePlayers(raws);
+    const gridByPlayer = this.lineupGridByFixture.get(fixtureExternalId);
+    const mapped = mapFixturePlayers(raws).map((stats) => ({
+      ...stats,
+      raw: rawWithFormationGrid(
+        stats.raw,
+        gridByPlayer?.get(stats.playerExternalId) ?? null,
+      ),
+    }));
+    this.lineupGridByFixture.delete(fixtureExternalId);
+    return mapped;
   }
 
   async getInjuries(competitionExternalId: string, season: number): Promise<ProviderInjury[]> {
