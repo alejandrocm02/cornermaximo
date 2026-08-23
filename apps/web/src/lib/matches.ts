@@ -50,6 +50,7 @@ export interface MatchDetailPlayer {
   teamName: string;
   role: string;
   positionPlayed: string | null;
+  formationGrid: string | null;
   shirtNumber: number | null;
   minutesPlayed: number;
   rating: number | null;
@@ -100,6 +101,12 @@ interface MatchCenterQuery {
   date?: string;
   competitionSlug?: string;
   teamSlug?: string;
+}
+
+function formationGridFromRaw(value: unknown): string | null {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return null;
+  const grid = (value as { formationGrid?: unknown }).formationGrid;
+  return typeof grid === 'string' && /^\d+:\d+$/.test(grid) ? grid : null;
 }
 
 function madridDateParts(date: Date): { year: number; month: number; day: number } {
@@ -369,6 +376,9 @@ async function queryMatchDetail(id: number): Promise<MatchDetail | null> {
       teamName: entry.team.name,
       role: String(entry.role),
       positionPlayed: entry.positionPlayed,
+      formationGrid: formationGridFromRaw(
+        entry.fieldStats?.rawProviderData ?? entry.gkStats?.rawProviderData,
+      ),
       shirtNumber: entry.shirtNumber,
       minutesPlayed: entry.minutesPlayed,
       rating: entry.rating,
