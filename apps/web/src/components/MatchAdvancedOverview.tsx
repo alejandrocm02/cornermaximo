@@ -3,6 +3,7 @@ import type { MatchDetail, MatchDetailPlayer } from '@/lib/matches';
 
 type TeamSide = 'home' | 'away';
 type PositionGroup = 'GK' | 'DF' | 'MF' | 'FW';
+type FormationCell = { row: number; column: number };
 
 type TeamAggregate = {
   shots: number | null;
@@ -70,6 +71,16 @@ function groupPosition(player: MatchDetailPlayer): PositionGroup {
   return 'MF';
 }
 
+function parseFormationGrid(value: string | null): FormationCell | null {
+  if (value == null) return null;
+  const match = /^(\d+):(\d+)$/.exec(value);
+  if (match == null) return null;
+  const row = Number(match[1]);
+  const column = Number(match[2]);
+  if (!Number.isInteger(row) || !Number.isInteger(column) || row < 1 || column < 1) return null;
+  return { row, column };
+}
+
 const POSITION_LABEL: Record<PositionGroup, string> = {
   GK: 'Portero',
   DF: 'Defensa',
@@ -77,17 +88,54 @@ const POSITION_LABEL: Record<PositionGroup, string> = {
   FW: 'Ataque',
 };
 
+function PlayerMarker({ player, compact = false }: { player: MatchDetailPlayer; compact?: boolean }) {
+  return (
+    <Link
+      href={`/jugadores/${player.slug}`}
+      title={`${player.name}${player.positionPlayed ? ` · ${player.positionPlayed}` : ''}`}
+      className={`flex min-w-0 flex-col items-center text-center text-white transition hover:-translate-y-0.5 hover:text-pitch-accent ${
+        compact ? 'w-[68px] text-[8px] sm:w-20 sm:text-[10px]' : 'max-w-24 flex-1 text-[9px] sm:max-w-28 sm:text-[10px]'
+      }`}
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/35 bg-pitch-bg/95 font-bold shadow-lg sm:h-10 sm:w-10">
+        {player.shirtNumber ?? '·'}
+      </span>
+      <span className="mt-1 line-clamp-2 min-h-[2.2em] max-w-full leading-tight">{player.name}</span>
+    </Link>
+  );
+}
+
 function PitchLineup({ title, players }: { title: string; players: MatchDetailPlayer[] }) {
   const starters = players.filter((player) => player.role === 'STARTER').slice(0, 11);
+  const positioned = starters.map((player) => ({ player, cell: parseFormationGrid(player.formationGrid) }));
+  const hasExactGrid = starters.length >= 7 && positioned.every((entry) => entry.cell != null);
+
   const groups: Record<PositionGroup, MatchDetailPlayer[]> = {
     GK: starters.filter((player) => groupPosition(player) === 'GK'),
     DF: starters.filter((player) => groupPosition(player) === 'DF'),
     MF: starters.filter((player) => groupPosition(player) === 'MF'),
     FW: starters.filter((player) => groupPosition(player) === 'FW'),
   };
-  const formation = [groups.DF.length, groups.MF.length, groups.FW.length]
+
+  const rowCounts = new Map<number, number>();
+  if (hasExactGrid) {
+    for (const { cell } of positioned) {
+      if (cell == null) continue;
+      rowCounts.set(cell.row, Math.max(rowCounts.get(cell.row) ?? 0, cell.column));
+    }
+  }
+  const maxRow = hasExactGrid
+    ? Math.max(...positioned.map(({ cell }) => cell?.row ?? 1), 1)
+    : 4;
+  const exactFormation = hasExactGrid
+    ? Array.from({ length: Math.max(maxRow - 1, 0) }, (_, index) => rowCounts.get(index + 2) ?? 0)
+        .filter((count) => count > 0)
+        .join('-')
+    : '';
+  const fallbackFormation = [groups.DF.length, groups.MF.length, groups.FW.length]
     .filter((count) => count > 0)
     .join('-');
+  const formation = exactFormation || fallbackFormation;
 
   return (
     <article>
@@ -102,32 +150,43 @@ function PitchLineup({ title, players }: { title: string; players: MatchDetailPl
         <div aria-hidden="true" className="absolute left-1/2 top-4 h-14 w-36 -translate-x-1/2 border-x border-b border-white/20 sm:h-16 sm:w-44" />
         <div aria-hidden="true" className="absolute bottom-4 left-1/2 h-14 w-36 -translate-x-1/2 border-x border-t border-white/20 sm:h-16 sm:w-44" />
 
-        <div className="relative z-10 grid min-h-[438px] grid-rows-4 items-center py-3 sm:min-h-[488px]">
-          {(['FW', 'MF', 'DF', 'GK'] as const).map((group) => (
-            <div key={group} className="relative flex min-h-20 items-center justify-evenly gap-1 px-1 sm:gap-3 sm:px-4">
-              <span className="pointer-events-none absolute left-1 top-0 text-[8px] font-semibold uppercase tracking-[0.16em] text-white/30 sm:left-3 sm:text-[9px]">
-                {POSITION_LABEL[group]}
-              </span>
-              {groups[group].map((player) => (
-                <Link
+        {hasExactGrid ? (
+          <div className="absolute inset-6 z-10 sm:inset-8">
+            {positioned.map(({ player, cell }) => {
+              if (cell == null) return null;
+              const columnsInRow = rowCounts.get(cell.row) ?? cell.column;
+              const left = (cell.column / (columnsInRow + 1)) * 100;
+              const progress = maxRow <= 1 ? 0 : (cell.row - 1) / (maxRow - 1);
+              const top = 88 - progress * 76;
+              return (
+                <div
                   key={player.id}
-                  href={`/jugadores/${player.slug}`}
-                  title={`${player.name}${player.positionPlayed ? ` · ${player.positionPlayed}` : ''}`}
-                  className="flex min-w-0 max-w-24 flex-1 flex-col items-center text-center text-[9px] text-white transition hover:-translate-y-0.5 hover:text-pitch-accent sm:max-w-28 sm:text-[10px]"
+                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: `${left}%`, top: `${top}%` }}
                 >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/35 bg-pitch-bg/95 font-bold shadow-lg sm:h-10 sm:w-10">
-                    {player.shirtNumber ?? '·'}
-                  </span>
-                  <span className="mt-1 line-clamp-2 min-h-[2.2em] max-w-full leading-tight">{player.name}</span>
-                </Link>
-              ))}
-            </div>
-          ))}
-        </div>
+                  <PlayerMarker player={player} compact />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="relative z-10 grid min-h-[438px] grid-rows-4 items-center py-3 sm:min-h-[488px]">
+            {(['FW', 'MF', 'DF', 'GK'] as const).map((group) => (
+              <div key={group} className="relative flex min-h-20 items-center justify-evenly gap-1 px-1 sm:gap-3 sm:px-4">
+                <span className="pointer-events-none absolute left-1 top-0 text-[8px] font-semibold uppercase tracking-[0.16em] text-white/30 sm:left-3 sm:text-[9px]">
+                  {POSITION_LABEL[group]}
+                </span>
+                {groups[group].map((player) => <PlayerMarker key={player.id} player={player} />)}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       {starters.length > 0 && (
         <p className="mt-2 text-center text-2xs text-pitch-muted">
-          Distribución por líneas según la posición registrada por el proveedor. La ubicación lateral dentro de cada línea es orientativa.
+          {hasExactGrid
+            ? 'Posiciones dibujadas con el grid táctico oficial publicado por API-Football para esta alineación.'
+            : 'Distribución por líneas según la posición registrada por el proveedor. La ubicación lateral es orientativa cuando el grid táctico no está disponible.'}
         </p>
       )}
     </article>
