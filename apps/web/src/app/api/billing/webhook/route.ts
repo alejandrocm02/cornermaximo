@@ -94,11 +94,11 @@ export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   const signature = request.headers.get('stripe-signature');
 
-  if (!webhookSecret || !process.env.STRIPE_SECRET_KEY?.trim() || !getPremiumPriceId()) {
-    return NextResponse.json({ error: 'Stripe webhook is not configured.' }, { status: 500 });
-  }
   if (!signature) {
     return NextResponse.json({ error: 'Missing Stripe signature.' }, { status: 400 });
+  }
+  if (!webhookSecret || !process.env.STRIPE_SECRET_KEY?.trim() || !getPremiumPriceId()) {
+    return NextResponse.json({ error: 'Stripe webhook is not configured.' }, { status: 500 });
   }
 
   const payload = await request.text();
