@@ -1,14 +1,15 @@
 import 'server-only';
 
-import { randomInt } from 'node:crypto';
 import Stripe from 'stripe';
 
 export const STRIPE_API_VERSION = '2026-07-29.dahlia' as const;
 export const PREMIUM_DISPLAY_PRICE = '4,99 €/mes';
 
 const PREMIUM_PRICE_ENV = 'STRIPE_PREMIUM_MONTHLY_PRICE_ID';
-const INTEGRATION_PREFIX = 'cornermaximo-premium-';
-const RANDOM_LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+// Keep this label stable across requests and deployments. Stripe compares every
+// Checkout parameter when an idempotency key is reused, so regenerating the
+// recommended random suffix for each request makes safe retries fail.
+const CHECKOUT_INTEGRATION_IDENTIFIER = 'cornermaximo-premium-myoordsh';
 
 let stripeClient: Stripe | undefined;
 
@@ -56,12 +57,6 @@ export function isStripeBillingConfigured(): boolean {
   );
 }
 
-export function createCheckoutIntegrationIdentifier(): string {
-  let suffix = '';
-
-  for (let index = 0; index < 8; index += 1) {
-    suffix += RANDOM_LETTERS.charAt(randomInt(RANDOM_LETTERS.length));
-  }
-
-  return `${INTEGRATION_PREFIX}${suffix}`;
+export function getCheckoutIntegrationIdentifier(): string {
+  return CHECKOUT_INTEGRATION_IDENTIFIER;
 }
