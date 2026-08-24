@@ -46,6 +46,7 @@ const nextConfig = {
       { source: '/cuenta/:path*', headers: privateNoStoreHeaders },
       { source: '/admin/:path*', headers: privateNoStoreHeaders },
       { source: '/api/admin/:path*', headers: privateNoStoreHeaders },
+      { source: '/api/billing/:path*', headers: privateNoStoreHeaders },
     ];
   },
 };

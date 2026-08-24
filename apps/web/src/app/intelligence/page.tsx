@@ -74,7 +74,7 @@ export default async function IntelligencePage({
             <div className="flex flex-wrap items-center gap-2">
               <p className="fs-eyebrow">CORNERMAXIMO · CM INTELLIGENCE</p>
               <span className={`fs-chip ${entitlement.isPro ? 'border-pitch-accent/40 text-pitch-accent' : ''}`}>
-                {entitlement.isPro ? 'PRO ACTIVO' : 'FREE'}
+                {entitlement.isPro ? 'PREMIUM ACTIVO' : 'FREE'}
               </span>
             </div>
             <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Tendencias que puedes verificar</h1>
@@ -84,7 +84,7 @@ export default async function IntelligencePage({
           </div>
           {!entitlement.isPro && (
             <Link href={entitlement.isAuthenticated ? '/pro' : '/auth/login?next=/intelligence'} className="fs-btn-primary shrink-0">
-              {entitlement.isAuthenticated ? 'Desbloquear CornerMaximo Pro' : 'Entrar para desbloquear Pro'}
+              {entitlement.isAuthenticated ? 'Desbloquear CornerMaximo Premium' : 'Entrar para desbloquear Premium'}
             </Link>
           )}
         </div>
@@ -155,14 +155,14 @@ export default async function IntelligencePage({
             <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-pitch-accent/10 via-transparent to-transparent" />
             <div className="relative grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
-                <p className="fs-eyebrow">CORNERMAXIMO PRO</p>
+                <p className="fs-eyebrow">CORNERMAXIMO PREMIUM</p>
                 <h3 className="mt-2 text-2xl font-bold">🔒 {lockedCount} señales adicionales</h3>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-pitch-muted">
-                  El plan Pro desbloqueará el listado completo, filtros avanzados, ventanas históricas mayores, búsquedas guardadas y alertas sobre condiciones estadísticas.
+                  El plan Premium desbloquea el listado completo, filtros avanzados, ventanas históricas mayores, búsquedas guardadas y alertas sobre condiciones estadísticas.
                 </p>
               </div>
               <Link href={entitlement.isAuthenticated ? '/pro' : '/auth/login?next=/intelligence'} className="fs-btn-primary justify-center">
-                Ver CornerMaximo Pro
+                Ver CornerMaximo Premium
               </Link>
             </div>
           </div>

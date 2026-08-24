@@ -14,3 +14,14 @@ export function getSiteUrl(): string {
 
   return 'http://localhost:3000';
 }
+
+export function getBillingReturnUrl(): string {
+  const targetEnvironment = process.env.VERCEL_TARGET_ENV ?? process.env.VERCEL_ENV;
+  const deploymentUrl = process.env.VERCEL_URL;
+
+  if (targetEnvironment && targetEnvironment !== 'production' && deploymentUrl) {
+    return withProtocol(deploymentUrl);
+  }
+
+  return getSiteUrl();
+}

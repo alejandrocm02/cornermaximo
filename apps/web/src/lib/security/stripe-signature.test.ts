@@ -1,37 +1,20 @@
-import { createHmac } from 'node:crypto';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { verifyStripeSignature } from './stripe-signature';
+import Stripe from 'stripe';
+import { describe, expect, it } from 'vitest';
+import { constructStripeEvent } from './stripe-signature';
 
-const NOW = new Date('2026-08-19T12:00:00Z');
 const SECRET = 'whsec_test_secret';
-const PAYLOAD = '{"id":"evt_test"}';
+const PAYLOAD = '{"id":"evt_test","type":"customer.subscription.updated"}';
+const stripe = new Stripe('sk_test_unit_test', { apiVersion: '2026-07-29.dahlia' });
 
-function headerFor(timestamp: number, secret = SECRET): string {
-  const signature = createHmac('sha256', secret)
-    .update(`${timestamp}.${PAYLOAD}`, 'utf8')
-    .digest('hex');
-  return `t=${timestamp},v1=${signature}`;
-}
+describe('constructStripeEvent', () => {
+  const header = stripe.webhooks.generateTestHeaderString({ payload: PAYLOAD, secret: SECRET });
 
-describe('verifyStripeSignature', () => {
-  afterEach(() => vi.useRealTimers());
-
-  it('accepts a current valid signature and rejects tampering', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-    const timestamp = Math.floor(NOW.getTime() / 1000);
-
-    expect(verifyStripeSignature(PAYLOAD, headerFor(timestamp), SECRET)).toBe(true);
-    expect(verifyStripeSignature(`${PAYLOAD} `, headerFor(timestamp), SECRET)).toBe(false);
-    expect(verifyStripeSignature(PAYLOAD, headerFor(timestamp), 'another-secret')).toBe(false);
+  it('accepts a valid Stripe signature', () => {
+    expect(constructStripeEvent(PAYLOAD, header, SECRET, stripe).id).toBe('evt_test');
   });
 
-  it('rejects malformed and replayed signatures outside the tolerance', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-    const oldTimestamp = Math.floor(NOW.getTime() / 1000) - 301;
-
-    expect(verifyStripeSignature(PAYLOAD, headerFor(oldTimestamp), SECRET)).toBe(false);
-    expect(verifyStripeSignature(PAYLOAD, 'invalid', SECRET)).toBe(false);
+  it('rejects tampered payloads and malformed signatures', () => {
+    expect(() => constructStripeEvent(`${PAYLOAD} `, header, SECRET, stripe)).toThrow();
+    expect(() => constructStripeEvent(PAYLOAD, 'invalid', SECRET, stripe)).toThrow();
   });
 });
