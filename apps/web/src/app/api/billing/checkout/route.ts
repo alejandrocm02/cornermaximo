@@ -1,16 +1,19 @@
 import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getSiteUrl } from '@/lib/site-url';
-import { stripePost } from '@/lib/stripe-rest';
+import { getBillingReturnUrl } from '@/lib/site-url';
+import { isSameOriginBillingRequest } from '@/lib/security/billing-request';
+import {
+  createCheckoutIntegrationIdentifier,
+  getPremiumPriceId,
+  getStripeClient,
+  isManagedPaymentsEnabled,
+} from '@/lib/stripe';
 
-interface StripeCheckoutSession {
-  id: string;
-  url: string | null;
-}
+export const runtime = 'nodejs';
 
 function backToPro(reason: string) {
-  return NextResponse.redirect(`${getSiteUrl()}/pro?billing=${encodeURIComponent(reason)}`, 303);
+  return NextResponse.redirect(`${getBillingReturnUrl()}/pro?billing=${encodeURIComponent(reason)}`, 303);
 }
 
 function checkoutIdempotencyKey(userId: string, priceId: string): string {
@@ -20,9 +23,15 @@ function checkoutIdempotencyKey(userId: string, priceId: string): string {
     .digest('hex')}`;
 }
 
-export async function POST() {
-  const priceId = process.env.STRIPE_PRO_MONTHLY_PRICE_ID;
-  if (!process.env.STRIPE_SECRET_KEY || !priceId) return backToPro('unavailable');
+export async function POST(request: Request) {
+  if (!isSameOriginBillingRequest(request)) {
+    return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
+  }
+
+  const priceId = getPremiumPriceId();
+  if (!process.env.STRIPE_SECRET_KEY || !priceId || !isManagedPaymentsEnabled()) {
+    return backToPro('unavailable');
+  }
 
   const supabase = await createClient();
   const {
@@ -31,44 +40,61 @@ export async function POST() {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return NextResponse.redirect(`${getSiteUrl()}/auth/login?next=/pro`, 303);
+    return NextResponse.redirect(`${getBillingReturnUrl()}/auth/login?next=/pro`, 303);
   }
 
   const { data: billing } = await supabase
     .from('billing_subscriptions')
-    .select('stripe_customer_id,status')
+    .select('stripe_customer_id,stripe_price_id,status')
     .eq('user_id', user.id)
     .maybeSingle();
 
-  if (billing?.status && ['active', 'trialing'].includes(billing.status.toLowerCase())) {
-    return NextResponse.redirect(`${getSiteUrl()}/pro?billing=already-active`, 303);
-  }
-
-  const params = new URLSearchParams();
-  params.set('mode', 'subscription');
-  params.set('line_items[0][price]', priceId);
-  params.set('line_items[0][quantity]', '1');
-  params.set('success_url', `${getSiteUrl()}/pro?checkout=success`);
-  params.set('cancel_url', `${getSiteUrl()}/pro?checkout=cancelled`);
-  params.set('client_reference_id', user.id);
-  params.set('metadata[supabase_user_id]', user.id);
-  params.set('subscription_data[metadata][supabase_user_id]', user.id);
-  params.set('allow_promotion_codes', 'true');
-  params.set('managed_payments[enabled]', 'true');
-
-  if (billing?.stripe_customer_id) {
-    params.set('customer', billing.stripe_customer_id);
-  } else if (user.email) {
-    params.set('customer_email', user.email);
+  if (
+    billing?.stripe_price_id === priceId &&
+    billing.status &&
+    ['active', 'trialing'].includes(billing.status.toLowerCase())
+  ) {
+    return NextResponse.redirect(`${getBillingReturnUrl()}/pro?billing=already-active`, 303);
   }
 
   try {
-    const session = await stripePost<StripeCheckoutSession>('/checkout/sessions', params, {
+    const session = await getStripeClient().checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${getBillingReturnUrl()}/pro?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${getBillingReturnUrl()}/pro?checkout=cancelled`,
+      client_reference_id: user.id,
+      metadata: {
+        supabase_user_id: user.id,
+        cornermaximo_plan: 'PREMIUM',
+      },
+      subscription_data: {
+        billing_mode: { type: 'flexible' },
+        metadata: {
+          supabase_user_id: user.id,
+          cornermaximo_plan: 'PREMIUM',
+        },
+      },
+      allow_promotion_codes: true,
+      managed_payments: { enabled: true },
+      integration_identifier: createCheckoutIntegrationIdentifier(),
+      origin_context: 'web',
+      ...(billing?.stripe_customer_id
+        ? { customer: billing.stripe_customer_id }
+        : user.email
+          ? { customer_email: user.email }
+          : {}),
+    }, {
       idempotencyKey: checkoutIdempotencyKey(user.id, priceId),
     });
+
     if (!session.url) return backToPro('checkout-url-missing');
     return NextResponse.redirect(session.url, 303);
-  } catch {
+  } catch (error) {
+    console.error('Stripe Checkout Session creation failed.', {
+      userId: user.id,
+      error: error instanceof Error ? error.message : 'Unknown Stripe error',
+    });
     return backToPro('checkout-error');
   }
 }

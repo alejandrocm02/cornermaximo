@@ -111,7 +111,7 @@ para la base deportiva histórica antes de automatizar `prisma migrate deploy`.
 
 - API estable fijada, timeout de 10 s y claves de idempotencia en Checkout/Portal.
 - Managed Payments activado en Checkout.
-- Webhook con validación de estructura, firma HMAC probada, ledger por `event.id`
+- Webhook con verificación oficial del SDK de Stripe, ledger por `event.id`
   y rechazo transaccional de eventos duplicados o antiguos.
 - Tablas de ledger con RLS y denegación explícita al cliente.
 

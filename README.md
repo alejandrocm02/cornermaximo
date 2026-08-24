@@ -66,7 +66,7 @@ apps/
    Importa el repositorio. Configuración del proyecto:
    - Root Directory: `apps/web`
    - Variables de entorno: usa `.env.example` como inventario; no expongas claves de servidor con prefijo `NEXT_PUBLIC_`.
-6. **Stripe** (opcional) — necesario únicamente para CornerMaximo Pro; configura webhook e identificador de precio según `.env.example`.
+6. **Stripe** (opcional) — necesario únicamente para CornerMaximo Premium; configura Checkout, el webhook y el precio mensual siguiendo `docs/STRIPE_PREMIUM_SETUP.md`.
 7. **Upstash** (Redis, opcional, gratis) — https://upstash.com — solo cuando quieras activar la caché.
 
 ## Puesta en marcha (desarrollo local)

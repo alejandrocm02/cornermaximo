@@ -35,6 +35,15 @@ export async function proxy(request: NextRequest) {
     return canonicalRedirect;
   }
 
+  // Stripe does not carry a Supabase session. Keep its signed webhook independent
+  // from cookie refreshes so billing events can still be retried during auth incidents.
+  if (request.nextUrl.pathname === '/api/billing/webhook') {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('Content-Security-Policy', contentSecurityPolicy);
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    return response;
+  }
+
   const response = await updateSession(request, requestHeaders);
   response.headers.set('Content-Security-Policy', contentSecurityPolicy);
   return response;

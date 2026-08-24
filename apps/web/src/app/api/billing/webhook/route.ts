@@ -1,168 +1,140 @@
 import { NextResponse } from 'next/server';
-import { verifyStripeSignature } from '@/lib/security/stripe-signature';
+import type Stripe from 'stripe';
+import { constructStripeEvent } from '@/lib/security/stripe-signature';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { stripeGet } from '@/lib/stripe-rest';
+import { getPremiumPriceId, getStripeClient, isPremiumPriceId } from '@/lib/stripe';
 
 export const runtime = 'nodejs';
 
-interface StripeEvent {
-  id: string;
-  type: string;
-  created: number;
-  data: { object: Record<string, unknown> };
-}
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-interface StripeSubscriptionItem {
-  current_period_start?: number;
-  current_period_end?: number;
-  price?: { id?: string };
-}
-
-interface StripeSubscription {
-  id: string;
-  customer: string | { id?: string };
-  status: string;
-  metadata?: Record<string, string>;
-  cancel_at_period_end?: boolean;
-  items?: { data?: StripeSubscriptionItem[] };
-}
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-function idOf(value: unknown): string | null {
+function idOf(value: string | { id: string } | null): string | null {
   if (typeof value === 'string') return value;
-  if (value && typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string') {
-    return (value as { id: string }).id;
-  }
-  return null;
+  return value?.id ?? null;
 }
 
-async function resolveUserId(subscription: StripeSubscription): Promise<string | null> {
-  const metadataUserId = subscription.metadata?.supabase_user_id;
-  if (metadataUserId && UUID_RE.test(metadataUserId)) return metadataUserId;
+async function resolveUserId(
+  subscription: Stripe.Subscription,
+  fallbackUserId?: string | null,
+): Promise<string | null> {
+  const metadataUserId = subscription.metadata.supabase_user_id || fallbackUserId;
+  if (metadataUserId && UUID_PATTERN.test(metadataUserId)) return metadataUserId;
 
   const admin = createAdminClient();
+  const subscriptionId = subscription.id;
   const customerId = idOf(subscription.customer);
-  const query = admin
+
+  const { data: bySubscription } = await admin
     .from('billing_subscriptions')
     .select('user_id')
-    .eq('stripe_subscription_id', subscription.id)
+    .eq('stripe_subscription_id', subscriptionId)
     .maybeSingle();
 
-  let { data } = await query;
-  if (data?.user_id) return data.user_id as string;
+  if (bySubscription?.user_id) return bySubscription.user_id;
+  if (!customerId) return null;
 
-  if (customerId) {
-    const result = await admin
-      .from('billing_subscriptions')
-      .select('user_id')
-      .eq('stripe_customer_id', customerId)
-      .maybeSingle();
-    data = result.data;
-    if (data?.user_id) return data.user_id as string;
-  }
+  const { data: byCustomer } = await admin
+    .from('billing_subscriptions')
+    .select('user_id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle();
 
-  return null;
+  return byCustomer?.user_id ?? null;
 }
 
-async function persistSubscription(
-  subscription: StripeSubscription,
-  event: StripeEvent,
+async function persistPremiumSubscription(
+  subscription: Stripe.Subscription,
+  event: Stripe.Event,
   fallbackUserId?: string | null,
-) {
-  if (!subscription.id || !subscription.status) {
-    throw new Error('Invalid Stripe subscription payload.');
+): Promise<'applied' | 'ignored'> {
+  const subscriptionItem = subscription.items.data[0];
+  const priceId = subscriptionItem?.price.id ?? null;
+
+  // Never grant Premium for an unrelated Stripe price.
+  if (!isPremiumPriceId(priceId)) return 'ignored';
+
+  const userId = await resolveUserId(subscription, fallbackUserId);
+  if (!userId || !subscriptionItem) {
+    throw new Error('Unable to map the Premium subscription to a valid user.');
   }
 
-  const admin = createAdminClient();
-  const userId = fallbackUserId && UUID_RE.test(fallbackUserId)
-    ? fallbackUserId
-    : await resolveUserId(subscription);
-  if (!userId) throw new Error('Unable to resolve Supabase user for Stripe subscription.');
-
   const customerId = idOf(subscription.customer);
-  const primaryItem = subscription.items?.data?.[0];
-  const priceId = primaryItem?.price?.id ?? null;
-  const toIso = (seconds?: number) =>
-    typeof seconds === 'number' && Number.isFinite(seconds)
-      ? new Date(seconds * 1000).toISOString()
-      : null;
+  if (!customerId) throw new Error('Stripe subscription has no customer identifier.');
 
-  const { error } = await admin.rpc('apply_stripe_subscription_event', {
-    p_event_id: event.id,
-    p_event_type: event.type,
-    p_event_created: new Date(event.created * 1000).toISOString(),
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc('apply_stripe_subscription_event', {
     p_user_id: userId,
-    p_status: subscription.status,
     p_customer_id: customerId,
     p_subscription_id: subscription.id,
     p_price_id: priceId,
-    p_current_period_start: toIso(primaryItem?.current_period_start),
-    p_current_period_end: toIso(primaryItem?.current_period_end),
-    p_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    p_status: subscription.status,
+    p_current_period_start: new Date(subscriptionItem.current_period_start * 1000).toISOString(),
+    p_current_period_end: new Date(subscriptionItem.current_period_end * 1000).toISOString(),
+    p_cancel_at_period_end: subscription.cancel_at_period_end,
+    p_event_id: event.id,
+    p_event_type: event.type,
+    p_event_created: new Date(event.created * 1000).toISOString(),
   });
 
   if (error) throw error;
+  return data ? 'applied' : 'ignored';
+}
+
+function isSubscriptionLifecycleEvent(
+  event: Stripe.Event,
+): event is Stripe.CustomerSubscriptionCreatedEvent | Stripe.CustomerSubscriptionUpdatedEvent | Stripe.CustomerSubscriptionDeletedEvent {
+  return [
+    'customer.subscription.created',
+    'customer.subscription.updated',
+    'customer.subscription.deleted',
+  ].includes(event.type);
 }
 
 export async function POST(request: Request) {
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   const signature = request.headers.get('stripe-signature');
-  if (!webhookSecret || !signature) {
-    return NextResponse.json({ error: 'Webhook configuration missing.' }, { status: 400 });
+
+  if (!signature) {
+    return NextResponse.json({ error: 'Missing Stripe signature.' }, { status: 400 });
+  }
+  if (!webhookSecret || !process.env.STRIPE_SECRET_KEY?.trim() || !getPremiumPriceId()) {
+    return NextResponse.json({ error: 'Stripe webhook is not configured.' }, { status: 500 });
   }
 
   const payload = await request.text();
-  if (!verifyStripeSignature(payload, signature, webhookSecret)) {
-    return NextResponse.json({ error: 'Invalid Stripe signature.' }, { status: 400 });
-  }
+  let event: Stripe.Event;
 
-  let event: StripeEvent;
   try {
-    const parsed = JSON.parse(payload) as unknown;
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      typeof (parsed as Partial<StripeEvent>).id !== 'string' ||
-      typeof (parsed as Partial<StripeEvent>).type !== 'string' ||
-      typeof (parsed as Partial<StripeEvent>).created !== 'number' ||
-      !Number.isFinite((parsed as Partial<StripeEvent>).created) ||
-      !(parsed as Partial<StripeEvent>).data ||
-      typeof (parsed as Partial<StripeEvent>).data?.object !== 'object'
-    ) {
-      throw new Error('Invalid Stripe event shape.');
-    }
-    event = parsed as StripeEvent;
+    event = constructStripeEvent(payload, signature, webhookSecret, getStripeClient());
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid Stripe signature.' }, { status: 400 });
   }
 
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const subscriptionId = idOf(session.subscription);
-      const fallbackUserId =
-        typeof session.client_reference_id === 'string'
-          ? session.client_reference_id
-          : typeof (session.metadata as Record<string, unknown> | undefined)?.supabase_user_id === 'string'
-            ? String((session.metadata as Record<string, unknown>).supabase_user_id)
-            : null;
 
-      if (subscriptionId) {
-        const subscription = await stripeGet<StripeSubscription>(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
-        await persistSubscription(subscription, event, fallbackUserId);
+      if (session.mode === 'subscription' && subscriptionId) {
+        const subscription = await getStripeClient().subscriptions.retrieve(subscriptionId, {
+          expand: ['items.data.price'],
+        });
+        await persistPremiumSubscription(
+          subscription,
+          event,
+          session.client_reference_id || session.metadata?.supabase_user_id,
+        );
       }
+    } else if (isSubscriptionLifecycleEvent(event)) {
+      await persistPremiumSubscription(event.data.object, event);
     }
-
-    if (
-      event.type === 'customer.subscription.created' ||
-      event.type === 'customer.subscription.updated' ||
-      event.type === 'customer.subscription.deleted'
-    ) {
-      await persistSubscription(event.data.object as unknown as StripeSubscription, event);
-    }
-  } catch {
-    // Non-2xx makes Stripe retry the event, which is safer than silently losing entitlement changes.
-    return NextResponse.json({ error: 'Subscription sync failed.' }, { status: 500 });
+  } catch (error) {
+    console.error('Stripe webhook processing failed.', {
+      eventId: event.id,
+      eventType: event.type,
+      error: error instanceof Error ? error.message : 'Unknown webhook error',
+    });
+    return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

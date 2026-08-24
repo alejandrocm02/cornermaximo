@@ -112,7 +112,7 @@ export function MainNav() {
             ))}
             <section className="grid gap-2 min-[360px]:grid-cols-2">
               <Link href="/pro" onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-xl border border-pitch-danger/35 bg-pitch-danger/10 px-4 text-sm font-semibold text-white">
-                CornerMaximo Pro
+                CornerMaximo Premium
               </Link>
               <Link href="/mi-corner" onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-xl border border-pitch-accent/50 bg-pitch-accent/10 px-4 text-sm font-semibold text-white">
                 Mi Corner
@@ -153,7 +153,7 @@ export function MainNav() {
       </ul>
 
       <Link href="/pro" className="hidden min-h-10 items-center rounded-xl border border-pitch-danger/25 bg-pitch-danger/5 px-3 text-xs font-semibold text-pitch-subtle transition hover:border-pitch-danger/50 hover:text-white xl:inline-flex">
-        Pro
+        Premium
       </Link>
       <Link href="/mi-corner" className="hidden min-h-10 items-center rounded-xl border border-pitch-border bg-pitch-card/60 px-3 text-sm font-semibold text-pitch-subtle transition hover:border-pitch-accent/50 hover:text-white md:inline-flex">
         Mi Corner
