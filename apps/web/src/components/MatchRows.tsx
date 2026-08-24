@@ -93,16 +93,25 @@ export function MatchRows({ matches, empty }: { matches: MatchRow[]; empty: stri
                 </p>
               </div>
 
-              <span
-                className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-semibold ${statusTone(
-                  match.status,
-                )}`}
-              >
-                {match.status === 'LIVE' && (
-                  <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
-                )}
-                {statusLabel(match.status)}
-              </span>
+              <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                <span
+                  className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-semibold ${statusTone(
+                    match.status,
+                  )}`}
+                >
+                  {match.status === 'LIVE' && (
+                    <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                  )}
+                  {statusLabel(match.status)}
+                </span>
+                <Link
+                  href={`/partidos/${match.id}`}
+                  className="rounded text-2xs font-semibold text-pitch-accent transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pitch-accent"
+                  aria-label={`Abrir partido ${home?.team.name ?? 'equipo local'} contra ${away?.team.name ?? 'equipo visitante'}`}
+                >
+                  Abrir partido →
+                </Link>
+              </div>
             </li>
           );
         })}

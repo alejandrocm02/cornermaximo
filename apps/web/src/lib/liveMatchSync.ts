@@ -156,15 +156,17 @@ export async function syncLiveScoreboard(): Promise<LiveScoreboardResult> {
     updated++;
   }
 
-  // Un partido que acaba deja de aparecer en `live=all`. Sondeamos solo los
+  // Un partido que acaba deja de aparecer en `live=all`. Sondeamos los
   // encuentros que nuestra BD todavía considera LIVE y que ya no están en la
-  // respuesta para capturar FT/AET/PEN sin esperar al sync general.
+  // respuesta para capturar FT/AET/PEN sin esperar al sync general. No se
+  // limita por antigüedad: si una ejecución falla durante el cierre, el
+  // siguiente scoreboard debe poder reparar el estado aunque sea al día
+  // siguiente.
   const staleLive = await prisma.match.findMany({
     where: {
       providerId: provider.id,
       status: 'LIVE',
       externalId: { notIn: [...liveExternalIds] },
-      kickoffAt: { gte: new Date(Date.now() - 5 * 60 * 60 * 1000) },
     },
     select: { id: true, externalId: true },
     orderBy: { kickoffAt: 'asc' },
