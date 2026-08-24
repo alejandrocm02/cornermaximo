@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import Stripe from 'stripe';
 
 export const STRIPE_API_VERSION = '2026-07-29.dahlia' as const;
@@ -57,11 +57,10 @@ export function isStripeBillingConfigured(): boolean {
 }
 
 export function createCheckoutIntegrationIdentifier(): string {
-  const bytes = randomBytes(8);
   let suffix = '';
 
-  for (const byte of bytes) {
-    suffix += RANDOM_LETTERS.charAt(byte % RANDOM_LETTERS.length);
+  for (let index = 0; index < 8; index += 1) {
+    suffix += RANDOM_LETTERS.charAt(randomInt(RANDOM_LETTERS.length));
   }
 
   return `${INTEGRATION_PREFIX}${suffix}`;
