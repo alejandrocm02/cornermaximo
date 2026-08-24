@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getBillingReturnUrl } from '@/lib/site-url';
 import { isSameOriginBillingRequest } from '@/lib/security/billing-request';
 import {
-  createCheckoutIntegrationIdentifier,
+  getCheckoutIntegrationIdentifier,
   getPremiumPriceId,
   getStripeClient,
   isManagedPaymentsEnabled,
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       },
       allow_promotion_codes: true,
       managed_payments: { enabled: true },
-      integration_identifier: createCheckoutIntegrationIdentifier(),
+      integration_identifier: getCheckoutIntegrationIdentifier(),
       origin_context: 'web',
       ...(billing?.stripe_customer_id
         ? { customer: billing.stripe_customer_id }
