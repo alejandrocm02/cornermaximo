@@ -87,7 +87,7 @@ export default async function HomePage() {
   return (
     <div className="cm-page space-y-8">
       {hasLive && <LiveScoreboardController />}
-      <section className="cm-hero-panel overflow-hidden p-5 sm:p-7 lg:p-8">
+      <section className="cm-hero-panel z-30 overflow-visible p-5 sm:p-7 lg:p-8">
         <div className="relative z-10 grid gap-7 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] xl:items-end">
           <div>
             <div className="flex flex-wrap items-center gap-2">

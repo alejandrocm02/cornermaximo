@@ -30,6 +30,46 @@ test.describe('calidad web esencial', () => {
     });
   }
 
+  test('los resultados del buscador flotan fuera del panel principal', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.route('**/api/search?**', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        players: Array.from({ length: 8 }, (_, index) => ({
+          slug: `jugador-${index}`,
+          name: `Jugador Mbappé ${index + 1}`,
+          photoUrl: null,
+          team: `Equipo ${index + 1}`,
+          href: `/jugadores/jugador-${index}`,
+        })),
+        teams: [],
+        leagues: [],
+      }),
+    }));
+
+    await page.goto('/');
+    await page.getByRole('combobox', { name: 'Busca un jugador, equipo o liga' }).fill('mbappe');
+
+    const hero = page.locator('section.cm-hero-panel').first();
+    const results = page.getByRole('listbox');
+    await expect(results).toBeVisible();
+
+    const [heroBox, resultsBox] = await Promise.all([hero.boundingBox(), results.boundingBox()]);
+    expect(heroBox).not.toBeNull();
+    expect(resultsBox).not.toBeNull();
+    if (heroBox == null || resultsBox == null) return;
+
+    const probe = {
+      x: resultsBox.x + resultsBox.width / 2,
+      y: heroBox.y + heroBox.height + 8,
+    };
+    expect(probe.y).toBeLessThan(resultsBox.y + resultsBox.height);
+    expect(await page.evaluate(({ x, y }) => {
+      return document.elementFromPoint(x, y)?.closest('#global-search-list') != null;
+    }, probe)).toBe(true);
+  });
+
   test('una ruta privada no expone contenido sin sesión', async ({ page }) => {
     await page.goto('/cuenta');
     await expect(page).toHaveURL(/\/auth\/login\?next=\/mi-corner$/);
