@@ -5,7 +5,9 @@ import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { JsonLd } from '@/components/JsonLd';
 import { TrendBadge } from '@/components/TrendBadge';
-import { roundLabel } from '@/lib/football';
+import { PlayerMatchHistory } from '@/components/PlayerMatchHistory';
+import { parseHistoryFilters, type HistorySearchParams } from '@/lib/matchHistory';
+import { getHistoryOptions, getPlayerMatchHistory } from '@/lib/playerMatchHistory';
 import { getPlayerProfileContent, getPlayerProfileCore } from '@/lib/playerProfile';
 import { getLastMatches } from '@/lib/recent';
 
@@ -73,19 +75,23 @@ export default async function PlayerPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ desde?: string }>;
+  searchParams: Promise<HistorySearchParams>;
 }) {
   const { slug } = await params;
-  const { desde } = await searchParams;
+  const query = await searchParams;
+  const desde = typeof query.desde === 'string' ? query.desde : undefined;
+  const historyFilters = parseHistoryFilters(query);
   const backHref = desde && /^[\w=&%.+-]*$/.test(desde) ? `/jugadores?${desde}` : '/jugadores';
   const player = await getPlayerProfileCore(slug);
   if (!player) notFound();
 
   const isGK = player.positions.some((p) => p.isPrimary && p.group === 'GK');
-  const [data, seasonData, content] = await Promise.all([
+  const [data, seasonData, content, history, historyOptions] = await Promise.all([
     getLastMatches(player.id, isGK),
     getLastMatches(player.id, isGK, 'season'),
     getPlayerProfileContent(player.id, player.currentTeamId),
+    getPlayerMatchHistory(player.id, historyFilters),
+    getHistoryOptions(player.id),
   ]);
   const age = calculateAge(player.birthDate);
   const pos = player.positions.find((p) => p.isPrimary)?.group ?? null;
@@ -105,7 +111,7 @@ export default async function PlayerPage({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <JsonLd data={personJsonLd} />
       <Breadcrumbs items={[{ label: 'Jugadores', href: backHref }, { label: player.knownAs ?? player.fullName }]} />
 
@@ -167,24 +173,15 @@ export default async function PlayerPage({
         )}
       </section>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Partido a partido</h2>
-        <div className="space-y-2">
-          {data.matches.map((match) => (
-            <article key={match.matchId} className="fs-panel flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm">
-              <time className="w-20 text-xs text-pitch-muted">{new Date(match.date).toLocaleDateString('es-ES')}</time>
-              <div className="min-w-0 flex-1">
-                <p className="truncate">{match.isHome ? 'vs' : '@'} {match.rival} <span className="text-pitch-muted">({match.result})</span></p>
-                <p className="truncate text-xs text-pitch-muted">{match.competition}{roundLabel(match.round) ? ` · ${roundLabel(match.round)}` : ''}</p>
-              </div>
-              <span className="text-xs text-pitch-muted">{match.minutes}&apos;</span>
-              {!isGK && <span className="text-xs text-pitch-muted">ENT {fmt(match.tackles)} · FC {fmt(match.foulsCommitted)} · FR {fmt(match.foulsDrawn)}</span>}
-              {match.rating != null && <strong className="rounded bg-pitch-accent/10 px-2 py-1 tabular-nums text-pitch-accent">{match.rating.toFixed(1)}</strong>}
-            </article>
-          ))}
-          {!data.matches.length && <p className="fs-panel p-6 text-center text-sm text-pitch-muted">Aún no hay partidos con estadísticas sincronizadas.</p>}
-        </div>
-      </section>
+      <PlayerMatchHistory
+        slug={player.slug}
+        playerName={player.knownAs ?? player.fullName}
+        isGoalkeeper={isGK}
+        matches={history}
+        filters={historyFilters}
+        options={historyOptions}
+        from={desde && /^[\w=&%.+-]*$/.test(desde) ? desde : undefined}
+      />
 
       {(content.news.length > 0 || content.transfers.length > 0) && (
         <section className="grid gap-6 lg:grid-cols-2">
