@@ -1,11 +1,11 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import Form from 'next/form';
 import { Fragment, type ReactNode } from 'react';
+import { HistoryCrest } from '@/components/HistoryCrest';
 import { roundLabel } from '@/lib/football';
 import {
   FIELD_METRICS, GOALKEEPER_METRICS, historyParticipation, historyPosition, summarizeHistoryMetric,
-  type HistoryFilters, type HistoryMatch, type HistoryTeam,
+  type HistoryFilters, type HistoryMatch,
 } from '@/lib/matchHistory';
 
 interface Props {
@@ -136,15 +136,11 @@ export function PlayerMatchHistory({ slug, playerName, isGoalkeeper, matches, fi
 }
 
 function Filter({ label, name, value, children }: { label: string; name: string; value: string; children: ReactNode }) {
-  return <label className="flex min-w-0 flex-col gap-1.5 text-sm text-pitch-subtle"><span>{label}</span><select key={value} name={name} defaultValue={value} className="fs-input min-w-0">{children}</select></label>;
+  return <div className="flex min-w-0 flex-col gap-1.5 text-sm text-pitch-subtle"><label htmlFor={`history-${name}`}>{label}</label><select id={`history-${name}`} key={value} name={name} defaultValue={value} className="fs-input min-w-0">{children}</select></div>;
 }
 
 function InfoRow({ label, matches, render }: { label: string; matches: HistoryMatch[]; render: (match: HistoryMatch) => ReactNode }) {
   return <tr><th scope="row" className="cm-history-label font-medium text-pitch-subtle">{label}</th>{matches.map((match) => <td key={match.id}>{render(match)}</td>)}</tr>;
-}
-
-function Crest({ team }: { team: HistoryTeam }) {
-  return <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white p-1.5" title={team.name}>{team.crestUrl ? <Image src={team.crestUrl} alt={team.name} width={24} height={24} className="h-6 w-6 object-contain" /> : <span className="text-xs font-bold text-slate-700" aria-label={team.name}>{team.name.slice(0, 2).toUpperCase()}</span>}</span>;
 }
 
 function MatchHeading({ match }: { match: HistoryMatch }) {
@@ -155,7 +151,7 @@ function MatchHeading({ match }: { match: HistoryMatch }) {
     <Link href={`/partidos/${match.id}`} prefetch={false} className="cm-history-match-link" aria-label={`Abrir partido ${match.home.name} ${match.home.goals ?? '—'} a ${match.away.goals ?? '—'} ${match.away.name}, ${date(match.date)}, ${match.season}`}>
       <time dateTime={match.date} className="text-sm font-semibold text-white">{date(match.date)}</time>
       <span className="text-xs font-normal text-pitch-muted">{match.competition} · {match.season}</span>
-      <span className="mt-1 flex items-center justify-center gap-2"><Crest team={match.home} /><Crest team={match.away} /></span>
+      <span className="mt-1 flex items-center justify-center gap-2"><HistoryCrest name={match.home.name} url={match.home.crestUrl} /><HistoryCrest name={match.away.name} url={match.away.crestUrl} /></span>
       <span className="font-display text-lg font-bold text-white">{match.home.goals ?? '—'} – {match.away.goals ?? '—'}</span>
       <span className="text-sm font-medium text-pitch-subtle">{match.isHome ? 'vs' : '@'} {rival.name}</span>
       <span className={`text-xs font-normal ${outcome === 'Derrota' ? 'text-pitch-danger' : 'text-pitch-muted'}`}>{match.isHome ? 'Local' : 'Visitante'}{outcome ? ` · ${outcome}` : ''}</span>

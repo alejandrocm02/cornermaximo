@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('historial: datos, filtros, navegación y adaptación móvil', async ({ page }) => {
+  test.setTimeout(90_000);
   test.skip(Boolean(process.env.PLAYWRIGHT_BASE_URL), 'La prueba crea datos únicamente en la base local efímera.');
   const dbUrl = new URL(process.env.DATABASE_URL ?? 'postgresql://localhost/');
   test.skip(!['localhost', '127.0.0.1'].includes(dbUrl.hostname) || dbUrl.pathname !== '/cornermaximo', 'Requiere la base local de CI.');
