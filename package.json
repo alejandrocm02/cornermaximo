@@ -24,7 +24,7 @@
     "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.62.1",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.1",
+    "eslint-config-next": "16.3.4",
     "typescript": "^5.5.4",
     "vitest": "^3.2.6"
   },
@@ -36,6 +36,7 @@
       "@prisma/config": {
         "deepmerge-ts": "8.0.1"
       }
-    }
+    },
+    "mysql2": "3.24.4"
   }
 }
