@@ -1,9 +1,9 @@
 # GitHub Actions llama al endpoint protegido de la app en Vercel.
 # Cada invocación inicia trabajo durante ~35s y reserva margen frente al límite
 # de 60s de la función. También respeta el rate
-# limit del plan Pro de API-Football (300 req/min, 7 500 req/día), así que
-# encadenamos varias tandas por ejecución. Corre cada hora: con el Mundial
-# 2026 en juego interesa refrescar resultados y clasificación con frecuencia.
+# limit del proveedor y el presupuesto diario configurado en la app.
+# Hasta 8 tandas por hora (antes 10): 20% menos invocaciones máximas
+# programadas en Vercel. Las unidades pendientes continúan en la siguiente tanda.
 name: sync
 
 on:
@@ -48,7 +48,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for i in $(seq 1 10); do
+          for i in $(seq 1 8); do
             echo "--- tanda $i ---"
 
             if ! RESP=$(curl \

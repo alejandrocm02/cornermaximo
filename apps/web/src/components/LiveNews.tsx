@@ -2,14 +2,14 @@
 
 /**
  * Indicador de actualidad del feed: "Actualizado hace X minutos" + aviso de
- * noticias nuevas con botón para cargarlas. Sondeo suave cada 2 minutos,
+ * noticias nuevas con botón para cargarlas. Sondeo suave cada 160 segundos,
  * pausado cuando la pestaña no está visible. No desplaza el contenido.
  */
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { timeAgo } from '@/lib/marketLabels';
 
-const POLL_MS = 120_000;
+const POLL_MS = 160_000;
 
 export function LiveNews({ serverNow }: { serverNow: string }) {
   const router = useRouter();

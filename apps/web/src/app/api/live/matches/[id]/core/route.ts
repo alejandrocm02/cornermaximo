@@ -26,8 +26,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json(snapshot, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=60',
-        'CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=60',
+        'Cache-Control': 'public, s-maxage=80, stale-while-revalidate=80',
+        'CDN-Cache-Control': 'public, s-maxage=80, stale-while-revalidate=80',
       },
     });
   } catch (error) {

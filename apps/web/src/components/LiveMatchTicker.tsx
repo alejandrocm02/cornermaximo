@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-// El marcador/estado global se actualiza cada 15 s mediante LiveScoreboardController.
+// El marcador/estado global se actualiza cada 20 s mediante LiveScoreboardController.
 // Aquí reservamos llamadas por partido para eventos y detalle, que son más costosas.
-const LIVE_CORE_INTERVAL_MS = 60_000;
-const WARMUP_CORE_INTERVAL_MS = 60_000;
-const DETAIL_INTERVAL_MS = 180_000;
+const LIVE_CORE_INTERVAL_MS = 80_000;
+const WARMUP_CORE_INTERVAL_MS = 80_000;
+const DETAIL_INTERVAL_MS = 240_000;
 const WARMUP_BEFORE_MS = 2 * 60 * 60 * 1000;
 const WARMUP_AFTER_MS = 4 * 60 * 60 * 1000;
 
