@@ -32,6 +32,9 @@ const nextConfig = {
     '@cornermaximo/sync',
   ],
   images: {
+    // Serve the provider's small portraits and crests directly. The hosted
+    // optimizer currently returns 402; keep image loading independent of it.
+    unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'media.api-sports.io', pathname: '/football/**', search: '' },
       { protocol: 'https', hostname: 'media-1.api-sports.io', pathname: '/football/**', search: '' },
