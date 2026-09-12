@@ -3,8 +3,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-const LIVE_INTERVAL_MS = 15_000;
-const IDLE_INTERVAL_MS = 60_000;
+// 25% fewer recurring requests than the previous polling cadence.
+const LIVE_INTERVAL_MS = 20_000;
+const IDLE_INTERVAL_MS = 80_000;
 const HIDDEN_INTERVAL_MS = 120_000;
 
 interface ScoreboardSnapshot {
