@@ -259,7 +259,17 @@ export async function syncFixtures(
         hasExtraTime: f.hasExtraTime,
         hasPenalties: f.hasPenalties,
       },
+      select: { id: true, teams: { select: { isHome: true, teamId: true } } },
     });
+
+    // El proveedor puede invertir local y visitante (p.ej. un partido aplazado
+    // que cambia de sede). Reasignar los equipos lado a lado chocaría con la
+    // restricción única (matchId, teamId) y abortaría el calendario completo
+    // de la competición, así que se eliminan antes las filas desalineadas.
+    const sidesChanged = match.teams.some((t) => t.teamId !== (t.isHome ? homeId : awayId));
+    if (sidesChanged) {
+      await db.matchTeam.deleteMany({ where: { matchId: match.id } });
+    }
 
     await db.matchTeam.upsert({
       where: { matchId_isHome: { matchId: match.id, isHome: true } },
