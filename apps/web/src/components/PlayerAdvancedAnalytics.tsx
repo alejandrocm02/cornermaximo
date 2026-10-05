@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { PlayerAdvancedAnalytics as Analytics, AdvancedMetric } from '@/lib/playerAdvanced';
+import { DISPLAY_TIME_ZONE } from '@/lib/football';
 
 const POSITION_LABEL = { GK: 'porteros', DF: 'defensas', MF: 'centrocampistas', FW: 'delanteros' } as const;
 
@@ -90,7 +91,7 @@ function Evolution({ form }: { form: Analytics['form'] }) {
           <g key={item.matchId}>
             <circle cx={x(index)} cy={y(item.rating ?? 5)} r="4" className="fill-pitch-bg stroke-pitch-accent" strokeWidth="2" />
             <text x={x(index)} y={height - 8} textAnchor="middle" className="fill-pitch-muted text-[9px]">
-              {new Date(item.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+              {new Date(item.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', timeZone: DISPLAY_TIME_ZONE })}
             </text>
           </g>
         ))}

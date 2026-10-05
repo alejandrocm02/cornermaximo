@@ -12,8 +12,15 @@ export function seasonLabel(year: number, format: SeasonFormat = 'SPLIT_YEAR'): 
   return formatSeasonLabel(year, format);
 }
 
+/**
+ * Zona en la que se muestran fechas y horas. El servidor corre en UTC: sin
+ * indicarla, los horarios salían una o dos horas antes de la hora española.
+ */
+export const DISPLAY_TIME_ZONE = 'Europe/Madrid';
+
 export function formatMatchDate(date: Date): string {
   return date.toLocaleDateString('es-ES', {
+    timeZone: DISPLAY_TIME_ZONE,
     day: '2-digit',
     month: 'short',
     hour: '2-digit',

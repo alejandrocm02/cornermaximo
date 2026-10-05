@@ -9,7 +9,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { JsonLd } from '@/components/JsonLd';
-import { seasonLabel } from '@/lib/football';
+import { DISPLAY_TIME_ZONE, seasonLabel } from '@/lib/football';
 import { rankingRows, TOP_FIVE_LEAGUES_FILTER, type RankingMetric } from '@/lib/leaderboards';
 
 export const dynamic = 'force-dynamic';
@@ -205,7 +205,7 @@ export default async function RankingsPage({
         <section aria-labelledby="podio-ranking">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div><p className="cm-kicker">Top 3</p><h2 id="podio-ranking" className="mt-1 text-2xl font-bold">Podio · {metric.label}</h2></div>
-            {updatedAt != null && <p className="hidden text-xs text-pitch-muted sm:block">Actualizado {updatedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}</p>}
+            {updatedAt != null && <p className="hidden text-xs text-pitch-muted sm:block">Actualizado {updatedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: DISPLAY_TIME_ZONE })}</p>}
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             {podium.map((row, index) => (

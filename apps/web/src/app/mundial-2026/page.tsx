@@ -2,7 +2,7 @@ import { prisma } from '@cornermaximo/db';
 import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import Link from 'next/link';
 import { JsonLd } from '@/components/JsonLd';
-import { groupLabel, roundLabel } from '@/lib/football';
+import { DISPLAY_TIME_ZONE, groupLabel, roundLabel } from '@/lib/football';
 import { topPlayerStat } from '@/lib/worldCupStats';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,13 @@ export const metadata = {
 };
 
 function formatKickoff(d: Date) {
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('es-ES', {
+    timeZone: DISPLAY_TIME_ZONE,
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export default async function WorldCupPage() {
@@ -153,7 +159,7 @@ export default async function WorldCupPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Clasificación por grupo</h2>
         {standingsUpdatedAt != null && (
           <p className="-mt-2 mb-3 text-xs text-pitch-muted">
-            Última actualización: {standingsUpdatedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}
+            Última actualización: {standingsUpdatedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: DISPLAY_TIME_ZONE })}
           </p>
         )}
         {standingsByGroup.length > 0 ? (

@@ -6,7 +6,7 @@ import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { TeamInsightsPanel } from '@/components/CompetitionInsightPanels';
 import { getTeamInsights } from '@/lib/competitionInsights';
-import { groupLabel, seasonLabel } from '@/lib/football';
+import { DISPLAY_TIME_ZONE, groupLabel, seasonLabel } from '@/lib/football';
 
 export const dynamic = 'force-dynamic';
 
@@ -288,7 +288,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
                   <span className="font-medium">{transfer.playerName}</span>
                 )}
                 <span className="block text-xs text-pitch-muted">
-                  desde {transfer.fromName ?? '—'} · {transfer.fee ?? 'No revelado'} · {transfer.date.toLocaleDateString('es-ES')}
+                  desde {transfer.fromName ?? '—'} · {transfer.fee ?? 'No revelado'} · {transfer.date.toLocaleDateString('es-ES', { timeZone: DISPLAY_TIME_ZONE })}
                 </span>
               </li>
             ))}
@@ -306,7 +306,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
                   <span className="font-medium">{transfer.playerName}</span>
                 )}
                 <span className="block text-xs text-pitch-muted">
-                  hacia {transfer.toName ?? '—'} · {transfer.fee ?? 'No revelado'} · {transfer.date.toLocaleDateString('es-ES')}
+                  hacia {transfer.toName ?? '—'} · {transfer.fee ?? 'No revelado'} · {transfer.date.toLocaleDateString('es-ES', { timeZone: DISPLAY_TIME_ZONE })}
                 </span>
               </li>
             ))}
@@ -320,7 +320,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
                   {news.title}
                 </a>
                 <span className="block text-xs text-pitch-muted">
-                  {news.source} · {news.publishedAt.toLocaleDateString('es-ES')}
+                  {news.source} · {news.publishedAt.toLocaleDateString('es-ES', { timeZone: DISPLAY_TIME_ZONE })}
                 </span>
               </li>
             ))}

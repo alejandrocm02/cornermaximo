@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { AWAITING_RESULT_AFTER_MS, isAwaitingResult } from './football';
+import { AWAITING_RESULT_AFTER_MS, formatMatchDate, isAwaitingResult } from './football';
+
+describe('formatMatchDate', () => {
+  it('muestra la hora española aunque el servidor corra en UTC', () => {
+    expect(formatMatchDate(new Date('2026-10-05T18:30:00Z'))).toContain('20:30');
+    // Horario de invierno: UTC+1.
+    expect(formatMatchDate(new Date('2026-12-05T20:00:00Z'))).toContain('21:00');
+  });
+
+  it('usa el día español cuando el partido cruza la medianoche en UTC', () => {
+    expect(formatMatchDate(new Date('2026-10-05T22:30:00Z'))).toMatch(/^06 oct/);
+  });
+});
 
 describe('isAwaitingResult', () => {
   const now = Date.parse('2026-09-29T10:00:00Z');
