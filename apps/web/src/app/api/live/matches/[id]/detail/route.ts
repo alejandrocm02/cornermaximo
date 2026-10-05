@@ -1,10 +1,16 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
-import { syncLiveMatchDetail } from '@/lib/liveMatchSync';
+import { isFreshRefresh } from '@/lib/liveGuard';
+import { guardedMatchDetail } from '@/lib/liveThrottle';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=240, stale-while-revalidate=240',
+  'CDN-Cache-Control': 'public, s-maxage=240, stale-while-revalidate=240',
+};
 
 function parseMatchId(value: string): number | null {
   if (!/^\d+$/.test(value)) return null;
@@ -17,27 +23,31 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const id = parseMatchId(rawId);
   if (id == null) return NextResponse.json({ error: 'Partido inválido' }, { status: 400 });
 
-  try {
-    const result = await syncLiveMatchDetail(id);
-    if (result == null) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
-
-    revalidateTag('matches', { expire: 0 });
-    revalidateTag(FOOTBALL_DATA_CACHE_TAG, { expire: 0 });
-
+  const outcome = await guardedMatchDetail(id);
+  if (outcome.kind === 'not_found') {
+    return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
+  }
+  // Fuera de su ventana de directo no hay nada que descargar del proveedor.
+  if (outcome.kind === 'stored') {
     return NextResponse.json(
-      { ...result, refreshedAt: new Date().toISOString() },
-      {
-        headers: {
-          'Cache-Control': 'public, s-maxage=240, stale-while-revalidate=240',
-          'CDN-Cache-Control': 'public, s-maxage=240, stale-while-revalidate=240',
-        },
-      },
+      { processed: 0, terminal: outcome.terminal, refreshedAt: new Date().toISOString() },
+      { headers: CACHE_HEADERS },
     );
-  } catch (error) {
-    console.error('live match detail sync failed', error);
+  }
+  if (!outcome.result.ok) {
     return NextResponse.json(
       { error: 'No se pudieron actualizar las estadísticas en directo' },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     );
   }
+
+  const result = outcome.result.value;
+  if (result == null) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
+
+  if (result.processed > 0 && isFreshRefresh(result.refreshedAt)) {
+    revalidateTag('matches', { expire: 0 });
+    revalidateTag(FOOTBALL_DATA_CACHE_TAG, { expire: 0 });
+  }
+
+  return NextResponse.json(result, { headers: CACHE_HEADERS });
 }

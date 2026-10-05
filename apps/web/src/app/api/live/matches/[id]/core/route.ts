@@ -1,10 +1,16 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
-import { syncLiveMatchCore } from '@/lib/liveMatchSync';
+import { isFreshRefresh } from '@/lib/liveGuard';
+import { guardedMatchCore } from '@/lib/liveThrottle';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=80, stale-while-revalidate=80',
+  'CDN-Cache-Control': 'public, s-maxage=80, stale-while-revalidate=80',
+};
 
 function parseMatchId(value: string): number | null {
   if (!/^\d+$/.test(value)) return null;
@@ -17,24 +23,28 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const id = parseMatchId(rawId);
   if (id == null) return NextResponse.json({ error: 'Partido inválido' }, { status: 400 });
 
-  try {
-    const snapshot = await syncLiveMatchCore(id);
-    if (snapshot == null) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
-
-    revalidateTag('matches', { expire: 0 });
-    revalidateTag(FOOTBALL_DATA_CACHE_TAG, { expire: 0 });
-
-    return NextResponse.json(snapshot, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=80, stale-while-revalidate=80',
-        'CDN-Cache-Control': 'public, s-maxage=80, stale-while-revalidate=80',
-      },
-    });
-  } catch (error) {
-    console.error('live match core sync failed', error);
+  const outcome = await guardedMatchCore(id);
+  if (outcome.kind === 'not_found') {
+    return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
+  }
+  // Fuera de su ventana de directo se responde con lo guardado, sin proveedor.
+  if (outcome.kind === 'stored') {
+    return NextResponse.json(outcome.snapshot, { headers: CACHE_HEADERS });
+  }
+  if (!outcome.result.ok) {
     return NextResponse.json(
       { error: 'No se pudo actualizar el partido en directo' },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     );
   }
+
+  const snapshot = outcome.result.value;
+  if (snapshot == null) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
+
+  if (isFreshRefresh(snapshot.refreshedAt)) {
+    revalidateTag('matches', { expire: 0 });
+    revalidateTag(FOOTBALL_DATA_CACHE_TAG, { expire: 0 });
+  }
+
+  return NextResponse.json(snapshot, { headers: CACHE_HEADERS });
 }
