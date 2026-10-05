@@ -143,6 +143,9 @@ export function PlayerAdvancedAnalytics({ analytics }: { analytics: Analytics })
         <div className="fs-panel p-5 sm:p-6">
           <h3 className="font-display text-xl font-bold">Percentiles posicionales</h3>
           <p className="mt-1 text-xs text-pitch-muted">P90 significa estar por encima de aproximadamente el 90% de la muestra en esa métrica.</p>
+          {analytics.cohortSize < 20 && (
+            <p className="mt-2 text-xs text-pitch-warning">Muestra insuficiente: los percentiles se calculan a partir de 20 jugadores comparables.</p>
+          )}
           <div className="mt-5 space-y-4">
             {analytics.metrics.map((metric) => (
               <div key={metric.key}>

@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Aviso legal | CornerMaximo',
+  title: 'Aviso legal',
   description: 'Aviso legal de CornerMaximo.',
   robots: { index: false },
 };

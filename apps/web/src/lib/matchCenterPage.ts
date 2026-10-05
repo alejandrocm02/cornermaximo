@@ -1,6 +1,7 @@
 import { prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
+import { AWAITING_RESULT_AFTER_MS } from '@/lib/football';
 import type { MatchCenterView, MatchListItem, MatchListTeam } from '@/lib/matches';
 
 const MADRID_TIME_ZONE = 'Europe/Madrid';
@@ -106,6 +107,7 @@ function buildWhere(view: MatchCenterView, date: string, competitionSlug: string
   const now = new Date();
   let kickoffAt: { gte: Date; lt?: Date; lte?: Date };
   let statuses: string[] | undefined;
+  let statusFilter: object | undefined;
 
   if (date !== '') {
     const range = madridDayRange(date);
@@ -116,7 +118,17 @@ function buildWhere(view: MatchCenterView, date: string, competitionSlug: string
     statuses = ['SCHEDULED', 'LIVE'];
   } else if (view === 'recent') {
     kickoffAt = { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), lte: now };
-    statuses = ['FINISHED'];
+    // Además de los finalizados, los partidos ya jugados cuyo resultado aún no
+    // ha llegado: sin ellos desaparecían de "Próximos" y de "Resultados".
+    statusFilter = {
+      OR: [
+        { status: 'FINISHED' },
+        {
+          status: { in: ['SCHEDULED', 'LIVE'] },
+          kickoffAt: { lt: new Date(now.getTime() - AWAITING_RESULT_AFTER_MS) },
+        },
+      ],
+    };
   } else {
     return null;
   }
@@ -124,6 +136,7 @@ function buildWhere(view: MatchCenterView, date: string, competitionSlug: string
   return {
     kickoffAt,
     ...(statuses != null ? { status: { in: statuses as never[] } } : {}),
+    ...(statusFilter ?? {}),
     season: {
       isCurrent: true,
       ...(competitionSlug !== '' ? { competition: { slug: competitionSlug } } : {}),
@@ -132,7 +145,12 @@ function buildWhere(view: MatchCenterView, date: string, competitionSlug: string
   };
 }
 
-function queryRows(where: NonNullable<ReturnType<typeof buildWhere>>, skip?: number, take?: number) {
+function queryRows(
+  where: NonNullable<ReturnType<typeof buildWhere>>,
+  skip?: number,
+  take?: number,
+  order: 'asc' | 'desc' = 'asc',
+) {
   return prisma.match.findMany({
     where,
     include: {
@@ -147,7 +165,7 @@ function queryRows(where: NonNullable<ReturnType<typeof buildWhere>>, skip?: num
         include: { team: { select: { id: true, name: true, slug: true, crestUrl: true } } },
       },
     },
-    orderBy: { kickoffAt: 'asc' },
+    orderBy: { kickoffAt: order },
     ...(skip != null ? { skip } : {}),
     ...(take != null ? { take } : {}),
   });
@@ -181,8 +199,9 @@ async function queryMatchCenterPage(
   const total = await prisma.match.count({ where });
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(Math.max(1, requestedPage), totalPages);
-  const rows = await queryRows(where, (page - 1) * PAGE_SIZE, PAGE_SIZE);
-  if (view === 'recent') rows.reverse();
+  // Resultados: lo más reciente primero. Ordenar ascendente y dar la vuelta a
+  // la página mostraba en la primera los 60 partidos más antiguos del periodo.
+  const rows = await queryRows(where, (page - 1) * PAGE_SIZE, PAGE_SIZE, view === 'recent' ? 'desc' : 'asc');
 
   return {
     matches: rows.map(serializeMatch),
@@ -194,7 +213,7 @@ async function queryMatchCenterPage(
   };
 }
 
-const cachedMatchCenterPage = unstable_cache(queryMatchCenterPage, ['match-center-page-v2'], {
+const cachedMatchCenterPage = unstable_cache(queryMatchCenterPage, ['match-center-page-v3'], {
   revalidate: REVALIDATE_SECONDS,
   tags: [FOOTBALL_DATA_CACHE_TAG, 'matches'],
 });

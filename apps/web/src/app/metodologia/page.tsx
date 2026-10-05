@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Fuente y metodología | CornerMaximo',
+  title: 'Fuente y metodología',
   description: 'De dónde salen los datos de CornerMaximo y cómo se calculan totales, medias por partido, métricas por 90 y tendencias.',
 };
 

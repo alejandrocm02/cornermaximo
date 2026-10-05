@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { roundLabel, statusLabel } from '@/lib/football';
+import { AWAITING_RESULT_LABEL, isAwaitingResult, roundLabel, statusLabel } from '@/lib/football';
 import type { MatchListItem, MatchListTeam } from '@/lib/matches';
 
 const STATUS_CLASS: Record<string, string> = {
@@ -34,10 +34,11 @@ function TeamRow({ team, side, showScore }: { team: MatchListTeam | null; side: 
 export function MatchCard({ match }: { match: MatchListItem }) {
   const kickoff = new Date(match.kickoffAt);
   const finished = match.status === 'FINISHED';
-  const live = match.status === 'LIVE';
+  const awaiting = isAwaitingResult(match.status, kickoff);
+  const live = match.status === 'LIVE' && !awaiting;
   const showScore = finished || live;
   const translatedRound = roundLabel(match.round);
-  const status = statusLabel(match.status as Parameters<typeof statusLabel>[0]);
+  const status = awaiting ? AWAITING_RESULT_LABEL : statusLabel(match.status as Parameters<typeof statusLabel>[0]);
 
   return (
     <article className={`fs-panel-interactive group overflow-hidden ${live ? '!border-pitch-danger/30 shadow-[0_0_35px_-25px_rgba(255,62,82,.65)]' : ''}`}>
@@ -48,7 +49,7 @@ export function MatchCard({ match }: { match: MatchListItem }) {
           </span>
           <div className="min-w-0"><p className="truncate text-xs font-semibold text-white">{match.competition.name}</p><p className="truncate text-[10px] text-pitch-muted">{translatedRound ?? 'Calendario'}</p></div>
         </div>
-        <span className={`cm-data-pill shrink-0 ${STATUS_CLASS[match.status] ?? STATUS_CLASS.SCHEDULED}`}>
+        <span className={`cm-data-pill shrink-0 ${awaiting ? STATUS_CLASS.POSTPONED : (STATUS_CLASS[match.status] ?? STATUS_CLASS.SCHEDULED)}`}>
           {live && <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />}{status}
         </span>
       </div>

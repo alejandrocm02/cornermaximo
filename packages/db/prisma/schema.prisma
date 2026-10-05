@@ -693,6 +693,7 @@ model SyncJob {
   logs     SyncLog[]
 
   @@index([status, priority, scheduledAt])
+  @@index([entity, entityExternalId, status, finishedAt])
 }
 
 model SyncLog {

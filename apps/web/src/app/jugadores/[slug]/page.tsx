@@ -60,10 +60,10 @@ function calculateAge(value: string | null) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const player = await getPlayerProfileCore(slug);
-  if (!player) return { title: 'Jugador | CornerMaximo' };
+  if (!player) return { title: 'Jugador' };
   const name = player.knownAs ?? player.fullName;
   return {
-    title: `${name}: estadísticas y rendimiento | CornerMaximo`,
+    title: `${name}: estadísticas y rendimiento`,
     description: `Rendimiento de ${name}${player.currentTeam ? ` (${player.currentTeam.name})` : ''}: métricas, forma y últimos partidos.`,
     alternates: { canonical: `/jugadores/${slug}` },
     openGraph: { title: `${name} | CornerMaximo`, ...(player.photoUrl ? { images: [player.photoUrl] } : {}) },

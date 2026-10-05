@@ -109,7 +109,7 @@ function competitionCoverageLevel(input: {
 }
 
 async function queryPublicDataHealth(): Promise<PublicDataHealth> {
-  const [seasons, coverageRows, lastSuccessfulJob] = await Promise.all([
+  const [seasons, coverageRows, lastSuccessfulJob, lastProviderJob] = await Promise.all([
     prisma.season.findMany({
       where: { isCurrent: true },
       orderBy: [{ competition: { name: 'asc' } }, { year: 'desc' }],
@@ -198,6 +198,13 @@ async function queryPublicDataHealth(): Promise<PublicDataHealth> {
     `,
     prisma.syncJob.aggregate({
       where: { status: 'SUCCESS' },
+      _max: { finishedAt: true },
+    }),
+    // Las noticias (RSS) y el alta de competiciones no llaman al proveedor
+    // deportivo: siguen terminando bien aunque API-Football esté caído, así que
+    // no sirven para afirmar que los datos se han sincronizado.
+    prisma.syncJob.aggregate({
+      where: { status: 'SUCCESS', entity: { notIn: ['NEWS', 'COMPETITIONS'] } },
       _max: { finishedAt: true },
     }),
   ]);
@@ -296,8 +303,10 @@ async function queryPublicDataHealth(): Promise<PublicDataHealth> {
     },
   );
 
-  const lastSuccessfulSync = lastSuccessfulJob._max.finishedAt;
-  const freshnessHours = hoursSince(lastSuccessfulSync);
+  // El nivel usa cualquier job correcto (¿sigue vivo el cron?); la fecha que se
+  // muestra al público es la del último trabajo que sí consultó al proveedor.
+  const lastSuccessfulSync = lastProviderJob._max.finishedAt;
+  const freshnessHours = hoursSince(lastSuccessfulJob._max.finishedAt);
   let level: DataHealthLevel = 'UNKNOWN';
 
   if (freshnessHours != null) {
@@ -318,7 +327,7 @@ async function queryPublicDataHealth(): Promise<PublicDataHealth> {
     generatedAt: new Date().toISOString(),
     level,
     lastSuccessfulSync: lastSuccessfulSync?.toISOString() ?? null,
-    hoursSinceSuccessfulSync: freshnessHours,
+    hoursSinceSuccessfulSync: hoursSince(lastSuccessfulSync),
     totals,
     competitions,
   };
