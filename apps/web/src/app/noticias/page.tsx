@@ -6,6 +6,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { LiveNews } from '@/components/LiveNews';
 import { CATEGORY_LABELS, timeAgo } from '@/lib/marketLabels';
 import { newsLanguage, newsSourceFilter } from '@/lib/newsLanguage';
+import { DISPLAY_TIME_ZONE } from '@/lib/football';
 
 export const dynamic = 'force-dynamic';
 
@@ -229,7 +230,7 @@ export default async function NewsPage({
                   </span>
                 )}
                 <time dateTime={n.publishedAt.toISOString()} className="text-pitch-muted">
-                  {n.publishedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}
+                  {n.publishedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: DISPLAY_TIME_ZONE })}
                 </time>
               </div>
               <h2 className="text-sm font-semibold leading-snug">

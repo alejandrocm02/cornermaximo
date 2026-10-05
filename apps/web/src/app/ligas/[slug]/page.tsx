@@ -6,7 +6,7 @@ import { notFound, redirect } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { LeagueInsightsPanel } from '@/components/CompetitionInsightPanels';
 import { getLeagueInsights } from '@/lib/competitionInsights';
-import { formatMatchDate, seasonLabel } from '@/lib/football';
+import { DISPLAY_TIME_ZONE, formatMatchDate, seasonLabel } from '@/lib/football';
 
 export const dynamic = 'force-dynamic';
 
@@ -143,6 +143,7 @@ export default async function LeaguePage({
             {new Date(Math.max(...season.standings.map((row) => row.updatedAt.getTime()))).toLocaleString('es-ES', {
               dateStyle: 'medium',
               timeStyle: 'short',
+              timeZone: DISPLAY_TIME_ZONE,
             })}
           </p>
         )}

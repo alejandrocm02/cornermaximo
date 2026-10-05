@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { CATEGORY_LABELS, TRANSFER_STATUS, TRANSFER_TYPE_LABELS, feeLabel, timeAgo } from '@/lib/marketLabels';
+import { DISPLAY_TIME_ZONE } from '@/lib/football';
 
 export const dynamic = 'force-dynamic';
 
@@ -165,7 +166,7 @@ export default async function TransfersPage({
                   {TRANSFER_TYPE_LABELS[t.type] ?? t.type}
                 </span>
                 <time dateTime={t.date.toISOString()} className="text-xs text-pitch-muted">
-                  {t.date.toLocaleDateString('es-ES', { dateStyle: 'medium' })}
+                  {t.date.toLocaleDateString('es-ES', { dateStyle: 'medium', timeZone: DISPLAY_TIME_ZONE })}
                 </time>
                 <span className="w-full text-xs text-pitch-muted sm:ml-auto sm:w-auto">Fuente: API-Football · act. {timeAgo(t.updatedAt)}</span>
               </div>
