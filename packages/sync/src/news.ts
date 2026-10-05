@@ -17,9 +17,12 @@ interface FeedConfig {
 /** Medios deportivos reconocidos con RSS público estable. */
 const FEEDS: FeedConfig[] = [
   { url: 'https://e00-marca.uecdn.es/rss/futbol/primera-division.xml', source: 'Marca', rank: 3 },
-  { url: 'https://as.com/rss/futbol/portada.xml', source: 'Diario AS', rank: 3 },
+  // El antiguo as.com/rss/futbol/portada.xml sigue respondiendo 200, pero quedó
+  // congelado en 2022: todas sus noticias caían por el filtro de antigüedad.
+  { url: 'https://feeds.as.com/mrss-s/pages/as/site/as.com/section/futbol/portada/', source: 'Diario AS', rank: 3 },
   { url: 'https://feeds.bbci.co.uk/sport/football/rss.xml', source: 'BBC Sport', rank: 3 },
-  { url: 'https://www.skysports.com/rss/12040', source: 'Sky Sports', rank: 3 },
+  // 11095 es la sección de fútbol; 12040 era el feed general (NBA, hípica...).
+  { url: 'https://www.skysports.com/rss/11095', source: 'Sky Sports', rank: 3 },
 ];
 
 /** Clasificación por palabras del titular (nunca eleva un rumor a confirmado). */
@@ -71,6 +74,37 @@ interface ParsedItem {
   publishedAt: Date;
 }
 
+/** Abreviaturas de zona que usan algunos feeds y que `Date` no reconoce. */
+const ZONE_OFFSETS: Record<string, string> = { BST: '+0100', CET: '+0100', CEST: '+0200', WET: '+0000', WEST: '+0100' };
+
+/**
+ * Fecha de publicación. Sky Sports firma en "BST" durante el horario de verano
+ * británico; `new Date()` lo rechaza y el medio desaparecía medio año.
+ */
+export function parsePubDate(value: string): Date | null {
+  const normalized = value.trim().replace(/\s([A-Z]{3,4})$/, (match, zone: string) =>
+    ZONE_OFFSETS[zone] != null ? ` ${ZONE_OFFSETS[zone]}` : match,
+  );
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Primera imagen adjunta al artículo. Los feeds MRSS mezclan fotos y vídeos en
+ * las mismas etiquetas; un .mp4 guardado como imagen se pinta roto.
+ */
+function pickImage(block: string): string | null {
+  const tags = block.match(/<(?:media:content|media:thumbnail|enclosure)\b[^>]*>/gi) ?? [];
+  for (const tag of tags) {
+    const url = tag.match(/\burl="([^"]+)"/i)?.[1];
+    if (url == null) continue;
+    const isVideo =
+      /\b(?:medium|type)="video/i.test(tag) || /\.(?:mp4|m3u8|webm|mov)(?:[?#]|$)/i.test(url);
+    if (!isVideo) return url;
+  }
+  return null;
+}
+
 /** Parser RSS mínimo sin dependencias (title/link/guid/pubDate/description/imagen). */
 export function parseRss(xml: string): ParsedItem[] {
   const items: ParsedItem[] = [];
@@ -84,10 +118,9 @@ export function parseRss(xml: string): ParsedItem[] {
     const link = pick('link');
     const pub = pick('pubDate') ?? pick('dc:date');
     if (title == null || title === '' || link == null || pub == null) continue;
-    const publishedAt = new Date(pub);
-    if (Number.isNaN(publishedAt.getTime())) continue;
-    const image =
-      block.match(/<(?:media:content|media:thumbnail|enclosure)[^>]*url="([^"]+)"/i)?.[1] ?? null;
+    const publishedAt = parsePubDate(pub);
+    if (publishedAt == null) continue;
+    const image = pickImage(block);
     const rawSummary = pick('description');
     items.push({
       guid: pick('guid') ?? link,
@@ -130,7 +163,13 @@ export async function syncNews(db: PrismaClient): Promise<number> {
     }
 
     const freshSince = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    for (const item of parseRss(xml).slice(0, 30)) {
+    const parsed = parseRss(xml).slice(0, 30);
+    // Un feed que responde pero no trae nada reciente está abandonado o ha
+    // cambiado de formato; sin este aviso el medio desaparece sin dejar rastro.
+    if (!parsed.some((item) => item.publishedAt.getTime() >= freshSince)) {
+      console.warn(`syncNews: ${feed.source} no devuelve noticias de los últimos 30 días (${feed.url})`);
+    }
+    for (const item of parsed) {
       // Algunos feeds (portadas) recuperan artículos antiguos: no son "última hora"
       if (item.publishedAt.getTime() < freshSince) continue;
       // Sin tildes en ambos lados: "Cadiz" (prensa inglesa) y "Cádiz" enlazan igual.
