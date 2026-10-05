@@ -1,5 +1,53 @@
 import type { HTMLAttributes, ReactNode } from 'react';
-export function CMCard({className='',...props}:HTMLAttributes<HTMLDivElement>){return <div className={`fs-panel ${className}`} {...props}/>}
-export function CMSection({eyebrow,title,children}:{eyebrow?:string;title:string;children:ReactNode}){return <section><header className="mb-4">{eyebrow&&<p className="fs-eyebrow">{eyebrow}</p>}<h2 className="mt-1 text-xl font-bold text-white sm:text-2xl">{title}</h2></header>{children}</section>}
-export function CMStat({label,value,detail}:{label:string;value:ReactNode;detail?:string}){return <div className="fs-panel p-4"><p className="fs-eyebrow">{label}</p><p className="mt-2 font-display text-3xl font-bold tabular-nums text-white">{value}</p>{detail&&<p className="mt-1 text-xs text-pitch-muted">{detail}</p>}</div>}
-export function CMBadge({children,tone='neutral'}:{children:ReactNode;tone?:'neutral'|'info'|'live'}){const c=tone==='live'?'cm-live':tone==='info'?'border-pitch-accent/40 bg-pitch-accent/10 text-pitch-accent':'border-pitch-border bg-pitch-elevated text-pitch-subtle';return <span className={`inline-flex rounded-full border px-2.5 py-1 text-2xs font-bold uppercase tracking-wide ${c}`}>{children}</span>}
+export function CMCard({ className = '', ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={`fs-panel ${className}`} {...props} />;
+}
+export function CMSection({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow?: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <header className="mb-4">
+        {eyebrow && <p className="fs-eyebrow">{eyebrow}</p>}
+        <h2 className="mt-1 text-xl font-bold text-white sm:text-2xl">{title}</h2>
+      </header>
+      {children}
+    </section>
+  );
+}
+export function CMStat({ label, value, detail }: { label: string; value: ReactNode; detail?: string }) {
+  return (
+    <div className="fs-panel p-4">
+      <p className="fs-eyebrow">{label}</p>
+      <p className="mt-2 font-display text-3xl font-bold tabular-nums text-white">{value}</p>
+      {detail && <p className="mt-1 text-xs text-pitch-muted">{detail}</p>}
+    </div>
+  );
+}
+export function CMBadge({
+  children,
+  tone = 'neutral',
+}: {
+  children: ReactNode;
+  tone?: 'neutral' | 'info' | 'live';
+}) {
+  const c =
+    tone === 'live'
+      ? 'cm-live'
+      : tone === 'info'
+        ? 'border-pitch-accent/40 bg-pitch-accent/10 text-pitch-accent'
+        : 'border-pitch-border bg-pitch-elevated text-pitch-subtle';
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-2xs font-bold uppercase tracking-wide ${c}`}
+    >
+      {children}
+    </span>
+  );
+}
