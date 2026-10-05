@@ -3,7 +3,7 @@
  * guid/link sin CDATA y adjuntos que pueden ser vídeo o imagen.
  */
 import { describe, expect, it } from 'vitest';
-import { parsePubDate, parseRss } from '../src/news';
+import { decode, parsePubDate, parseRss } from '../src/news';
 
 const feed = (media: string) => `<?xml version="1.0"?><rss><channel>
   <item>
@@ -15,6 +15,26 @@ const feed = (media: string) => `<?xml version="1.0"?><rss><channel>
     ${media}
   </item>
 </channel></rss>`;
+
+describe('decode', () => {
+  it('convierte referencias numéricas decimales y hexadecimales', () => {
+    expect(decode('&#8220;We have gone backwards,&#8221; says Leipzig&#8217;s manager')).toBe(
+      '“We have gone backwards,” says Leipzig’s manager',
+    );
+    expect(decode('caf&#xE9; &#x201C;ok&#x201D;')).toBe('café “ok”');
+    expect(decode('It&#039;s &#39;fine&#39;')).toBe("It's 'fine'");
+  });
+
+  it('convierte entidades con nombre y las doblemente escapadas', () => {
+    expect(decode('Fish &amp; chips &ndash; 5&nbsp;&euro;')).toBe('Fish & chips – 5 €');
+    expect(decode('&amp;#8217;')).toBe('’');
+  });
+
+  it('quita CDATA y etiquetas, y deja intactas las entidades desconocidas o inválidas', () => {
+    expect(decode('<![CDATA[<p>Hola <b>mundo</b></p>]]>')).toBe('Hola mundo');
+    expect(decode('&desconocida; &#0; &#99999999;')).toBe('&desconocida; &#0; &#99999999;');
+  });
+});
 
 describe('parsePubDate', () => {
   it('entiende el horario de verano británico que usa Sky Sports', () => {

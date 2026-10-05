@@ -53,14 +53,45 @@ function classify(title: string): string {
   return 'ultima-hora';
 }
 
-function decode(text: string): string {
+/** Entidades con nombre habituales en titulares, además de las básicas de XML. */
+const NAMED_ENTITIES: Record<string, string> = {
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  ndash: '–',
+  mdash: '—',
+  hellip: '…',
+  lsquo: '‘',
+  rsquo: '’',
+  ldquo: '“',
+  rdquo: '”',
+  laquo: '«',
+  raquo: '»',
+  euro: '€',
+  pound: '£',
+};
+
+function codePoint(value: number, fallback: string): string {
+  // Fuera de rango o caracteres de control: se deja el texto original.
+  if (!Number.isInteger(value) || value < 32 || value > 0x10ffff) return fallback;
+  try {
+    return String.fromCodePoint(value);
+  } catch {
+    return fallback;
+  }
+}
+
+export function decode(text: string): string {
   return text
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
     .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
+    // Referencias numéricas (&#8220; &#x201C;): Sky Sports las usa para comillas
+    // y apóstrofos tipográficos, y se mostraban tal cual en los resúmenes.
+    .replace(/&#x([0-9a-f]+);/gi, (match, hex: string) => codePoint(parseInt(hex, 16), match))
+    .replace(/&#(\d+);/g, (match, dec: string) => codePoint(parseInt(dec, 10), match))
+    .replace(/&([a-z]+);/gi, (match, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? match)
     .replace(/<[^>]+>/g, '')
     .trim();
 }
