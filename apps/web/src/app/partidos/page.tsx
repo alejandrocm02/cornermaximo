@@ -2,23 +2,305 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { MatchCard } from '@/components/MatchCard';
 import { adjacentMadridDate, getMatchCenterPage } from '@/lib/matchCenterPage';
-import { getMatchFilters,isValidMatchDate,todayInMadrid,type MatchCenterView,type MatchListItem } from '@/lib/matches';
+import {
+  getMatchFilters,
+  isValidMatchDate,
+  todayInMadrid,
+  type MatchCenterView,
+  type MatchListItem,
+} from '@/lib/matches';
 
-export const dynamic='force-dynamic';
-export const metadata:Metadata={title:'Partidos',description:'Partidos de hoy, próximos encuentros y resultados con contexto deportivo y filtros por fecha, competición y equipo.',alternates:{canonical:'/partidos'}};
-const VIEW_LABEL:Record<MatchCenterView,string>={today:'Hoy',upcoming:'Próximos',recent:'Resultados'};
-function normalizeView(v:string|undefined):MatchCenterView{return v==='upcoming'||v==='recent'?v:'today'}
-function normalizePage(v:string|undefined){const p=Number(v);return Number.isInteger(p)&&p>0?p:1}
-function buildHref(v:{view:MatchCenterView;competitionSlug?:string;teamSlug?:string;date?:string;page?:number}){const p=new URLSearchParams({vista:v.view});if(v.competitionSlug)p.set('liga',v.competitionSlug);if(v.teamSlug)p.set('equipo',v.teamSlug);if(v.date)p.set('fecha',v.date);if(v.page&&v.page>1)p.set('pagina',String(v.page));return `/partidos?${p}`}
-function dayKey(v:string){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v))}
-function dayHeading(v:string,today:string){if(v===today)return 'Hoy';return new Date(`${v}T12:00:00Z`).toLocaleDateString('es-ES',{timeZone:'Europe/Madrid',weekday:'long',day:'numeric',month:'long',year:'numeric'})}
-function groupMatches(ms:MatchListItem[]){const g=new Map<string,MatchListItem[]>();for(const m of ms){const k=dayKey(m.kickoffAt);g.set(k,[...(g.get(k)??[]),m])}return [...g].map(([date,matches])=>({date,matches}))}
-export default async function MatchesPage({searchParams}:{searchParams:Promise<{vista?:string;fecha?:string;liga?:string;equipo?:string;pagina?:string}>}){const p=await searchParams,view=normalizeView(p.vista),today=todayInMadrid(),explicit=isValidMatchDate(p.fecha)?p.fecha:undefined,date=explicit??(view==='today'?today:undefined),league=p.liga?.trim()||undefined,team=p.equipo?.trim()||undefined,page=normalizePage(p.pagina);const [result,filters]=await Promise.all([getMatchCenterPage({view,date,competitionSlug:league,teamSlug:team,page}),getMatchFilters()]);const matches=result.matches,groups=groupMatches(matches),live=matches.filter(m=>m.status==='LIVE').length,finished=matches.filter(m=>m.status==='FINISHED').length,scheduled=matches.filter(m=>m.status==='SCHEDULED').length,selectedLeague=filters.competitions.find(c=>c.slug===league),selectedTeam=filters.teams.find(t=>t.slug===team),prev=date?adjacentMadridDate(date,-1):null,next=date?adjacentMadridDate(date,1):null;
-return <div className="space-y-8"><header className="fs-panel relative overflow-hidden p-6 sm:p-8"><div aria-hidden="true" className="pointer-events-none absolute right-0 top-0 h-56 w-80 bg-pitch-accent/10 blur-3xl"/><div className="relative max-w-3xl"><p className="fs-eyebrow">CORNERMAXIMO · MATCH CENTER</p><h1 className="mt-3 text-3xl font-bold sm:text-4xl">Partidos</h1><p className="mt-3 text-sm leading-6 text-pitch-muted sm:text-base">Lo que está pasando hoy y lo que viene después. Calendario, resultados y seguimiento por competición o equipo.</p><div className="mt-5 grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4"><Summary label={result.isCompleteDay?'Partidos del día':'Encontrados'} value={result.total}/><Summary label="En directo" value={live} danger/><Summary label="Finalizados" value={finished}/><Summary label="Próximos" value={scheduled}/></div></div></header>
-<section className="space-y-4"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="fs-eyebrow">EXPLORAR</p><h2 className="mt-2 text-2xl font-bold">Match Center</h2></div>{(selectedLeague||selectedTeam||explicit)&&<Link href="/partidos" className="fs-btn-ghost text-xs">Limpiar filtros</Link>}</div><nav aria-label="Vistas del calendario" className="grid grid-cols-3 gap-2 sm:flex">{(['today','upcoming','recent'] as const).map(i=>{const active=view===i&&!explicit;return <Link key={i} href={buildHref({view:i,competitionSlug:league,teamSlug:team})} aria-current={active?'page':undefined} className={`min-h-11 rounded-xl border px-4 py-2.5 text-center text-sm font-semibold transition ${active?'border-pitch-accent bg-pitch-accent/10 text-pitch-accent':'border-pitch-border bg-pitch-card text-pitch-muted hover:text-white'}`}>{VIEW_LABEL[i]}</Link>})}</nav>
-<form method="get" className="fs-panel grid gap-3 p-4 md:grid-cols-[.8fr_1fr_1fr_auto] md:items-end"><input type="hidden" name="vista" value={view}/><Field label="Fecha"><input type="date" name="fecha" defaultValue={date} className="h-11 rounded-lg border border-pitch-border bg-pitch-elevated px-3 text-sm text-white outline-none focus:border-pitch-accent"/></Field><Field label="Competición"><select name="liga" defaultValue={league??''} className="h-11 rounded-lg border border-pitch-border bg-pitch-elevated px-3 text-sm text-white outline-none focus:border-pitch-accent"><option value="">Todas</option>{filters.competitions.map(c=><option key={c.slug} value={c.slug}>{c.name}</option>)}</select></Field><Field label="Equipo"><select name="equipo" defaultValue={team??''} className="h-11 rounded-lg border border-pitch-border bg-pitch-elevated px-3 text-sm text-white outline-none focus:border-pitch-accent"><option value="">Todos</option>{filters.teams.map(t=><option key={t.slug} value={t.slug}>{t.name}</option>)}</select></Field><button className="fs-btn-primary h-11 px-5">Aplicar</button></form>
-{date&&prev&&next&&<nav aria-label="Cambiar día" className="grid grid-cols-3 items-center gap-2"><Link href={buildHref({view,competitionSlug:league,teamSlug:team,date:prev})} className="fs-btn-ghost justify-center text-xs">← Anterior</Link><Link href={buildHref({view:'today',competitionSlug:league,teamSlug:team,date:today})} className="min-h-11 content-center text-center text-xs font-semibold text-pitch-accent">Hoy</Link><Link href={buildHref({view,competitionSlug:league,teamSlug:team,date:next})} className="fs-btn-ghost justify-center text-xs">Siguiente →</Link></nav>}{(selectedLeague||selectedTeam)&&<p className="text-xs text-pitch-muted">{selectedLeague?.name??'Todas las competiciones'}{selectedTeam?` · ${selectedTeam.name}`:''}</p>}</section>
-{groups.length?<div className="space-y-8">{groups.map(g=><section key={g.date} aria-labelledby={`fecha-${g.date}`}><div className="mb-3 flex items-center justify-between gap-3"><h2 id={`fecha-${g.date}`} className="font-display text-lg font-semibold text-white first-letter:uppercase">{dayHeading(g.date,today)}</h2><span className="fs-chip">{g.matches.length} {g.matches.length===1?'partido':'partidos'}</span></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{g.matches.map(m=><MatchCard key={m.id} match={m}/>)}</div></section>)}</div>:<section className="fs-panel px-5 py-12 text-center"><p className="font-display text-lg font-semibold">No hay partidos para estos filtros</p><p className="mx-auto mt-2 max-w-lg text-sm text-pitch-muted">Prueba otra fecha, competición o equipo.</p><Link href="/partidos" className="fs-btn-primary mt-5 inline-flex">Volver a hoy</Link></section>}
-{result.totalPages>1&&<nav aria-label="Paginación" className="fs-panel flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-xs text-pitch-muted">Página {result.page} de {result.totalPages} · {result.total} partidos</p><div className="flex gap-2">{result.page>1&&<Link href={buildHref({view,competitionSlug:league,teamSlug:team,page:result.page-1})} className="fs-btn-ghost text-xs">← Anterior</Link>}{result.page<result.totalPages&&<Link href={buildHref({view,competitionSlug:league,teamSlug:team,page:result.page+1})} className="fs-btn-primary text-xs">Siguiente →</Link>}</div></nav>}{date&&<p className="text-center text-2xs text-pitch-muted">La fecha seleccionada se consulta completa. Solo pueden faltar encuentros aún no sincronizados en CornerMaximo.</p>}</div>}
-function Summary({label,value,danger=false}:{label:string;value:number;danger?:boolean}){return <div className="rounded-xl border border-pitch-border bg-pitch-elevated/70 px-3 py-3"><p className={`font-display text-xl font-bold tabular-nums ${danger&&value>0?'text-pitch-danger':'text-white'}`}>{value}</p><p className="mt-0.5 text-2xs uppercase tracking-wide text-pitch-muted">{label}</p></div>}
-function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="grid gap-1.5 text-xs font-medium text-pitch-subtle">{label}{children}</label>}
+export const dynamic = 'force-dynamic';
+export const metadata: Metadata = {
+  title: 'Partidos',
+  description:
+    'Partidos de hoy, próximos encuentros y resultados con contexto deportivo y filtros por fecha, competición y equipo.',
+  alternates: { canonical: '/partidos' },
+};
+const VIEW_LABEL: Record<MatchCenterView, string> = {
+  today: 'Hoy',
+  upcoming: 'Próximos',
+  recent: 'Resultados',
+};
+function normalizeView(v: string | undefined): MatchCenterView {
+  return v === 'upcoming' || v === 'recent' ? v : 'today';
+}
+function normalizePage(v: string | undefined) {
+  const p = Number(v);
+  return Number.isInteger(p) && p > 0 ? p : 1;
+}
+function buildHref(v: {
+  view: MatchCenterView;
+  competitionSlug?: string;
+  teamSlug?: string;
+  date?: string;
+  page?: number;
+}) {
+  const p = new URLSearchParams({ vista: v.view });
+  if (v.competitionSlug) p.set('liga', v.competitionSlug);
+  if (v.teamSlug) p.set('equipo', v.teamSlug);
+  if (v.date) p.set('fecha', v.date);
+  if (v.page && v.page > 1) p.set('pagina', String(v.page));
+  return `/partidos?${p}`;
+}
+function dayKey(v: string) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(v));
+}
+function dayHeading(v: string, today: string) {
+  if (v === today) return 'Hoy';
+  return new Date(`${v}T12:00:00Z`).toLocaleDateString('es-ES', {
+    timeZone: 'Europe/Madrid',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+function groupMatches(ms: MatchListItem[]) {
+  const g = new Map<string, MatchListItem[]>();
+  for (const m of ms) {
+    const k = dayKey(m.kickoffAt);
+    g.set(k, [...(g.get(k) ?? []), m]);
+  }
+  return [...g].map(([date, matches]) => ({ date, matches }));
+}
+export default async function MatchesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ vista?: string; fecha?: string; liga?: string; equipo?: string; pagina?: string }>;
+}) {
+  const p = await searchParams,
+    view = normalizeView(p.vista),
+    today = todayInMadrid(),
+    explicit = isValidMatchDate(p.fecha) ? p.fecha : undefined,
+    date = explicit ?? (view === 'today' ? today : undefined),
+    league = p.liga?.trim() || undefined,
+    team = p.equipo?.trim() || undefined,
+    page = normalizePage(p.pagina);
+  const [result, filters] = await Promise.all([
+    getMatchCenterPage({ view, date, competitionSlug: league, teamSlug: team, page }),
+    getMatchFilters(),
+  ]);
+  const matches = result.matches,
+    groups = groupMatches(matches),
+    live = matches.filter((m) => m.status === 'LIVE').length,
+    finished = matches.filter((m) => m.status === 'FINISHED').length,
+    scheduled = matches.filter((m) => m.status === 'SCHEDULED').length,
+    selectedLeague = filters.competitions.find((c) => c.slug === league),
+    selectedTeam = filters.teams.find((t) => t.slug === team),
+    prev = date ? adjacentMadridDate(date, -1) : null,
+    next = date ? adjacentMadridDate(date, 1) : null;
+  return (
+    <div className="space-y-8">
+      <header className="fs-panel relative overflow-hidden p-6 sm:p-8">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-0 top-0 h-56 w-80 bg-pitch-accent/10 blur-3xl"
+        />
+        <div className="relative max-w-3xl">
+          <p className="fs-eyebrow">CORNERMAXIMO · MATCH CENTER</p>
+          <h1 className="mt-3 text-3xl font-bold sm:text-4xl">Partidos</h1>
+          <p className="mt-3 text-sm leading-6 text-pitch-muted sm:text-base">
+            Lo que está pasando hoy y lo que viene después. Calendario, resultados y seguimiento por
+            competición o equipo.
+          </p>
+          <div className="mt-5 grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4">
+            <Summary label={result.isCompleteDay ? 'Partidos del día' : 'Encontrados'} value={result.total} />
+            <Summary label="En directo" value={live} danger />
+            <Summary label="Finalizados" value={finished} />
+            <Summary label="Próximos" value={scheduled} />
+          </div>
+        </div>
+      </header>
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="fs-eyebrow">EXPLORAR</p>
+            <h2 className="mt-2 text-2xl font-bold">Match Center</h2>
+          </div>
+          {(selectedLeague || selectedTeam || explicit) && (
+            <Link href="/partidos" className="fs-btn-ghost text-xs">
+              Limpiar filtros
+            </Link>
+          )}
+        </div>
+        <nav aria-label="Vistas del calendario" className="grid grid-cols-3 gap-2 sm:flex">
+          {(['today', 'upcoming', 'recent'] as const).map((i) => {
+            const active = view === i && !explicit;
+            return (
+              <Link
+                key={i}
+                href={buildHref({ view: i, competitionSlug: league, teamSlug: team })}
+                aria-current={active ? 'page' : undefined}
+                className={`min-h-11 rounded-xl border px-4 py-2.5 text-center text-sm font-semibold transition ${active ? 'border-pitch-accent bg-pitch-accent/10 text-pitch-accent' : 'border-pitch-border bg-pitch-card text-pitch-muted hover:text-white'}`}
+              >
+                {VIEW_LABEL[i]}
+              </Link>
+            );
+          })}
+        </nav>
+        <form method="get" className="fs-panel grid gap-3 p-4 md:grid-cols-[.8fr_1fr_1fr_auto] md:items-end">
+          <input type="hidden" name="vista" value={view} />
+          <Field label="Fecha">
+            <input
+              type="date"
+              name="fecha"
+              defaultValue={date}
+              className="h-11 rounded-lg border border-pitch-border bg-pitch-elevated px-3 text-sm text-white outline-none focus:border-pitch-accent"
+            />
+          </Field>
+          <Field label="Competición">
+            <select
+              name="liga"
+              defaultValue={league ?? ''}
+              className="h-11 rounded-lg border border-pitch-border bg-pitch-elevated px-3 text-sm text-white outline-none focus:border-pitch-accent"
+            >
+              <option value="">Todas</option>
+              {filters.competitions.map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Equipo">
+            <select
+              name="equipo"
+              defaultValue={team ?? ''}
+              className="h-11 rounded-lg border border-pitch-border bg-pitch-elevated px-3 text-sm text-white outline-none focus:border-pitch-accent"
+            >
+              <option value="">Todos</option>
+              {filters.teams.map((t) => (
+                <option key={t.slug} value={t.slug}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <button className="fs-btn-primary h-11 px-5">Aplicar</button>
+        </form>
+        {date && prev && next && (
+          <nav aria-label="Cambiar día" className="grid grid-cols-3 items-center gap-2">
+            <Link
+              href={buildHref({ view, competitionSlug: league, teamSlug: team, date: prev })}
+              className="fs-btn-ghost justify-center text-xs"
+            >
+              ← Anterior
+            </Link>
+            <Link
+              href={buildHref({ view: 'today', competitionSlug: league, teamSlug: team, date: today })}
+              className="min-h-11 content-center text-center text-xs font-semibold text-pitch-accent"
+            >
+              Hoy
+            </Link>
+            <Link
+              href={buildHref({ view, competitionSlug: league, teamSlug: team, date: next })}
+              className="fs-btn-ghost justify-center text-xs"
+            >
+              Siguiente →
+            </Link>
+          </nav>
+        )}
+        {(selectedLeague || selectedTeam) && (
+          <p className="text-xs text-pitch-muted">
+            {selectedLeague?.name ?? 'Todas las competiciones'}
+            {selectedTeam ? ` · ${selectedTeam.name}` : ''}
+          </p>
+        )}
+      </section>
+      {groups.length ? (
+        <div className="space-y-8">
+          {groups.map((g) => (
+            <section key={g.date} aria-labelledby={`fecha-${g.date}`}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2
+                  id={`fecha-${g.date}`}
+                  className="font-display text-lg font-semibold text-white first-letter:uppercase"
+                >
+                  {dayHeading(g.date, today)}
+                </h2>
+                <span className="fs-chip">
+                  {g.matches.length} {g.matches.length === 1 ? 'partido' : 'partidos'}
+                </span>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {g.matches.map((m) => (
+                  <MatchCard key={m.id} match={m} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <section className="fs-panel px-5 py-12 text-center">
+          <p className="font-display text-lg font-semibold">No hay partidos para estos filtros</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-pitch-muted">
+            Prueba otra fecha, competición o equipo.
+          </p>
+          <Link href="/partidos" className="fs-btn-primary mt-5 inline-flex">
+            Volver a hoy
+          </Link>
+        </section>
+      )}
+      {result.totalPages > 1 && (
+        <nav
+          aria-label="Paginación"
+          className="fs-panel flex flex-wrap items-center justify-between gap-3 p-4"
+        >
+          <p className="text-xs text-pitch-muted">
+            Página {result.page} de {result.totalPages} · {result.total} partidos
+          </p>
+          <div className="flex gap-2">
+            {result.page > 1 && (
+              <Link
+                href={buildHref({ view, competitionSlug: league, teamSlug: team, page: result.page - 1 })}
+                className="fs-btn-ghost text-xs"
+              >
+                ← Anterior
+              </Link>
+            )}
+            {result.page < result.totalPages && (
+              <Link
+                href={buildHref({ view, competitionSlug: league, teamSlug: team, page: result.page + 1 })}
+                className="fs-btn-primary text-xs"
+              >
+                Siguiente →
+              </Link>
+            )}
+          </div>
+        </nav>
+      )}
+      {date && (
+        <p className="text-center text-2xs text-pitch-muted">
+          La fecha seleccionada se consulta completa. Solo pueden faltar encuentros aún no sincronizados en
+          CornerMaximo.
+        </p>
+      )}
+    </div>
+  );
+}
+function Summary({ label, value, danger = false }: { label: string; value: number; danger?: boolean }) {
+  return (
+    <div className="rounded-xl border border-pitch-border bg-pitch-elevated/70 px-3 py-3">
+      <p
+        className={`font-display text-xl font-bold tabular-nums ${danger && value > 0 ? 'text-pitch-danger' : 'text-white'}`}
+      >
+        {value}
+      </p>
+      <p className="mt-0.5 text-2xs uppercase tracking-wide text-pitch-muted">{label}</p>
+    </div>
+  );
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="grid gap-1.5 text-xs font-medium text-pitch-subtle">
+      {label}
+      {children}
+    </label>
+  );
+}
