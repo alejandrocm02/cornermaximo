@@ -22,6 +22,16 @@ updates:
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
     groups:
+      # Un paquete entra en el primer grupo que lo reconoce. El cliente de
+      # Prisma (producción) y su CLI (desarrollo) deben subir a la vez; con los
+      # grupos por tipo llegaban en dos PRs distintos.
+      prisma:
+        patterns:
+          - "prisma"
+          - "@prisma/*"
+        update-types:
+          - patch
+          - minor
       production-dependencies:
         dependency-type: production
         update-types:
