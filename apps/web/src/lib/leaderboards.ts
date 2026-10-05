@@ -53,6 +53,7 @@ async function queryTopLeaguePlayers(metric: LeaderboardMetric, limit: number): 
     JOIN "Season" se      ON se.id = m."seasonId"
     JOIN "Competition" c  ON c.id = se."competitionId"
     WHERE c.type = 'LEAGUE'
+      AND c.slug = ANY($2::text[])
       AND se."isCurrent" = true
       AND m.status = 'FINISHED'
       AND s.${column} IS NOT NULL
@@ -61,12 +62,13 @@ async function queryTopLeaguePlayers(metric: LeaderboardMetric, limit: number): 
     LIMIT $1
     `,
     limit,
+    TOP_FIVE_SLUGS,
   );
 
   return rows.map((row) => ({ ...row, total: Number(row.total) }));
 }
 
-const cachedTopLeaguePlayers = unstable_cache(queryTopLeaguePlayers, ['top-league-players-current-v2'], {
+const cachedTopLeaguePlayers = unstable_cache(queryTopLeaguePlayers, ['top-league-players-current-v3'], {
   revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
   tags: [FOOTBALL_DATA_CACHE_TAG, 'leaderboards'],
 });
@@ -169,14 +171,22 @@ async function queryRankingRows(
   } else {
     conditions.push(`se."isCurrent" = true`);
   }
+  // Demarcación en la que más ha jugado dentro del periodo consultado; si el
+  // acta no la publica, la registrada en plantilla. Es la misma idea que usa la
+  // ficha del jugador, para que tabla, filtro y ficha no se contradigan.
+  const positionExpression = `COALESCE(
+      CASE MODE() WITHIN GROUP (ORDER BY mp."positionPlayed")
+        WHEN 'G' THEN 'GK' WHEN 'D' THEN 'DF' WHEN 'M' THEN 'MF' WHEN 'F' THEN 'FW'
+      END,
+      (SELECT pp."group"::text
+         FROM "PlayerPosition" pp
+        WHERE pp."playerId" = p.id AND pp."isPrimary" = true
+        LIMIT 1)
+    )`;
+  let having = '';
   if (position !== '') {
     params.push(position);
-    conditions.push(`EXISTS (
-      SELECT 1 FROM "PlayerPosition" selected_position
-      WHERE selected_position."playerId" = p.id
-        AND selected_position."isPrimary" = true
-        AND selected_position."group" = $${params.length}::"PositionGroup"
-    )`);
+    having = `HAVING ${positionExpression} = $${params.length}`;
   }
   params.push(limit);
 
@@ -199,10 +209,7 @@ async function queryRankingRows(
            ${definition.expression} AS total,
            SUM(mp."minutesPlayed")::bigint AS minutes,
            COUNT(DISTINCT mp.id)::bigint AS appearances,
-           (SELECT pp."group"::text
-              FROM "PlayerPosition" pp
-             WHERE pp."playerId" = p.id AND pp."isPrimary" = true
-             LIMIT 1) AS position
+           ${positionExpression} AS position
     FROM "MatchPlayer" mp
     ${statsJoin}
     JOIN "Player" p       ON p.id = mp."playerId"
@@ -212,6 +219,7 @@ async function queryRankingRows(
     JOIN "Competition" c  ON c.id = se."competitionId"
     WHERE ${conditions.join(' AND ')}
     GROUP BY p.id, p.slug, p."knownAs", p."fullName", p."photoUrl", t.name
+    ${having}
     ORDER BY total DESC NULLS LAST, minutes DESC, name ASC
     LIMIT $${params.length}
     `,
@@ -230,7 +238,7 @@ async function queryRankingRows(
   }));
 }
 
-const cachedRankingRows = unstable_cache(queryRankingRows, ['ranking-rows-v3'], {
+const cachedRankingRows = unstable_cache(queryRankingRows, ['ranking-rows-v4'], {
   revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
   tags: [FOOTBALL_DATA_CACHE_TAG, 'leaderboards'],
 });
