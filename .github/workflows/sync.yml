@@ -8,7 +8,10 @@ name: sync
 
 on:
   schedule:
-    - cron: '0 * * * *' # cada hora
+    # Cada hora, en el minuto 17. GitHub retrasa o descarta las ejecuciones
+    # programadas en la hora en punto por saturación; con '0 * * * *' este
+    # workflow corría en la práctica cada 4-6 horas.
+    - cron: '17 * * * *'
   workflow_dispatch: {}
 
 permissions:

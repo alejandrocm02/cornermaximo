@@ -5,6 +5,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { JsonLd } from '@/components/JsonLd';
 import { LiveNews } from '@/components/LiveNews';
 import { CATEGORY_LABELS, timeAgo } from '@/lib/marketLabels';
+import { newsLanguage, newsSourceFilter } from '@/lib/newsLanguage';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export async function generateMetadata({
   searchParams: Promise<Record<string, string | undefined>>;
 }): Promise<Metadata> {
   const sp = await searchParams;
-  const hasFilters = ['categoria', 'liga', 'club', 'q', 'fecha', 'pagina'].some((k) => sp[k] != null && sp[k] !== '');
+  const hasFilters = ['categoria', 'liga', 'club', 'q', 'fecha', 'idioma', 'pagina'].some((k) => sp[k] != null && sp[k] !== '');
   return {
     title: { absolute: 'Noticias de fútbol y última hora | CornerMaximo' },
     description:
@@ -30,7 +31,15 @@ export async function generateMetadata({
 export default async function NewsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ categoria?: string; liga?: string; club?: string; q?: string; fecha?: string; pagina?: string }>;
+  searchParams: Promise<{
+    categoria?: string;
+    liga?: string;
+    club?: string;
+    q?: string;
+    fecha?: string;
+    idioma?: string;
+    pagina?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const categoria = CATEGORY_LABELS[sp.categoria ?? ''] != null ? sp.categoria! : '';
@@ -38,6 +47,7 @@ export default async function NewsPage({
   const club = (sp.club ?? '').slice(0, 60);
   const q = (sp.q ?? '').slice(0, 80).trim();
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha ?? '') ? sp.fecha! : '';
+  const idioma = sp.idioma === 'es' || sp.idioma === 'en' ? sp.idioma : '';
   const pagina = Math.max(1, Number(sp.pagina ?? 1) || 1);
 
   const where: Prisma.NewsItemWhereInput = {
@@ -47,6 +57,7 @@ export default async function NewsPage({
       ? { team: { ...(club !== '' ? { slug: club } : {}), seasons: { some: { season: { competition: { slug: liga }, isCurrent: true } } } } }
       : {}),
     ...(q !== '' ? { title: { contains: q, mode: 'insensitive' } } : {}),
+    ...(idioma !== '' ? { source: newsSourceFilter(idioma) } : {}),
     ...(fecha !== ''
       ? { publishedAt: { gte: new Date(`${fecha}T00:00:00Z`), lt: new Date(`${fecha}T23:59:59Z`) } }
       : {}),
@@ -70,7 +81,7 @@ export default async function NewsPage({
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasFilters = categoria !== '' || liga !== '' || club !== '' || q !== '' || fecha !== '';
+  const hasFilters = categoria !== '' || liga !== '' || club !== '' || q !== '' || fecha !== '' || idioma !== '';
 
   const qs = new URLSearchParams();
   if (categoria !== '') qs.set('categoria', categoria);
@@ -78,6 +89,7 @@ export default async function NewsPage({
   if (club !== '') qs.set('club', club);
   if (q !== '') qs.set('q', q);
   if (fecha !== '') qs.set('fecha', fecha);
+  if (idioma !== '') qs.set('idioma', idioma);
   const pageHref = (n: number) => {
     const p = new URLSearchParams(qs);
     if (n > 1) p.set('pagina', String(n));
@@ -165,6 +177,14 @@ export default async function NewsPage({
           </select>
         </label>
         <label className="flex min-w-0 flex-col gap-1">
+          <span className="text-xs text-pitch-muted">Idioma</span>
+          <select name="idioma" defaultValue={idioma} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto">
+            <option value="">Todos</option>
+            <option value="es">Español</option>
+            <option value="en">Inglés</option>
+          </select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-xs text-pitch-muted">Fecha</span>
           <input type="date" name="fecha" defaultValue={fecha} className="w-full rounded-lg border border-pitch-border bg-pitch-card/80 px-3 py-2.5 text-white outline-none transition focus:border-pitch-accent/60 sm:w-auto" />
         </label>
@@ -203,12 +223,17 @@ export default async function NewsPage({
                   {CATEGORY_LABELS[n.category] ?? n.category}
                 </span>
                 <span className="text-pitch-muted">{n.source}</span>
+                {newsLanguage(n.source) === 'en' && (
+                  <span className="rounded border border-pitch-border px-1.5 py-0.5 text-[10px] font-semibold text-pitch-muted">
+                    <abbr title="Titular en inglés" className="no-underline">EN</abbr>
+                  </span>
+                )}
                 <time dateTime={n.publishedAt.toISOString()} className="text-pitch-muted">
                   {n.publishedAt.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}
                 </time>
               </div>
               <h2 className="text-sm font-semibold leading-snug">
-                <a href={n.url} rel="noopener noreferrer" target="_blank" className="hover:text-pitch-accent">
+                <a href={n.url} rel="noopener noreferrer" target="_blank" lang={newsLanguage(n.source)} className="hover:text-pitch-accent">
                   {n.title}
                 </a>
               </h2>

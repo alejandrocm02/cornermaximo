@@ -7,6 +7,7 @@ import { SearchBox } from '@/components/SearchBox';
 import { SectionHeader } from '@/components/SectionHeader';
 import { AWAITING_RESULT_AFTER_MS, seasonLabel } from '@/lib/football';
 import { topLeaguePlayers } from '@/lib/leaderboards';
+import { newsSourceFilter } from '@/lib/newsLanguage';
 import { topPlayerStat } from '@/lib/worldCupStats';
 
 export const dynamic = 'force-dynamic';
@@ -79,6 +80,8 @@ export default async function HomePage() {
     topLeaguePlayers('assists', 5),
     topLeaguePlayers('saves', 5),
     prisma.newsItem.findMany({
+      // La portada es en español; los titulares en inglés siguen en /noticias.
+      where: { source: newsSourceFilter('es') },
       orderBy: { publishedAt: 'desc' },
       take: 5,
       select: { id: true, title: true, url: true, source: true, publishedAt: true },
@@ -148,7 +151,7 @@ export default async function HomePage() {
         </div>
 
         <div className="lg:col-span-5">
-          <SectionHeader eyebrow={`Rankings · ${currentLabel}`} title="Líderes actuales" action={{ href: '/rankings', label: 'Centro de rankings' }} />
+          <SectionHeader eyebrow={`Rankings · ${currentLabel}`} title="Líderes · Top 5 ligas" action={{ href: '/rankings', label: 'Centro de rankings' }} />
           <div className="cm-dashboard-card">
             <div className="grid grid-cols-3 border-b border-pitch-border/60 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-pitch-muted">
               <span className="border-r border-pitch-border/60 py-3">Goles</span><span className="border-r border-pitch-border/60 py-3">Asist.</span><span className="py-3">Paradas</span>
