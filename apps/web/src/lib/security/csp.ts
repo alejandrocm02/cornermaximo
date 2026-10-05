@@ -5,6 +5,20 @@ const API_SPORTS_MEDIA = [
   'https://media-3.api-sports.io',
 ].join(' ');
 
+/**
+ * Servidores de imágenes de los medios cuyos titulares se agregan
+ * (`packages/sync/src/news.ts`). Sin ellos las miniaturas de /noticias,
+ * /fichajes y las fichas de equipo quedaban bloqueadas. Lista cerrada: al
+ * añadir un medio hay que añadir aquí su servidor de imágenes.
+ */
+const NEWS_MEDIA = [
+  'https://objetos.estaticos-marca.com', // Marca
+  'https://img.asmedia.epimg.net', // Diario AS (fotos)
+  'https://vdmedia.as.com', // Diario AS (miniaturas de vídeo)
+  'https://ichef.bbci.co.uk', // BBC Sport
+  'https://*.365dm.com', // Sky Sports reparte entre e0, e1, e2...
+].join(' ');
+
 export function createContentSecurityPolicy(nonce: string, isDevelopment: boolean): string {
   return [
     "default-src 'self'",
@@ -12,7 +26,7 @@ export function createContentSecurityPolicy(nonce: string, isDevelopment: boolea
     // Tailwind usa CSS estático, pero varios componentes conservan atributos
     // style dinámicos. El nonce elimina unsafe-inline de scripts, el vector XSS.
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: ${API_SPORTS_MEDIA}`,
+    `img-src 'self' data: blob: ${API_SPORTS_MEDIA} ${NEWS_MEDIA}`,
     "font-src 'self' data:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com",
     'frame-src https://challenges.cloudflare.com',

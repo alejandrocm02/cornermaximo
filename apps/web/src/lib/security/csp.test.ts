@@ -13,6 +13,25 @@ describe('createContentSecurityPolicy', () => {
     expect(policy).toContain('upgrade-insecure-requests');
   });
 
+  it('allows news thumbnails only from the aggregated outlets', () => {
+    const imgSrc = createContentSecurityPolicy('test-nonce', false)
+      .split('; ')
+      .find((directive) => directive.startsWith('img-src'))!;
+
+    for (const host of [
+      'https://objetos.estaticos-marca.com',
+      'https://img.asmedia.epimg.net',
+      'https://vdmedia.as.com',
+      'https://ichef.bbci.co.uk',
+      'https://*.365dm.com',
+    ]) {
+      expect(imgSrc.split(' ')).toContain(host);
+    }
+    // Sigue siendo una lista cerrada: nada de comodines globales.
+    expect(imgSrc.split(' ')).not.toContain('https:');
+    expect(imgSrc.split(' ')).not.toContain('*');
+  });
+
   it('allows eval only for the Next.js development runtime', () => {
     const policy = createContentSecurityPolicy('dev-nonce', true);
 
