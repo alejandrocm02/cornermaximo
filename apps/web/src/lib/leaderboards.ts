@@ -6,6 +6,7 @@
  * temporada concreta.
  */
 import { prisma } from '@cornermaximo/db';
+import { BIG_FIVE_LEAGUES } from '@cornermaximo/shared';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
 
@@ -75,6 +76,14 @@ export async function topLeaguePlayers(metric: LeaderboardMetric, limit = 5): Pr
 }
 
 // --- Centro de rankings -------------------------------------------------------
+
+/**
+ * Filtro de liga que agrupa las cinco grandes. Es el universo por defecto del
+ * centro de rankings: mezclar primeras y segundas divisiones en una sola tabla
+ * de totales no compara rendimientos equivalentes.
+ */
+export const TOP_FIVE_LEAGUES_FILTER = 'top5';
+const TOP_FIVE_SLUGS: string[] = BIG_FIVE_LEAGUES.map((league) => league.slug);
 
 type RankingDefinition = {
   source: 'field' | 'gk' | 'matchPlayer';
@@ -147,7 +156,10 @@ async function queryRankingRows(
   const params: unknown[] = [];
   const conditions = [`c.type = 'LEAGUE'`, `m.status = 'FINISHED'`, definition.presentCondition];
 
-  if (league !== '') {
+  if (league === TOP_FIVE_LEAGUES_FILTER) {
+    params.push(TOP_FIVE_SLUGS);
+    conditions.push(`c.slug = ANY($${params.length}::text[])`);
+  } else if (league !== '') {
     params.push(league);
     conditions.push(`c.slug = $${params.length}`);
   }

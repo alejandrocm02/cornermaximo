@@ -10,7 +10,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { JsonLd } from '@/components/JsonLd';
 import { seasonLabel } from '@/lib/football';
-import { rankingRows, type RankingMetric } from '@/lib/leaderboards';
+import { rankingRows, TOP_FIVE_LEAGUES_FILTER, type RankingMetric } from '@/lib/leaderboards';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -85,14 +85,17 @@ export default async function RankingsPage({
 }) {
   const sp = await searchParams;
   const metric = METRICS.find((item) => item.value === sp.metric) ?? METRICS[0]!;
-  const league = (sp.league ?? '').slice(0, 50).trim();
+  // Sin filtro explícito se muestran las cinco grandes; "Todas las ligas"
+  // (league vacío) sigue disponible en el selector.
+  const league = sp.league == null ? TOP_FIVE_LEAGUES_FILTER : sp.league.slice(0, 50).trim();
+  const isLeagueGroup = league === '' || league === TOP_FIVE_LEAGUES_FILTER;
   const position = POSITION_OPTIONS.some(([value]) => value === sp.posicion) ? (sp.posicion ?? '') : '';
 
-  const availableSeasons = league === ''
+  const availableSeasons = isLeagueGroup
     ? [...ALL_TRACKED_SEASONS]
     : [...seasonsOf(league)].sort((a, b) => b - a);
   const requestedSeason = Number(sp.temporada);
-  const defaultSeason = league === '' ? (ALL_TRACKED_SEASONS[0] ?? BIG_FIVE_CURRENT_SEASON) : currentSeasonOf(league);
+  const defaultSeason = isLeagueGroup ? (ALL_TRACKED_SEASONS[0] ?? BIG_FIVE_CURRENT_SEASON) : currentSeasonOf(league);
   const season = availableSeasons.includes(requestedSeason) ? requestedSeason : defaultSeason;
 
   const [leagues, rows, lastSync] = await Promise.all([
@@ -112,7 +115,7 @@ export default async function RankingsPage({
   ]);
 
   const selectedLeague = leagues.find((item) => item.slug === league);
-  const leagueName = league === '' ? 'Todas las ligas' : selectedLeague?.name ?? league;
+  const leagueName = league === '' ? 'Todas las ligas' : league === TOP_FIVE_LEAGUES_FILTER ? 'Top 5 ligas' : selectedLeague?.name ?? league;
   const format: SeasonFormat = selectedLeague?.seasonFormat ?? 'SPLIT_YEAR';
   const label = (year: number) => seasonLabel(year, format);
   const podium = rows?.slice(0, 3) ?? [];
@@ -172,6 +175,7 @@ export default async function RankingsPage({
         <label className="cm-field">
           <span>Competición</span>
           <select name="league" defaultValue={league}>
+            <option value={TOP_FIVE_LEAGUES_FILTER}>Top 5 ligas</option>
             <option value="">Todas las ligas</option>
             {leagues.map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
           </select>

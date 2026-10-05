@@ -4,6 +4,7 @@ import { PlayerAdvancedAnalytics } from '@/components/PlayerAdvancedAnalytics';
 import { PlayerWatchlistButton } from '@/components/PlayerWatchlistButton';
 import { SimilarPlayers } from '@/components/SimilarPlayers';
 import { getPlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
+import { getEffectivePositionGroup } from '@/lib/playerPosition';
 import { getPlayerProfileCore } from '@/lib/playerProfile';
 import { getSimilarPlayers } from '@/lib/similarPlayers';
 
@@ -16,7 +17,11 @@ export default async function PlayerProfileLayout({
 }) {
   const { slug } = await params;
   const player = await getPlayerProfileCore(slug);
-  const primaryPosition = player?.positions.find((position) => position.isPrimary)?.group as PositionGroup | undefined;
+  const registeredPosition = player?.positions.find((position) => position.isPrimary)?.group as PositionGroup | undefined;
+  // Percentiles y similares se comparan con la línea en la que juega de verdad.
+  const primaryPosition = player != null
+    ? ((await getEffectivePositionGroup(player.id, registeredPosition ?? null)) ?? undefined)
+    : undefined;
   const [advanced, similar] = player != null && primaryPosition != null
     ? await Promise.all([
         getPlayerAdvancedAnalytics(player.id, primaryPosition),

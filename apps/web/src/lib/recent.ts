@@ -58,7 +58,9 @@ function fetchPlayed(playerId: number, take?: number, currentSeasonOnly = false)
       minutesPlayed: { gt: 0 },
       match: {
         status: 'FINISHED',
-        ...(currentSeasonOnly ? { season: { isCurrent: true } } : {}),
+        // "Temporada actual" es la de liga: el Mundial también tiene su única
+        // temporada marcada como vigente y sumaba sus minutos a los del club.
+        ...(currentSeasonOnly ? { season: { isCurrent: true, competition: { type: 'LEAGUE' } } } : {}),
       },
     },
     include: {
@@ -171,7 +173,7 @@ async function getLastMatchesUncached(
             match: {
               status: 'FINISHED',
               kickoffAt: { gte: oldestDate, lte: newestDate },
-              ...(isSeason ? { season: { isCurrent: true } } : {}),
+              ...(isSeason ? { season: { isCurrent: true, competition: { type: 'LEAGUE' } } } : {}),
             },
           },
           include: { match: { include: { teams: { include: { team: { select: { name: true } } } } } } },
@@ -207,7 +209,7 @@ async function getLastMatchesUncached(
   };
 }
 
-const getCachedLastMatches = unstable_cache(getLastMatchesUncached, ['player-last-matches'], {
+const getCachedLastMatches = unstable_cache(getLastMatchesUncached, ['player-last-matches-v2'], {
   revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
   tags: [FOOTBALL_DATA_CACHE_TAG],
 });
