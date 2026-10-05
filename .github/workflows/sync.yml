@@ -66,13 +66,18 @@ jobs:
             fi
 
             echo "$RESP"
+            # Una unidad fallida no detiene la cola, pero debe verse en la
+            # ejecución: antes un proveedor caído pasaba días en verde.
+            if [[ "$RESP" != *'"failed":[]'* ]]; then
+              echo "::warning::La tanda $i terminó con unidades fallidas; revisa /admin/sincronizacion."
+            fi
             case "$RESP" in
               *'"stopped":"completed"'*)
                 echo "Todo sincronizado."
                 break
                 ;;
               *'"stopped":"budget_exhausted"'*)
-                echo "Presupuesto diario agotado."
+                echo "::warning::Presupuesto diario de la API agotado."
                 break
                 ;;
             esac
