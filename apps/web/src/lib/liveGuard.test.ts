@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isFreshRefresh, isLiveEligible, LIVE_WINDOW_AFTER_MS, LIVE_WINDOW_BEFORE_MS } from './liveGuard';
+import {
+  isLiveEligible,
+  isNewRefresh,
+  isWithinInterval,
+  LIVE_WINDOW_AFTER_MS,
+  LIVE_WINDOW_BEFORE_MS,
+} from './liveGuard';
 
 const now = Date.parse('2026-10-05T18:00:00Z');
 const at = (offsetMs: number) => new Date(now + offsetMs);
@@ -26,10 +32,26 @@ describe('isLiveEligible', () => {
   });
 });
 
-describe('isFreshRefresh', () => {
-  it('distingue una sincronización recién hecha de una servida desde el throttle', () => {
-    expect(isFreshRefresh(new Date(now - 1000).toISOString(), now)).toBe(true);
-    expect(isFreshRefresh(new Date(now - 15_000).toISOString(), now)).toBe(false);
-    expect(isFreshRefresh('no-es-fecha', now)).toBe(false);
+describe('isWithinInterval', () => {
+  it('considera vigente un resultado dentro del intervalo y caducado fuera', () => {
+    expect(isWithinInterval(new Date(now - 15_000).toISOString(), 20_000, now)).toBe(true);
+    expect(isWithinInterval(new Date(now - 45_000).toISOString(), 20_000, now)).toBe(false);
+    expect(isWithinInterval('no-es-fecha', 20_000, now)).toBe(false);
+  });
+});
+
+describe('isNewRefresh', () => {
+  it('avisa una sola vez por sincronización, aunque llegue con retraso', () => {
+    const at = new Date(now - 30_000).toISOString();
+    expect(isNewRefresh('test:scoreboard', at)).toBe(true);
+    expect(isNewRefresh('test:scoreboard', at)).toBe(false);
+    expect(isNewRefresh('test:scoreboard', new Date(now).toISOString())).toBe(true);
+  });
+
+  it('lleva la cuenta por clave', () => {
+    const at = new Date(now).toISOString();
+    expect(isNewRefresh('test:core:1', at)).toBe(true);
+    expect(isNewRefresh('test:core:2', at)).toBe(true);
+    expect(isNewRefresh('test:core:1', at)).toBe(false);
   });
 });
