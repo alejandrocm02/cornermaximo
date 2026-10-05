@@ -21,6 +21,20 @@ export function formatMatchDate(date: Date): string {
   });
 }
 
+/**
+ * Margen tras el inicio a partir del cual un partido que sigue "programado" o
+ * "en juego" ya no puede estarlo: es un resultado que aún no ha llegado del
+ * proveedor. Cubre prórroga, penaltis y retrasos habituales.
+ */
+export const AWAITING_RESULT_AFTER_MS = 4 * 60 * 60 * 1000;
+
+export const AWAITING_RESULT_LABEL = 'Pendiente de confirmar';
+
+export function isAwaitingResult(status: string, kickoffAt: Date | string, now: number = Date.now()): boolean {
+  if (status !== 'SCHEDULED' && status !== 'LIVE') return false;
+  return now - new Date(kickoffAt).getTime() > AWAITING_RESULT_AFTER_MS;
+}
+
 export function statusLabel(status: MatchStatus): string {
   const labels: Record<MatchStatus, string> = {
     SCHEDULED: 'Programado',

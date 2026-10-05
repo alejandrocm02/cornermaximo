@@ -144,8 +144,11 @@ function metricValue(aggregate: Aggregate, definition: MetricDef): number | null
   return definition.key === 'savePercentage' ? savePercentage(aggregate) : per90(aggregate, definition.key);
 }
 
+/** Con menos jugadores comparables un percentil no es informativo (P99 sobre 18 no existe). */
+const MIN_PERCENTILE_SAMPLE = 20;
+
 function percentile(value: number | null, values: number[], lowerIsBetter = false): number | null {
-  if (value == null || values.length < 3) return null;
+  if (value == null || values.length < MIN_PERCENTILE_SAMPLE) return null;
   const rank = lowerIsBetter
     ? values.filter((candidate) => candidate >= value).length
     : values.filter((candidate) => candidate <= value).length;
