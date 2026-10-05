@@ -66,6 +66,8 @@ export interface ProviderFixture {
 
 export interface ProviderLineupEntry {
   playerExternalId: string;
+  /** Nombre tal como lo publica el acta; permite dar de alta a quien aún no está en plantilla. */
+  playerName: string | null;
   teamExternalId: string;
   role: MatchPlayerRole;
   positionPlayed: string | null;
