@@ -8,6 +8,19 @@ updates:
       time: "06:00"
       timezone: Europe/Madrid
     open-pull-requests-limit: 5
+    # Saltos mayores que hoy no se pueden adoptar. Mientras sus PRs seguían
+    # abiertos ocupaban el cupo de 5 y Dependabot dejaba de proponer parches y
+    # versiones menores. Retirar cada regla cuando desaparezca su motivo.
+    ignore:
+      # Los tipos deben seguir la versión mayor de Node del runtime (engines: 24).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint aún no admite la nueva versión mayor de TypeScript.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # eslint-plugin-react (vía eslint-config-next) no admite ESLint 10.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
     groups:
       production-dependencies:
         dependency-type: production
