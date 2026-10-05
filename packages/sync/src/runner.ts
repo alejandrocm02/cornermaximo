@@ -81,17 +81,10 @@ export function createApiFootballProvider(budget: PrismaBudgetGuard): FootballDa
   );
 }
 
-async function lastSuccessAt(
-  db: PrismaClient,
-  entity: SyncEntity,
-  entityExternalId: string | null,
-): Promise<Date | null> {
-  const job = await db.syncJob.findFirst({
-    where: { entity, entityExternalId, status: 'SUCCESS' },
-    orderBy: { finishedAt: 'desc' },
-  });
-  return job?.finishedAt ?? null;
-}
+/** Entidades cuya frescura decide si una unidad debe volver a ejecutarse. */
+const FRESHNESS_ENTITIES: SyncEntity[] = ['FIXTURES', 'STANDINGS', 'NEWS', 'TRANSFERS', 'INJURIES'];
+
+const jobKey = (entity: SyncEntity, entityExternalId: string | null) => `${entity}|${entityExternalId ?? ''}`;
 
 function hoursAgo(date: Date | null): number {
   if (date == null) return Infinity;
@@ -125,8 +118,36 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
   /** Tras este tiempo se vuelve a intentar una unidad aparcada. */
   const RETRY_AFTER_HOURS = 24;
 
+  // Frescura y cuarentena se cargan una vez por tanda. Consultar SyncJob por
+  // cada unidad candidata (~300: un club por traspasos, cada clasificación,
+  // cada parte de lesiones...) consumía casi todo el presupuesto de tiempo y
+  // provocaba timeouts de la función aunque apenas hubiera trabajo pendiente.
+  const [successRows, hardFailures] = await Promise.all([
+    db.syncJob.groupBy({
+      by: ['entity', 'entityExternalId'],
+      where: { status: 'SUCCESS', entity: { in: FRESHNESS_ENTITIES } },
+      _max: { finishedAt: true },
+    }),
+    db.syncJob.findMany({
+      where: {
+        status: 'FAILED',
+        attempts: { gte: MAX_ATTEMPTS },
+        finishedAt: { gt: new Date(Date.now() - RETRY_AFTER_HOURS * 3_600_000) },
+      },
+      select: { entity: true, entityExternalId: true },
+    }),
+  ]);
+  const lastSuccess = new Map(
+    successRows.map((row) => [jobKey(row.entity, row.entityExternalId), row._max.finishedAt]),
+  );
+  const lastSuccessAt = (entity: SyncEntity, entityExternalId: string | null): Date | null =>
+    lastSuccess.get(jobKey(entity, entityExternalId)) ?? null;
+  const quarantineCandidates = new Set(hardFailures.map((job) => jobKey(job.entity, job.entityExternalId)));
+
   /** ¿Esta unidad ha fallado tantas veces seguidas que conviene aparcarla? */
   async function isQuarantined(entity: SyncEntity, entityExternalId: string | null): Promise<boolean> {
+    // Sin fallos repetidos recientes no puede estar aparcada: evita la consulta.
+    if (!quarantineCandidates.has(jobKey(entity, entityExternalId))) return false;
     const last = await db.syncJob.findFirst({
       where: { entity, entityExternalId },
       orderBy: { finishedAt: 'desc' },
@@ -167,10 +188,12 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
     });
     try {
       await fn();
+      const finishedAt = new Date();
       await db.syncJob.update({
         where: { id: job.id },
-        data: { status: 'SUCCESS', finishedAt: new Date() },
+        data: { status: 'SUCCESS', finishedAt },
       });
+      lastSuccess.set(jobKey(entity, entityExternalId), finishedAt);
       executed.push(label);
     } catch (err) {
       const isBudget = err instanceof BudgetExceededError;
@@ -256,7 +279,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       });
       // El Mundial 2026 está en juego: refrescamos su calendario más a menudo (2h) que las ligas (6h).
       const staleHours = comp.slug === 'mundial-2026' ? 2 : 6;
-      const stale = hoursAgo(await lastSuccessAt(db, 'FIXTURES', key(comp, season))) > staleHours;
+      const stale = hoursAgo(lastSuccessAt('FIXTURES', key(comp, season))) > staleHours;
       if (needsBootstrap || (pendingResults > 0 && stale)) {
         await unit('FIXTURES', key(comp, season), `calendario:${comp.slug}:${season.year}`, 2, () =>
           syncFixtures(db, provider, providerRow.id, comp.externalId, season.year),
@@ -319,7 +342,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
     // 7. Clasificación (Mundial en juego: cada 2h; ligas: cada STALE_HOURS)
     for (const { comp, season } of compSeasons) {
       const standingsStaleHours = comp.slug === 'mundial-2026' ? 2 : STALE_HOURS;
-      if (hoursAgo(await lastSuccessAt(db, 'STANDINGS', key(comp, season))) > standingsStaleHours) {
+      if (hoursAgo(lastSuccessAt('STANDINGS', key(comp, season))) > standingsStaleHours) {
         await unit('STANDINGS', key(comp, season), `clasificacion:${comp.slug}:${season.year}`, 5, () =>
           syncStandings(db, provider, providerRow.id, comp.externalId, season.year),
         );
@@ -327,7 +350,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
     }
 
     // 7.5 Noticias (RSS, sin coste de API): máx. 1 vez cada 50 minutos
-    if (hoursAgo(await lastSuccessAt(db, 'NEWS', null)) > 0.83) {
+    if (hoursAgo(lastSuccessAt('NEWS', null)) > 0.83) {
       await unit('NEWS', null, 'noticias', 5, () => syncNews(db));
     }
 
@@ -338,7 +361,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       orderBy: { id: 'asc' },
     });
     for (const club of clubTeams) {
-      if (hoursAgo(await lastSuccessAt(db, 'TRANSFERS', club.externalId)) > 24) {
+      if (hoursAgo(lastSuccessAt('TRANSFERS', club.externalId)) > 24) {
         await unit('TRANSFERS', club.externalId, `traspasos:${club.slug}`, 5, () =>
           syncTransfers(db, provider, providerRow.id, club.id, club.externalId),
         );
@@ -350,7 +373,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
 
     // 8. Lesiones (máx. 1 vez cada STALE_HOURS por competición-temporada)
     for (const { comp, season } of compSeasons) {
-      if (hoursAgo(await lastSuccessAt(db, 'INJURIES', key(comp, season))) > STALE_HOURS) {
+      if (hoursAgo(lastSuccessAt('INJURIES', key(comp, season))) > STALE_HOURS) {
         await unit('INJURIES', key(comp, season), `lesiones:${comp.slug}:${season.year}`, 6, () =>
           syncInjuries(db, provider, providerRow.id, comp.externalId, season.year),
         );

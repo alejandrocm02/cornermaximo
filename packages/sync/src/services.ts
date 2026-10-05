@@ -321,6 +321,41 @@ function fieldStatsData(
   };
 }
 
+const LINEUP_POSITION_GROUP: Record<string, 'GK' | 'DF' | 'MF' | 'FW'> = { G: 'GK', D: 'DF', M: 'MF', F: 'FW' };
+
+/** Alta mínima de un jugador presente en un acta pero todavía no en ninguna plantilla. */
+async function createLineupPlayer(
+  db: PrismaClient,
+  providerDbId: number,
+  entry: { playerExternalId: string; playerName: string | null; positionPlayed: string | null; shirtNumber: number | null },
+  clubTeamId: number | null,
+): Promise<number> {
+  const fullName = entry.playerName ?? `Jugador ${entry.playerExternalId}`;
+  const player = await db.player.upsert({
+    where: { providerId_externalId: { providerId: providerDbId, externalId: entry.playerExternalId } },
+    update: {},
+    create: {
+      providerId: providerDbId,
+      externalId: entry.playerExternalId,
+      fullName,
+      slug: await uniquePlayerSlug(db, fullName, entry.playerExternalId),
+      photoUrl: `https://media.api-sports.io/football/players/${entry.playerExternalId}.png`,
+      shirtNumber: entry.shirtNumber,
+      currentTeamId: clubTeamId,
+    },
+    select: { id: true },
+  });
+  const group = entry.positionPlayed != null ? LINEUP_POSITION_GROUP[entry.positionPlayed] : undefined;
+  if (group != null) {
+    await db.playerPosition.upsert({
+      where: { playerId_group_specificPosition: { playerId: player.id, group, specificPosition: '' } },
+      update: {},
+      create: { playerId: player.id, group, specificPosition: '', isPrimary: true },
+    });
+  }
+  return player.id;
+}
+
 export async function syncMatchStats(
   db: PrismaClient,
   provider: FootballDataProvider,
@@ -342,15 +377,26 @@ export async function syncMatchStats(
   const teamExternalIds = [...new Set(lineups.map((l) => l.teamExternalId))];
   const teams = await db.team.findMany({
     where: { providerId: providerDbId, externalId: { in: teamExternalIds } },
-    select: { id: true, externalId: true },
+    select: { id: true, externalId: true, isNational: true },
   });
   const teamId = new Map(teams.map((t) => [t.externalId, t.id]));
+  const nationalTeamIds = new Set(teams.filter((t) => t.isNational).map((t) => t.id));
 
   let processed = 0;
   for (const entry of lineups) {
-    const pid = playerId.get(entry.playerExternalId);
     const tid = teamId.get(entry.teamExternalId);
-    if (pid == null || tid == null) continue; // jugador/equipo desconocido: se registra en el log del runner
+    if (tid == null) continue; // equipo aún no sincronizado
+
+    let pid = playerId.get(entry.playerExternalId);
+    if (pid == null) {
+      // Fichajes recientes y canteranos aparecen en el acta antes que en la
+      // plantilla sincronizada. Descartarlos dejaba alineaciones de 9 o 10
+      // jugadores y sin sus estadísticas, así que se dan de alta con lo que
+      // publica el acta; la siguiente sincronización de plantilla los completa.
+      if (entry.playerName == null) continue;
+      pid = await createLineupPlayer(db, providerDbId, entry, nationalTeamIds.has(tid) ? null : tid);
+      playerId.set(entry.playerExternalId, pid);
+    }
 
     const s = statsByPlayer.get(entry.playerExternalId);
     const minutes = s?.minutes ?? 0;

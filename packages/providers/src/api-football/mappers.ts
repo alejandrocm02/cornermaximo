@@ -199,8 +199,8 @@ export function mapFixture(raw: RawFixture): ProviderFixture {
 
 interface RawLineup {
   team: { id: number };
-  startXI: Array<{ player: { id: number; number: number | null; pos: string | null } }>;
-  substitutes: Array<{ player: { id: number; number: number | null; pos: string | null } }>;
+  startXI: Array<{ player: { id: number; name?: string | null; number: number | null; pos: string | null } }>;
+  substitutes: Array<{ player: { id: number; name?: string | null; number: number | null; pos: string | null } }>;
 }
 
 export function mapLineups(raws: RawLineup[]): ProviderLineupEntry[] {
@@ -213,6 +213,7 @@ export function mapLineups(raws: RawLineup[]): ProviderLineupEntry[] {
       for (const { player } of list) {
         entries.push({
           playerExternalId: String(player.id),
+          playerName: player.name?.trim() || null,
           teamExternalId: String(raw.team.id),
           role,
           positionPlayed: player.pos ?? null,
