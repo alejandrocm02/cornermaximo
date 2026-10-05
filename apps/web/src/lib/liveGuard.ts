@@ -26,8 +26,25 @@ export function isLiveEligible(status: string, kickoffAt: Date, now: number = Da
   return delta >= -LIVE_WINDOW_BEFORE_MS && delta <= LIVE_WINDOW_AFTER_MS;
 }
 
-/** Una respuesta servida desde el throttle no debe volver a invalidar cachés. */
-export function isFreshRefresh(refreshedAt: string, now: number = Date.now()): boolean {
-  const age = now - Date.parse(refreshedAt);
-  return Number.isFinite(age) && age < 5_000;
+/** ¿Sigue vigente un resultado del throttle obtenido en `at`? */
+export function isWithinInterval(at: string, intervalMs: number, now: number = Date.now()): boolean {
+  const age = now - Date.parse(at);
+  return Number.isFinite(age) && age <= intervalMs;
+}
+
+const lastSeenRefresh = new Map<string, string>();
+
+/**
+ * ¿Es la primera vez que esta instancia ve este resultado?
+ *
+ * Decide cuándo invalidar las páginas: una vez por sincronización real, no
+ * una vez por petición. Comparar con "hace menos de N segundos" no sirve: el
+ * throttle entrega resultados calculados por otra petición, así que casi nunca
+ * son recientes y las páginas no llegaban a actualizarse durante un directo.
+ */
+export function isNewRefresh(key: string, at: string): boolean {
+  if (lastSeenRefresh.get(key) === at) return false;
+  if (lastSeenRefresh.size > 500) lastSeenRefresh.clear();
+  lastSeenRefresh.set(key, at);
+  return true;
 }
