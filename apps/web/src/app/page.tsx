@@ -5,7 +5,7 @@ import { LiveScoreboardController } from '@/components/LiveScoreboardController'
 import { MatchRows } from '@/components/MatchRows';
 import { SearchBox } from '@/components/SearchBox';
 import { SectionHeader } from '@/components/SectionHeader';
-import { seasonLabel } from '@/lib/football';
+import { AWAITING_RESULT_AFTER_MS, seasonLabel } from '@/lib/football';
 import { topLeaguePlayers } from '@/lib/leaderboards';
 import { topPlayerStat } from '@/lib/worldCupStats';
 
@@ -44,7 +44,12 @@ export default async function HomePage() {
   ] = await Promise.all([
     prisma.player.count(),
     prisma.match.findMany({
-      where: { status: 'LIVE', season: { isCurrent: true } },
+      // Un "LIVE" de hace horas es un cierre que no llegó, no un directo.
+      where: {
+        status: 'LIVE',
+        kickoffAt: { gte: new Date(now.getTime() - AWAITING_RESULT_AFTER_MS) },
+        season: { isCurrent: true },
+      },
       include: {
         teams: { include: { team: { select: { name: true, slug: true } } } },
         season: { include: { competition: { select: { name: true, slug: true } } } },
