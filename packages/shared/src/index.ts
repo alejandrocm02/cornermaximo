@@ -249,6 +249,34 @@ export const RECENT_MATCHES_WINDOW = 5;
 /** Minutos mínimos por ventana para calcular tendencias comparables. */
 export const MIN_MINUTES_FOR_TREND = 180;
 
+/**
+ * El proveedor publica algunos clubes españoles sin tildes ni eñes. El slug no
+ * cambia (`toSlug` ya elimina los acentos), solo el nombre que se muestra.
+ */
+const TEAM_DISPLAY_NAMES: Record<string, string> = {
+  Alaves: 'Alavés',
+  Almeria: 'Almería',
+  'Atletico Madrid': 'Atlético Madrid',
+  Cadiz: 'Cádiz',
+  Cordoba: 'Córdoba',
+  'Deportivo La Coruna': 'Deportivo La Coruña',
+  Leganes: 'Leganés',
+  Malaga: 'Málaga',
+  'Sporting Gijon': 'Sporting Gijón',
+};
+
+export function displayTeamName(providerName: string): string {
+  return TEAM_DISPLAY_NAMES[providerName] ?? providerName;
+}
+
+/** Texto en minúsculas y sin diacríticos, para comparar nombres sin depender de tildes. */
+export function foldAccents(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 /** Convierte un nombre a slug URL-friendly (sin acentos, minúsculas, guiones). */
 export function toSlug(input: string): string {
   return input

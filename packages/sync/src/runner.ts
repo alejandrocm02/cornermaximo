@@ -82,7 +82,9 @@ export function createApiFootballProvider(budget: PrismaBudgetGuard): FootballDa
 }
 
 /** Entidades cuya frescura decide si una unidad debe volver a ejecutarse. */
-const FRESHNESS_ENTITIES: SyncEntity[] = ['FIXTURES', 'STANDINGS', 'NEWS', 'TRANSFERS', 'INJURIES'];
+const FRESHNESS_ENTITIES: SyncEntity[] = ['FIXTURES', 'STANDINGS', 'NEWS', 'TRANSFERS', 'INJURIES', 'SQUADS'];
+/** Una plantilla que sigue vacía tras sincronizarla no se vuelve a pedir hasta pasado este tiempo. */
+const EMPTY_SQUAD_RETRY_HOURS = 24 * 7;
 
 const jobKey = (entity: SyncEntity, entityExternalId: string | null) => `${entity}|${entityExternalId ?? ''}`;
 
@@ -304,6 +306,10 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       orderBy: { id: 'asc' },
     });
     for (const team of teamsWithoutPlayers) {
+      // Una selección cuyos jugadores ya tienen club nunca "tiene jugadores"
+      // (currentTeamId apunta al club): sin este límite se volvía a pedir su
+      // plantilla en todas las tandas.
+      if (hoursAgo(lastSuccessAt('SQUADS', team.externalId)) <= EMPTY_SQUAD_RETRY_HOURS) continue;
       await unit('SQUADS', team.externalId, `plantilla:${team.slug}`, 2, () =>
         syncSquad(db, provider, providerRow.id, team.id, team.externalId),
       );

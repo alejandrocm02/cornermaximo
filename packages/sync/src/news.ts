@@ -5,6 +5,7 @@
  * etiqueta como rumor; "confirmado/oficial" exige que la fuente lo diga.
  */
 import type { PrismaClient } from '@cornermaximo/db';
+import { foldAccents } from '@cornermaximo/shared';
 
 interface FeedConfig {
   url: string;
@@ -132,9 +133,10 @@ export async function syncNews(db: PrismaClient): Promise<number> {
     for (const item of parseRss(xml).slice(0, 30)) {
       // Algunos feeds (portadas) recuperan artículos antiguos: no son "última hora"
       if (item.publishedAt.getTime() < freshSince) continue;
-      const lowerTitle = item.title.toLowerCase();
-      const team = teamMatchers.find((t) => lowerTitle.includes(t.name.toLowerCase()));
-      const player = playerMatchers.find((p) => lowerTitle.includes(p.knownAs!.toLowerCase()));
+      // Sin tildes en ambos lados: "Cadiz" (prensa inglesa) y "Cádiz" enlazan igual.
+      const foldedTitle = foldAccents(item.title);
+      const team = teamMatchers.find((t) => foldedTitle.includes(foldAccents(t.name)));
+      const player = playerMatchers.find((p) => foldedTitle.includes(foldAccents(p.knownAs!)));
       const category = classify(item.title);
       try {
         // La URL es la identidad real de una noticia: algunos feeds cambian el guid

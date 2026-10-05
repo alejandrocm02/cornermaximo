@@ -22,11 +22,26 @@ const LABELS: Record<string, { text: string; cls: string }> = {
   },
 };
 
-export function TrendBadge({ direction, label }: { direction: string; label: string }) {
+export function TrendBadge({
+  direction,
+  label,
+  lowerIsBetter = false,
+}: {
+  direction: string;
+  label: string;
+  /** Faltas o goles encajados: bajar es la buena noticia, así que se invierte el color (no el texto). */
+  lowerIsBetter?: boolean;
+}) {
   const info = LABELS[direction] ?? LABELS.INSUFFICIENT_SAMPLE!;
+  const tone =
+    lowerIsBetter && direction === 'UP'
+      ? LABELS.DOWN!.cls
+      : lowerIsBetter && direction === 'DOWN'
+        ? LABELS.UP!.cls
+        : info.cls;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-2xs font-semibold ${info.cls}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-2xs font-semibold ${tone}`}
     >
       <span className="text-pitch-muted">{label}</span>
       <span aria-hidden="true" className="opacity-40">

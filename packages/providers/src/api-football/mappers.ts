@@ -2,6 +2,7 @@
  * Mappers: formato crudo de API-Football -> DTOs neutrales.
  * Regla: si el proveedor no da un campo => null. NUNCA inventar ni asumir 0.
  */
+import { displayTeamName } from '@cornermaximo/shared';
 import type { MatchPlayerRole, MatchStatus, PositionGroup } from '@cornermaximo/shared';
 import type {
   ProviderFixture,
@@ -92,7 +93,7 @@ interface RawTeamResponse {
 export function mapTeam(raw: RawTeamResponse, fallbackCountry: string): ProviderTeam {
   return {
     externalId: String(raw.team.id),
-    name: raw.team.name,
+    name: displayTeamName(raw.team.name),
     shortName: raw.team.code ?? null,
     crestUrl: raw.team.logo ?? null,
     founded: raw.team.founded ?? null,

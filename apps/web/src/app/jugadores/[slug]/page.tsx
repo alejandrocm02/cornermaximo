@@ -8,6 +8,7 @@ import { TrendBadge } from '@/components/TrendBadge';
 import { PlayerMatchHistory } from '@/components/PlayerMatchHistory';
 import { parseHistoryFilters, type HistorySearchParams } from '@/lib/matchHistory';
 import { getHistoryOptions, getPlayerMatchHistory } from '@/lib/playerMatchHistory';
+import { getEffectivePositionGroup, type PositionGroupCode } from '@/lib/playerPosition';
 import { getPlayerProfileContent, getPlayerProfileCore } from '@/lib/playerProfile';
 import { getLastMatches } from '@/lib/recent';
 
@@ -86,15 +87,17 @@ export default async function PlayerPage({
   if (!player) notFound();
 
   const isGK = player.positions.some((p) => p.isPrimary && p.group === 'GK');
-  const [data, seasonData, content, history, historyOptions] = await Promise.all([
+  const registeredPos = (player.positions.find((p) => p.isPrimary)?.group ?? null) as PositionGroupCode | null;
+  const [data, seasonData, content, history, historyOptions, effectivePos] = await Promise.all([
     getLastMatches(player.id, isGK),
     getLastMatches(player.id, isGK, 'season'),
     getPlayerProfileContent(player.id, player.currentTeamId),
     getPlayerMatchHistory(player.id, historyFilters),
     getHistoryOptions(player.id),
+    getEffectivePositionGroup(player.id, registeredPos),
   ]);
   const age = calculateAge(player.birthDate);
-  const pos = player.positions.find((p) => p.isPrimary)?.group ?? null;
+  const pos = effectivePos ?? registeredPos;
   const fmt = (value: number | null | undefined) => (value == null ? '—' : String(value));
   const recentMetrics = isGK
     ? (['saves', 'goalsConceded', 'cleanSheets', 'shotsOnTargetFaced', 'penaltiesSaved'] as const)
@@ -142,7 +145,7 @@ export default async function PlayerPage({
 
       {Object.keys(data.trends).length > 0 && (
         <section aria-label="Tendencias recientes" className="flex flex-wrap gap-2">
-          {Object.entries(data.trends).map(([key, trend]) => <TrendBadge key={key} direction={trend.direction} label={TREND_LABEL[key] ?? key} />)}
+          {Object.entries(data.trends).map(([key, trend]) => <TrendBadge key={key} direction={trend.direction} label={TREND_LABEL[key] ?? key} lowerIsBetter={key === 'foulsCommitted' || key === 'goalsConceded'} />)}
         </section>
       )}
 
