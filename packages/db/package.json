@@ -22,7 +22,7 @@
   "devDependencies": {
     "@types/pg": "^8.15.5",
     "dotenv": "^17.2.3",
-    "prisma": "^7.9.1",
+    "prisma": "^7.10.0",
     "vitest": "^3.2.6"
   }
 }
