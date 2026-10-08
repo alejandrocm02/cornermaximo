@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { JsonLd } from '@/components/JsonLd';
 import { DISPLAY_TIME_ZONE, seasonLabel } from '@/lib/football';
 import { rankingRows, TOP_FIVE_LEAGUES_FILTER, type RankingMetric } from '@/lib/leaderboards';
+import { getSiteUrl } from '@/lib/site-url';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -129,7 +130,7 @@ export default async function RankingsPage({
       '@type': 'ListItem',
       position: index + 1,
       name: row.name,
-      url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/jugadores/${row.slug}`,
+      url: `${getSiteUrl()}/jugadores/${row.slug}`,
     })),
   } : null;
 

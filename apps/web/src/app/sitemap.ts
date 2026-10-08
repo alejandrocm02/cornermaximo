@@ -4,6 +4,10 @@ import { getSiteUrl } from '@/lib/site-url';
 
 const BASE_URL = getSiteUrl();
 
+// Sin esto el sitemap se genera una sola vez en el build y no incluye los
+// jugadores ni partidos sincronizados hasta el siguiente despliegue.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${BASE_URL}`, changeFrequency: 'hourly', priority: 1 },
@@ -66,7 +70,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
       })),
     ];
-  } catch {
-    return staticRoutes;
+  } catch (error) {
+    console.error('sitemap: no se pudo leer la base de datos', error);
+    // En el build no hay versión anterior que conservar: se publica la parte
+    // estática y la revalidación horaria la completa. En tiempo de ejecución se
+    // relanza para que ISR siga sirviendo la última versión buena en lugar de
+    // sustituirla por un sitemap de 17 URLs.
+    if (process.env.NEXT_PHASE === 'phase-production-build') return staticRoutes;
+    throw error;
   }
 }

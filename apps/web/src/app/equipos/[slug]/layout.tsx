@@ -1,8 +1,9 @@
 import { prisma } from '@cornermaximo/db';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { JsonLd } from '@/components/JsonLd';
+import { getSiteUrl } from '@/lib/site-url';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const BASE_URL = getSiteUrl();
 
 export default async function TeamProfileLayout({
   children,
