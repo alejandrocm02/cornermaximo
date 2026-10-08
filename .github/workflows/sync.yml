@@ -31,7 +31,7 @@ jobs:
       SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
       # El dominio canónico es público. Mantenerlo como secreto provocó deriva
       # de configuración y respuestas 404 en todas las ejecuciones programadas.
-      APP_URL: https://cornermaximo-web-neon.vercel.app
+      APP_URL: https://cornermaximo.es
     steps:
       - name: Validar configuración segura
         shell: bash
@@ -41,7 +41,7 @@ jobs:
             echo "::error::SYNC_SECRET debe tener al menos 32 caracteres."
             exit 1
           fi
-          if [[ "$APP_URL" != "https://cornermaximo-web-neon.vercel.app" ]]; then
+          if [[ "$APP_URL" != "https://cornermaximo.es" ]]; then
             echo "::error::APP_URL no coincide con el dominio canónico de producción."
             exit 1
           fi
