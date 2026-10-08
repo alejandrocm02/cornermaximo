@@ -45,6 +45,8 @@ export interface MetricSummary {
   total: number | null;
   perMatch: number | null;
   per90: number | null;
+  /** Partidos con dato para esta métrica: son el denominador de perMatch y per90. */
+  sampleMatches: number;
 }
 
 export interface RecentSummary {
@@ -59,16 +61,43 @@ export interface RecentSummary {
   rates: Record<string, number | null>;
 }
 
-function summarize(
-  lines: Array<{ minutes: number; rating: number | null }>,
-  totals: Record<string, number | null>,
+type LineValue<L> = (line: L) => number | null;
+
+/**
+ * Total, media por partido y por 90' de una métrica usando solo los partidos
+ * que tienen dato para ella. Dividir un total parcial entre todos los minutos
+ * infravaloraba la media, y la tabla partido a partido (que ya usaba solo los
+ * partidos con dato) mostraba otra cifra para la misma métrica.
+ */
+function summarizeMetric<L extends { minutes: number }>(lines: L[], value: LineValue<L>): MetricSummary {
+  const withData = lines.filter((line) => value(line) != null);
+  const total = sumNullable(withData.map(value));
+  const minutes = withData.reduce((a, line) => a + line.minutes, 0);
+  return {
+    total,
+    perMatch: perMatch(total, withData.length),
+    per90: per90(total, minutes),
+    sampleMatches: withData.length,
+  };
+}
+
+/** Porcentaje calculado solo con los partidos que tienen ambos valores. */
+function pairedPercentage<L>(lines: L[], part: LineValue<L>, whole: LineValue<L>): number | null {
+  const paired = lines.filter((line) => part(line) != null && whole(line) != null);
+  return percentage(sumNullable(paired.map(part)), sumNullable(paired.map(whole)));
+}
+
+function summarize<L extends { matchId: number; minutes: number; rating: number | null }>(
+  lines: L[],
+  metricValues: Record<string, LineValue<L>>,
   rates: Record<string, number | null>,
-  byRating: Array<{ matchId: number; rating: number | null }>,
 ): RecentSummary {
   const matches = lines.length;
   const minutes = lines.reduce((a, l) => a + l.minutes, 0);
 
-  const ratings = byRating.filter((r): r is { matchId: number; rating: number } => r.rating != null);
+  const ratings = lines
+    .map((l) => ({ matchId: l.matchId, rating: l.rating }))
+    .filter((r): r is { matchId: number; rating: number } => r.rating != null);
   const avgRating =
     ratings.length > 0
       ? Math.round((ratings.reduce((a, r) => a + r.rating, 0) / ratings.length) * 100) / 100
@@ -76,12 +105,8 @@ function summarize(
   const sorted = [...ratings].sort((a, b) => b.rating - a.rating);
 
   const metrics: Record<string, MetricSummary> = {};
-  for (const [key, total] of Object.entries(totals)) {
-    metrics[key] = {
-      total,
-      perMatch: perMatch(total, matches),
-      per90: per90(total, minutes),
-    };
+  for (const [key, value] of Object.entries(metricValues)) {
+    metrics[key] = summarizeMetric(lines, value);
   }
 
   return {
@@ -95,53 +120,55 @@ function summarize(
   };
 }
 
-export function aggregateFieldPlayer(lines: PlayerMatchLine[]): RecentSummary {
-  const t = (k: keyof PlayerMatchLine) => sumNullable(lines.map((l) => l[k] as number | null));
+/** Goles + asistencias de un partido; null si falta cualquiera de los dos. */
+export function goalContributionsOf(line: Pick<PlayerMatchLine, 'goals' | 'assists'>): number | null {
+  return line.goals != null && line.assists != null ? line.goals + line.assists : null;
+}
 
-  const totals: Record<string, number | null> = {
-    goals: t('goals'),
-    assists: t('assists'),
-    goalContributions: sumNullable([t('goals'), t('assists')]),
-    shotsTotal: t('shotsTotal'),
-    shotsOnTarget: t('shotsOnTarget'),
-    passesCompleted: t('passesCompleted'),
-    keyPasses: t('keyPasses'),
-    foulsCommitted: t('foulsCommitted'),
-    foulsDrawn: t('foulsDrawn'),
-    tackles: t('tacklesAttempted'),
-    tacklesWon: t('tacklesWon'),
-    interceptions: t('interceptions'),
-    recoveries: t('recoveries'),
-    duelsWon: t('duelsWon'),
-    yellowCards: t('yellowCards'),
-    redCards: t('redCards'),
+export function aggregateFieldPlayer(lines: PlayerMatchLine[]): RecentSummary {
+  const field = (k: keyof PlayerMatchLine): LineValue<PlayerMatchLine> => (l) => l[k] as number | null;
+
+  const metricValues: Record<string, LineValue<PlayerMatchLine>> = {
+    goals: field('goals'),
+    assists: field('assists'),
+    goalContributions: goalContributionsOf,
+    shotsTotal: field('shotsTotal'),
+    shotsOnTarget: field('shotsOnTarget'),
+    passesCompleted: field('passesCompleted'),
+    keyPasses: field('keyPasses'),
+    foulsCommitted: field('foulsCommitted'),
+    foulsDrawn: field('foulsDrawn'),
+    tackles: field('tacklesAttempted'),
+    tacklesWon: field('tacklesWon'),
+    interceptions: field('interceptions'),
+    recoveries: field('recoveries'),
+    duelsWon: field('duelsWon'),
+    yellowCards: field('yellowCards'),
+    redCards: field('redCards'),
   };
 
   const rates: Record<string, number | null> = {
-    passAccuracy: percentage(t('passesCompleted'), t('passesAttempted')),
-    duelWinRate: percentage(t('duelsWon'), t('duelsTotal')),
+    passAccuracy: pairedPercentage(lines, field('passesCompleted'), field('passesAttempted')),
+    duelWinRate: pairedPercentage(lines, field('duelsWon'), field('duelsTotal')),
   };
 
-  return summarize(lines, totals, rates, lines.map((l) => ({ matchId: l.matchId, rating: l.rating })));
+  return summarize(lines, metricValues, rates);
 }
 
 export function aggregateGoalkeeper(lines: GoalkeeperMatchLine[]): RecentSummary {
-  const t = (k: keyof GoalkeeperMatchLine) => sumNullable(lines.map((l) => l[k] as number | null));
+  const field = (k: keyof GoalkeeperMatchLine): LineValue<GoalkeeperMatchLine> => (l) => l[k] as number | null;
 
-  const cleanSheets = lines.filter((l) => l.cleanSheet === true).length;
-  const anyCleanSheetData = lines.some((l) => l.cleanSheet != null);
-
-  const totals: Record<string, number | null> = {
-    goalsConceded: t('goalsConceded'),
-    cleanSheets: anyCleanSheetData ? cleanSheets : null,
-    shotsOnTargetFaced: t('shotsOnTargetFaced'),
-    saves: t('saves'),
-    penaltiesSaved: t('penaltiesSaved'),
+  const metricValues: Record<string, LineValue<GoalkeeperMatchLine>> = {
+    goalsConceded: field('goalsConceded'),
+    cleanSheets: (l) => (l.cleanSheet == null ? null : l.cleanSheet ? 1 : 0),
+    shotsOnTargetFaced: field('shotsOnTargetFaced'),
+    saves: field('saves'),
+    penaltiesSaved: field('penaltiesSaved'),
   };
 
   const rates: Record<string, number | null> = {
-    savePercentage: percentage(t('saves'), t('shotsOnTargetFaced')),
+    savePercentage: pairedPercentage(lines, field('saves'), field('shotsOnTargetFaced')),
   };
 
-  return summarize(lines, totals, rates, lines.map((l) => ({ matchId: l.matchId, rating: l.rating })));
+  return summarize(lines, metricValues, rates);
 }

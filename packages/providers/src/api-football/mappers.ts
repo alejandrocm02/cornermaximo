@@ -263,6 +263,45 @@ interface RawFixturePlayers {
   }>;
 }
 
+type RawPlayerStatistics = RawFixturePlayers['players'][number]['statistics'][number];
+
+/**
+ * API-Football omite los contadores que valen cero: un jugador que no marca
+ * llega con `goals.total: null`, no con `0`. Medido en producción (8-oct-2026,
+ * 130.639 actuaciones con minutos): goles 114.370 nulos frente a 4.647 ceros;
+ * faltas, tiros, pases clave, entradas, intercepciones y duelos, igual. Las
+ * tarjetas y casi siempre las asistencias sí llegan como 0.
+ *
+ * Por eso, en una fila con estadísticas reales, un contador nulo es 0. Solo se
+ * conserva null cuando la fila entera viene vacía (todos los contadores nulos):
+ * eso sí es un partido sin estadísticas y no se inventan ceros.
+ */
+function detailedCounters(s: RawPlayerStatistics): Array<number | null> {
+  return [
+    s.goals.total,
+    s.goals.assists,
+    s.shots.total,
+    s.shots.on,
+    s.passes.total,
+    s.passes.key,
+    s.tackles.total,
+    s.tackles.blocks,
+    s.tackles.interceptions,
+    s.duels.total,
+    s.duels.won,
+    s.dribbles.attempts,
+    s.dribbles.success,
+    s.dribbles.past,
+    s.fouls.drawn,
+    s.fouls.committed,
+    s.offsides,
+  ];
+}
+
+export function hasDetailedStatistics(s: RawPlayerStatistics): boolean {
+  return (s.games.minutes ?? 0) > 0 && detailedCounters(s).some((value) => value != null);
+}
+
 /**
  * `passes.accuracy` de API-Football es el Nº de pases completados (string), no un %.
  */
@@ -275,6 +314,9 @@ export function mapFixturePlayers(raws: RawFixturePlayers[]): ProviderPlayerMatc
       if (s == null) continue;
 
       const isGoalkeeper = s.games.position === 'G';
+      const detailed = hasDetailedStatistics(s);
+      // Contador de API-Football: null => 0 en una fila con estadísticas reales.
+      const count = (value: number | null): number | null => (value == null && detailed ? 0 : value);
 
       out.push({
         playerExternalId: String(entry.player.id),
@@ -285,34 +327,34 @@ export function mapFixturePlayers(raws: RawFixturePlayers[]): ProviderPlayerMatc
         isCaptain: s.games.captain,
         positionPlayed: s.games.position ?? null,
 
-        goals: s.goals.total,
-        assists: s.goals.assists,
-        shotsTotal: s.shots.total,
-        shotsOnTarget: s.shots.on,
-        passesAttempted: s.passes.total,
-        passesCompleted: toIntOrNull(s.passes.accuracy),
-        keyPasses: s.passes.key,
-        dribblesAttempted: s.dribbles.attempts,
-        dribblesCompleted: s.dribbles.success,
-        dribbledPast: s.dribbles.past,
-        tacklesAttempted: s.tackles.total,
-        blocks: s.tackles.blocks,
-        interceptions: s.tackles.interceptions,
-        duelsTotal: s.duels.total,
-        duelsWon: s.duels.won,
-        foulsCommitted: s.fouls.committed,
-        foulsDrawn: s.fouls.drawn,
-        yellowCards: s.cards.yellow,
-        redCards: s.cards.red,
-        offsides: s.offsides,
-        penaltiesScored: s.penalty.scored,
-        penaltiesMissed: s.penalty.missed,
-        penaltiesWon: s.penalty.won,
-        penaltiesCommitted: s.penalty.commited,
+        goals: count(s.goals.total),
+        assists: count(s.goals.assists),
+        shotsTotal: count(s.shots.total),
+        shotsOnTarget: count(s.shots.on),
+        passesAttempted: count(s.passes.total),
+        passesCompleted: count(toIntOrNull(s.passes.accuracy)),
+        keyPasses: count(s.passes.key),
+        dribblesAttempted: count(s.dribbles.attempts),
+        dribblesCompleted: count(s.dribbles.success),
+        dribbledPast: count(s.dribbles.past),
+        tacklesAttempted: count(s.tackles.total),
+        blocks: count(s.tackles.blocks),
+        interceptions: count(s.tackles.interceptions),
+        duelsTotal: count(s.duels.total),
+        duelsWon: count(s.duels.won),
+        foulsCommitted: count(s.fouls.committed),
+        foulsDrawn: count(s.fouls.drawn),
+        yellowCards: count(s.cards.yellow),
+        redCards: count(s.cards.red),
+        offsides: count(s.offsides),
+        penaltiesScored: count(s.penalty.scored),
+        penaltiesMissed: count(s.penalty.missed),
+        penaltiesWon: count(s.penalty.won),
+        penaltiesCommitted: count(s.penalty.commited),
 
         goalsConceded: isGoalkeeper ? s.goals.conceded : null,
-        saves: isGoalkeeper ? s.goals.saves : null,
-        penaltiesSaved: isGoalkeeper ? s.penalty.saved : null,
+        saves: isGoalkeeper ? count(s.goals.saves) : null,
+        penaltiesSaved: isGoalkeeper ? count(s.penalty.saved) : null,
 
         raw: entry,
       });
