@@ -193,10 +193,49 @@ describe('mapFixturePlayers', () => {
     expect(stats!.penaltiesSaved).toBe(1);
   });
 
-  it('dato ausente => null, nunca 0', () => {
-    const [stats] = mapFixturePlayers(rawStats('M') as never);
-    expect(stats!.offsides).toBeNull();
-    expect(stats!.dribbledPast).toBeNull();
+  // API-Football omite los contadores a cero: un jugador que no marca llega con
+  // goals.total null. En producción, 114.370 nulos frente a 4.647 ceros.
+  it('contador nulo en una fila con estadísticas => 0', () => {
+    const [stats] = mapFixturePlayers(rawStats('M', { goals: { total: null, conceded: null, assists: null, saves: null } }) as never);
+    expect(stats!.goals).toBe(0);
+    expect(stats!.assists).toBe(0);
+    expect(stats!.offsides).toBe(0);
+    expect(stats!.dribbledPast).toBe(0);
+    expect(stats!.blocks).toBe(0);
+    // No es un contador: valoración y goles encajados conservan su null.
+    expect(stats!.goalsConceded).toBeNull();
+  });
+
+  it('fila sin ningún contador => null, no se inventan ceros', () => {
+    const empty = {
+      goals: { total: null, conceded: null, assists: null, saves: null },
+      shots: { total: null, on: null },
+      passes: { total: null, key: null, accuracy: null },
+      tackles: { total: null, blocks: null, interceptions: null },
+      duels: { total: null, won: null },
+      dribbles: { attempts: null, success: null, past: null },
+      fouls: { drawn: null, committed: null },
+      offsides: null,
+    };
+    const [stats] = mapFixturePlayers(rawStats('M', empty) as never);
+    expect(stats!.goals).toBeNull();
+    expect(stats!.passesAttempted).toBeNull();
+    expect(stats!.foulsCommitted).toBeNull();
+    // Las tarjetas sí llegan siempre del proveedor.
+    expect(stats!.yellowCards).toBe(1);
+  });
+
+  it('sin minutos no se convierten nulos en ceros', () => {
+    const [stats] = mapFixturePlayers(
+      rawStats('M', { games: { minutes: 0, position: 'M', rating: null, captain: false }, goals: { total: null, conceded: null, assists: null, saves: null } }) as never,
+    );
+    expect(stats!.goals).toBeNull();
+  });
+
+  it('portero sin paradas registradas => 0 paradas', () => {
+    const [stats] = mapFixturePlayers(rawStats('G', { goals: { total: null, conceded: 1, assists: 0, saves: null } }) as never);
+    expect(stats!.saves).toBe(0);
+    expect(stats!.goalsConceded).toBe(1);
   });
 });
 

@@ -6,7 +6,8 @@ import { prisma } from '@cornermaximo/db';
 import {
   aggregateFieldPlayer,
   aggregateGoalkeeper,
-  computeTrend,
+  computeLineTrend,
+  goalContributionsOf,
   type GoalkeeperMatchLine,
   type PlayerMatchLine,
   type RecentSummary,
@@ -147,11 +148,6 @@ function toGkLine(mp: Mp): GoalkeeperMatchLine {
   };
 }
 
-const sumOrNull = (values: Array<number | null>): number | null => {
-  const present = values.filter((v): v is number => v != null);
-  return present.length > 0 ? present.reduce((a, b) => a + b, 0) : null;
-};
-
 async function getLastMatchesUncached(
   playerId: number,
   isGoalkeeper: boolean,
@@ -180,7 +176,6 @@ async function getLastMatchesUncached(
         })
       : [];
 
-  const minutes = (list: Mp[]) => list.reduce((a, m) => a + m.minutesPlayed, 0);
   let summary: RecentSummary;
   const trends: Record<string, TrendResult> = {};
 
@@ -188,16 +183,16 @@ async function getLastMatchesUncached(
     const recentLines = recent.map(toGkLine);
     const prevLines = previous.map(toGkLine);
     summary = aggregateGoalkeeper(recentLines);
-    trends.saves = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.saves)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.saves)), previousMinutes: minutes(previous) });
-    trends.goalsConceded = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.goalsConceded)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.goalsConceded)), previousMinutes: minutes(previous), lowerIsBetter: true });
+    trends.saves = computeLineTrend(recentLines, prevLines, (l) => l.saves);
+    trends.goalsConceded = computeLineTrend(recentLines, prevLines, (l) => l.goalsConceded, { lowerIsBetter: true });
   } else {
     const recentLines = recent.map(toFieldLine);
     const prevLines = previous.map(toFieldLine);
     summary = aggregateFieldPlayer(recentLines);
-    trends.goalContributions = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => sumOrNull([l.goals, l.assists]))), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => sumOrNull([l.goals, l.assists]))), previousMinutes: minutes(previous) });
-    trends.keyPasses = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.keyPasses)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.keyPasses)), previousMinutes: minutes(previous) });
-    trends.tackles = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.tacklesAttempted)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.tacklesAttempted)), previousMinutes: minutes(previous) });
-    trends.foulsCommitted = computeTrend({ recentTotal: sumOrNull(recentLines.map((l) => l.foulsCommitted)), recentMinutes: minutes(recent), previousTotal: sumOrNull(prevLines.map((l) => l.foulsCommitted)), previousMinutes: minutes(previous), lowerIsBetter: true });
+    trends.goalContributions = computeLineTrend(recentLines, prevLines, goalContributionsOf);
+    trends.keyPasses = computeLineTrend(recentLines, prevLines, (l) => l.keyPasses);
+    trends.tackles = computeLineTrend(recentLines, prevLines, (l) => l.tacklesAttempted);
+    trends.foulsCommitted = computeLineTrend(recentLines, prevLines, (l) => l.foulsCommitted, { lowerIsBetter: true });
   }
 
   return {
@@ -209,7 +204,7 @@ async function getLastMatchesUncached(
   };
 }
 
-const getCachedLastMatches = unstable_cache(getLastMatchesUncached, ['player-last-matches-v2'], {
+const getCachedLastMatches = unstable_cache(getLastMatchesUncached, ['player-last-matches-v3'], {
   revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
   tags: [FOOTBALL_DATA_CACHE_TAG],
 });

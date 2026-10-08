@@ -80,3 +80,33 @@ export function streak<T>(mostRecentFirst: T[], predicate: (line: T) => boolean)
   }
   return count;
 }
+
+/**
+ * Tendencia de una métrica entre dos ventanas de partidos, contando en cada
+ * ventana solo los partidos con dato para esa métrica. Así una ventana con
+ * actas incompletas no parece "en descenso" por falta de datos, y el umbral de
+ * minutos mínimos se aplica a los minutos realmente medidos.
+ */
+export function computeLineTrend<L extends { minutes: number }>(
+  recent: L[],
+  previous: L[],
+  value: (line: L) => number | null,
+  options: { lowerIsBetter?: boolean } = {},
+): TrendResult {
+  const measured = (lines: L[]) => {
+    const withData = lines.filter((line) => value(line) != null);
+    return {
+      total: withData.length > 0 ? withData.reduce((a, line) => a + value(line)!, 0) : null,
+      minutes: withData.reduce((a, line) => a + line.minutes, 0),
+    };
+  };
+  const r = measured(recent);
+  const p = measured(previous);
+  return computeTrend({
+    recentTotal: r.total,
+    recentMinutes: r.minutes,
+    previousTotal: p.total,
+    previousMinutes: p.minutes,
+    lowerIsBetter: options.lowerIsBetter,
+  });
+}
