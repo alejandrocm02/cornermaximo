@@ -10,7 +10,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { JsonLd } from '@/components/JsonLd';
 import { DISPLAY_TIME_ZONE, seasonLabel } from '@/lib/football';
-import { rankingRows, TOP_FIVE_LEAGUES_FILTER, type RankingMetric } from '@/lib/leaderboards';
+import {
+  AVERAGE_RANKING_MIN_APPEARANCES,
+  AVERAGE_RANKING_MIN_MINUTES,
+  rankingRows,
+  TOP_FIVE_LEAGUES_FILTER,
+  type RankingMetric,
+} from '@/lib/leaderboards';
 import { getSiteUrl } from '@/lib/site-url';
 
 export const dynamic = 'force-dynamic';
@@ -59,6 +65,12 @@ const POSITION_LABEL: Record<string, string> = { GK: 'POR', DF: 'DEF', MF: 'MED'
 function displayValue(metric: MetricDef, value: number): string {
   if (metric.mode === 'average') return value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return value.toLocaleString('es-ES', { maximumFractionDigits: 0 });
+}
+
+/** Columna "Por 90'": una media (valoración) o los propios minutos no tienen versión por 90. */
+function per90Cell(metric: MetricDef, total: number, minutes: number): string {
+  if (metric.mode === 'average' || metric.mode === 'minutes' || minutes <= 0) return '—';
+  return `${((total / minutes) * 90).toLocaleString('es-ES', { maximumFractionDigits: 2 })} /90`;
 }
 
 function secondaryMetric(metric: MetricDef, total: number, minutes: number): string {
@@ -233,6 +245,11 @@ export default async function RankingsPage({
             <div><p className="cm-kicker">Clasificación</p><h2 id="tabla-ranking" className="mt-1 text-2xl font-bold">{leagueName} · {label(season)}</h2></div>
             <span className="cm-data-pill">{position ? POSITION_OPTIONS.find(([value]) => value === position)?.[1] : 'Todas las posiciones'}</span>
           </div>
+          {metric.mode === 'average' && (
+            <p className="text-xs text-pitch-muted">
+              Solo jugadores con al menos {AVERAGE_RANKING_MIN_APPEARANCES} partidos y {AVERAGE_RANKING_MIN_MINUTES} minutos en el periodo, para que una única actuación no encabece la media.
+            </p>
+          )}
           <p className="text-xs text-pitch-muted sm:hidden">Desliza lateralmente para ver todas las métricas →</p>
           <div className="cm-table-shell overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
@@ -256,7 +273,7 @@ export default async function RankingsPage({
                     <td className="tabular-nums text-pitch-muted">{row.appearances}</td>
                     <td className="text-right font-display text-base font-bold tabular-nums text-pitch-accent">{displayValue(metric, row.total)}</td>
                     <td className="text-right tabular-nums text-pitch-muted">{row.minutes.toLocaleString('es-ES')}</td>
-                    <td className="text-right tabular-nums text-pitch-muted">{secondaryMetric(metric, row.total, row.minutes)}</td>
+                    <td className="text-right tabular-nums text-pitch-muted">{per90Cell(metric, row.total, row.minutes)}</td>
                     <td className="text-right"><Link href={`/comparador?p1=${row.slug}`} className="cm-inline-action">Comparar</Link></td>
                   </tr>
                 ))}
