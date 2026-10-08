@@ -74,6 +74,28 @@ export interface ProviderLineupEntry {
   shirtNumber: number | null;
 }
 
+export type ProviderMatchEventType =
+  | 'GOAL'
+  | 'OWN_GOAL'
+  | 'PENALTY_GOAL'
+  | 'MISSED_PENALTY'
+  | 'YELLOW_CARD'
+  | 'SECOND_YELLOW'
+  | 'RED_CARD'
+  | 'SUBSTITUTION'
+  | 'VAR';
+
+/** Gol, tarjeta, cambio o revisión de VAR de un partido. */
+export interface ProviderMatchEvent {
+  teamExternalId: string | null;
+  playerExternalId: string | null;
+  assistExternalId: string | null;
+  type: ProviderMatchEventType;
+  minute: number;
+  extraMinute: number | null;
+  detail: string | null;
+}
+
 /** Estadísticas de un jugador en un partido, ya normalizadas. */
 export interface ProviderPlayerMatchStats {
   playerExternalId: string;

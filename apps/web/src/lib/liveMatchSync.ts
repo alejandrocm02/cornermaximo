@@ -1,12 +1,14 @@
 import 'server-only';
 
-import { prisma, type EventType } from '@cornermaximo/db';
+import { prisma } from '@cornermaximo/db';
 import {
   ApiFootballClient,
   ApiFootballProvider,
   mapFixture,
+  mapFixtureEvents,
+  type RawFixtureEvent,
 } from '@cornermaximo/providers';
-import { PrismaBudgetGuard, syncMatchStats } from '@cornermaximo/sync';
+import { PrismaBudgetGuard, replaceMatchEvents, syncMatchStats } from '@cornermaximo/sync';
 
 const CORE_RUN_LIMIT = 8;
 const DETAIL_RUN_LIMIT = 8;
@@ -15,16 +17,6 @@ const MAX_TERMINAL_PROBES = 8;
 const CONTRACT_DAILY_LIMIT = 5_000;
 const MAX_DAILY_USAGE_RATIO = 0.75;
 const SAFE_DAILY_LIMIT = Math.floor(CONTRACT_DAILY_LIMIT * MAX_DAILY_USAGE_RATIO);
-
-interface RawFixtureEvent {
-  time: { elapsed: number | null; extra: number | null };
-  team: { id: number; name?: string | null };
-  player: { id: number | null; name: string | null } | null;
-  assist: { id: number | null; name: string | null } | null;
-  type: string;
-  detail: string | null;
-  comments: string | null;
-}
 
 interface RawFixtureStatus {
   fixture: {
@@ -62,26 +54,6 @@ export interface LiveScoreboardResult {
 
 function terminalStatus(status: string): boolean {
   return ['FINISHED', 'POSTPONED', 'SUSPENDED', 'ABANDONED', 'CANCELLED'].includes(status);
-}
-
-function mapEventType(type: string, detail: string | null): EventType | null {
-  const normalizedType = type.toLowerCase();
-  const normalizedDetail = (detail ?? '').toLowerCase();
-
-  if (normalizedType === 'goal') {
-    if (normalizedDetail.includes('missed penalty')) return 'MISSED_PENALTY';
-    if (normalizedDetail.includes('own goal')) return 'OWN_GOAL';
-    if (normalizedDetail.includes('penalty')) return 'PENALTY_GOAL';
-    return 'GOAL';
-  }
-  if (normalizedType === 'card') {
-    if (normalizedDetail.includes('second yellow')) return 'SECOND_YELLOW';
-    if (normalizedDetail.includes('red')) return 'RED_CARD';
-    return 'YELLOW_CARD';
-  }
-  if (normalizedType === 'subst' || normalizedType === 'substitution') return 'SUBSTITUTION';
-  if (normalizedType === 'var') return 'VAR';
-  return null;
 }
 
 async function createClient(providerDbId: number, runLimit: number): Promise<ApiFootballClient> {
@@ -209,47 +181,10 @@ export async function syncLiveMatchCore(matchId: number): Promise<LiveCoreSnapsh
   if (rawFixture == null) return null;
 
   const fixture = mapFixture(rawFixture);
-  const externalPlayerIds = [
-    ...new Set(
-      rawEvents
-        .flatMap((event) => [event.player?.id, event.assist?.id])
-        .filter((value): value is number => value != null)
-        .map(String),
-    ),
-  ];
-  const players =
-    externalPlayerIds.length === 0
-      ? []
-      : await prisma.player.findMany({
-          where: { providerId: match.providerId, externalId: { in: externalPlayerIds } },
-          select: { id: true, externalId: true },
-        });
-  const playerIdByExternal = new Map(players.map((player) => [player.externalId, player.id]));
-
-  const events = rawEvents.flatMap((event) => {
-    const eventType = mapEventType(event.type, event.detail);
-    if (eventType == null || event.time.elapsed == null) return [];
-    return [
-      {
-        matchId,
-        teamExternalId: event.team?.id != null ? String(event.team.id) : null,
-        playerId:
-          event.player?.id != null ? (playerIdByExternal.get(String(event.player.id)) ?? null) : null,
-        assistPlayerId:
-          event.assist?.id != null ? (playerIdByExternal.get(String(event.assist.id)) ?? null) : null,
-        type: eventType,
-        minute: event.time.elapsed,
-        extraMinute: event.time.extra ?? null,
-        detail: [event.detail, event.comments].filter(Boolean).join(' · ') || null,
-      },
-    ];
-  });
+  const events = mapFixtureEvents(rawEvents);
 
   await persistFixture(matchId, rawFixture);
-  await prisma.$transaction(async (tx) => {
-    await tx.matchEvent.deleteMany({ where: { matchId } });
-    if (events.length > 0) await tx.matchEvent.createMany({ data: events });
-  });
+  await replaceMatchEvents(prisma, match.providerId, matchId, events);
 
   return {
     status: fixture.status,

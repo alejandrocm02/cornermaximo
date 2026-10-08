@@ -7,6 +7,7 @@
  *  - getFixtures: 1 por competición/temporada
  *  - getLineups: 1 por partido
  *  - getPlayerMatchStatistics: 1 por partido (todos los jugadores de golpe)
+ *  - getMatchEvents: 1 por partido
  *  - getInjuries / getStandings: 1 por competición/temporada
  */
 import { TRACKED_COMPETITIONS } from '@cornermaximo/shared';
@@ -17,6 +18,7 @@ import type {
   ProviderFixture,
   ProviderInjury,
   ProviderLineupEntry,
+  ProviderMatchEvent,
   ProviderPlayer,
   ProviderPlayerMatchStats,
   ProviderStandingRow,
@@ -26,6 +28,7 @@ import type { ApiFootballClient } from './client';
 import {
   mapTransfers,
   mapFixture,
+  mapFixtureEvents,
   mapFixturePlayers,
   mapInjury,
   mapLineups,
@@ -132,6 +135,14 @@ export class ApiFootballProvider implements FootballDataProvider {
     }));
     this.lineupGridByFixture.delete(fixtureExternalId);
     return mapped;
+  }
+
+  async getMatchEvents(fixtureExternalId: string): Promise<ProviderMatchEvent[]> {
+    const raws = await this.client.get<Parameters<typeof mapFixtureEvents>[0][number]>(
+      '/fixtures/events',
+      { fixture: fixtureExternalId },
+    );
+    return mapFixtureEvents(raws);
   }
 
   async getInjuries(competitionExternalId: string, season: number): Promise<ProviderInjury[]> {

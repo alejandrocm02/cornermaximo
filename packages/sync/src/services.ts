@@ -3,7 +3,7 @@
  * Todos los upserts usan (providerId, externalId) para evitar duplicados.
  */
 import type { PrismaClient, Prisma } from '@cornermaximo/db';
-import type { FootballDataProvider, ProviderPlayerMatchStats } from '@cornermaximo/providers';
+import type { FootballDataProvider, ProviderMatchEvent, ProviderPlayerMatchStats } from '@cornermaximo/providers';
 import { TRACKED_COMPETITIONS, toSlug } from '@cornermaximo/shared';
 
 // ---------- helpers ----------
@@ -455,6 +455,63 @@ export async function syncMatchStats(
     }
   }
   return processed;
+}
+
+// ---------- eventos del partido (1 request) ----------
+
+/** Sustituye los eventos guardados de un partido por los recibidos. */
+export async function replaceMatchEvents(
+  db: PrismaClient,
+  providerDbId: number,
+  matchDbId: number,
+  events: ProviderMatchEvent[],
+): Promise<number> {
+  const externalIds = [
+    ...new Set(events.flatMap((e) => [e.playerExternalId, e.assistExternalId]).filter((id): id is string => id != null)),
+  ];
+  const players =
+    externalIds.length === 0
+      ? []
+      : await db.player.findMany({
+          where: { providerId: providerDbId, externalId: { in: externalIds } },
+          select: { id: true, externalId: true },
+        });
+  const playerId = new Map(players.map((p) => [p.externalId, p.id]));
+
+  const data = events.map((e) => ({
+    matchId: matchDbId,
+    teamExternalId: e.teamExternalId,
+    playerId: e.playerExternalId != null ? (playerId.get(e.playerExternalId) ?? null) : null,
+    assistPlayerId: e.assistExternalId != null ? (playerId.get(e.assistExternalId) ?? null) : null,
+    type: e.type,
+    minute: e.minute,
+    extraMinute: e.extraMinute,
+    detail: e.detail,
+  }));
+
+  await db.$transaction(async (tx) => {
+    await tx.matchEvent.deleteMany({ where: { matchId: matchDbId } });
+    if (data.length > 0) await tx.matchEvent.createMany({ data });
+  });
+  return data.length;
+}
+
+/**
+ * Eventos de un partido ya terminado. Antes solo los guardaba el directo, es
+ * decir, solo si alguien tenía la ficha abierta mientras se jugaba: el resto de
+ * partidos se quedaba sin goles, tarjetas ni cambios.
+ */
+export async function syncMatchEvents(
+  db: PrismaClient,
+  provider: FootballDataProvider,
+  providerDbId: number,
+  matchDbId: number,
+  matchExternalId: string,
+): Promise<number> {
+  const events = await provider.getMatchEvents(matchExternalId); // 1 req
+  // Una respuesta vacía no borra lo que ya guardó el directo.
+  if (events.length === 0) return 0;
+  return replaceMatchEvents(db, providerDbId, matchDbId, events);
 }
 
 // ---------- clasificación ----------
