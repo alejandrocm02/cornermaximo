@@ -106,7 +106,11 @@ curl -X POST -H "Authorization: Bearer TU_SYNC_SECRET" \
    todavía necesita una migración baseline antes de automatizar ese paso.
    Las migraciones de datos personales se versionan en `supabase/migrations/`.
 3. Lanza la primera sincronización con el `curl` anterior apuntando a tu dominio de Vercel,
-   o espera al cron de GitHub Actions (cada hora).
+   o espera a la sincronización programada. El disparador horario es un job de
+   pg_cron en Supabase (`supabase/migrations/20261008090000_hourly_sync_cron.sql`),
+   que necesita el `SYNC_SECRET` guardado en `private.sync_runtime_config`; el
+   workflow `sync` de GitHub Actions queda como respaldo, porque GitHub no
+   garantiza la puntualidad de sus ejecuciones programadas.
 4. El bootstrap completo (5 ligas × 2 temporadas + Mundial 2026: ~110 equipos,
    ~3.000 jugadores, ~2.100 partidos de liga + 104 del Mundial) tarda varias
    horas con el plan Pro (7 500 req/día, 300 req/min), no días. El

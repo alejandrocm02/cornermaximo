@@ -8,10 +8,13 @@ name: sync
 
 on:
   schedule:
-    # Cada hora, en el minuto 17. GitHub retrasa o descarta las ejecuciones
-    # programadas en la hora en punto por saturación; con '0 * * * *' este
-    # workflow corría en la práctica cada 4-6 horas.
-    - cron: '17 * * * *'
+    # Respaldo. El disparador horario real es el job 'cornermaximo-sync' de
+    # pg_cron en Supabase (supabase/migrations/*_hourly_sync_cron.sql): GitHub
+    # retrasa o descarta las ejecuciones programadas y este workflow corre en
+    # la práctica cada 4-8 horas, también fuera de la hora en punto. Se
+    # mantiene en el minuto 47 para no coincidir con las tandas de pg_cron
+    # (minutos 17, 19 y 21) y para vaciar colas largas con sus 8 tandas.
+    - cron: '47 * * * *'
   workflow_dispatch: {}
 
 permissions:
