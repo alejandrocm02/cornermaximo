@@ -9,6 +9,7 @@ import type {
   ProviderFixture,
   ProviderInjury,
   ProviderLineupEntry,
+  ProviderMatchEvent,
   ProviderPlayer,
   ProviderPlayerMatchStats,
   ProviderStandingRow,
@@ -26,6 +27,8 @@ export interface FootballDataProvider {
   getLineups(fixtureExternalId: string): Promise<ProviderLineupEntry[]>;
   /** Estadísticas de TODOS los jugadores de un partido (campo y porteros). */
   getPlayerMatchStatistics(fixtureExternalId: string): Promise<ProviderPlayerMatchStats[]>;
+  /** Goles, tarjetas, cambios y VAR de un partido. */
+  getMatchEvents(fixtureExternalId: string): Promise<ProviderMatchEvent[]>;
   getInjuries(competitionExternalId: string, season: number): Promise<ProviderInjury[]>;
   getStandings(competitionExternalId: string, season: number): Promise<ProviderStandingRow[]>;
   /** Traspasos registrados de un equipo (histórico completo del proveedor). */

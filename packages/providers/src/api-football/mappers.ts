@@ -8,6 +8,8 @@ import type {
   ProviderFixture,
   ProviderInjury,
   ProviderLineupEntry,
+  ProviderMatchEvent,
+  ProviderMatchEventType,
   ProviderPlayer,
   ProviderPlayerMatchStats,
   ProviderStandingRow,
@@ -318,6 +320,55 @@ export function mapFixturePlayers(raws: RawFixturePlayers[]): ProviderPlayerMatc
   }
 
   return out;
+}
+
+export interface RawFixtureEvent {
+  time: { elapsed: number | null; extra: number | null };
+  team: { id: number; name?: string | null } | null;
+  player: { id: number | null; name: string | null } | null;
+  assist: { id: number | null; name: string | null } | null;
+  type: string;
+  detail: string | null;
+  comments: string | null;
+}
+
+function mapEventType(type: string, detail: string | null): ProviderMatchEventType | null {
+  const normalizedType = type.toLowerCase();
+  const normalizedDetail = (detail ?? '').toLowerCase();
+
+  if (normalizedType === 'goal') {
+    if (normalizedDetail.includes('missed penalty')) return 'MISSED_PENALTY';
+    if (normalizedDetail.includes('own goal')) return 'OWN_GOAL';
+    if (normalizedDetail.includes('penalty')) return 'PENALTY_GOAL';
+    return 'GOAL';
+  }
+  if (normalizedType === 'card') {
+    if (normalizedDetail.includes('second yellow')) return 'SECOND_YELLOW';
+    if (normalizedDetail.includes('red')) return 'RED_CARD';
+    return 'YELLOW_CARD';
+  }
+  if (normalizedType === 'subst' || normalizedType === 'substitution') return 'SUBSTITUTION';
+  if (normalizedType === 'var') return 'VAR';
+  return null;
+}
+
+/** Descarta los eventos de tipo desconocido o sin minuto: no se pueden situar en el partido. */
+export function mapFixtureEvents(raws: RawFixtureEvent[]): ProviderMatchEvent[] {
+  return raws.flatMap((raw) => {
+    const type = mapEventType(raw.type, raw.detail);
+    if (type == null || raw.time.elapsed == null) return [];
+    return [
+      {
+        teamExternalId: raw.team?.id != null ? String(raw.team.id) : null,
+        playerExternalId: raw.player?.id != null ? String(raw.player.id) : null,
+        assistExternalId: raw.assist?.id != null ? String(raw.assist.id) : null,
+        type,
+        minute: raw.time.elapsed,
+        extraMinute: raw.time.extra ?? null,
+        detail: [raw.detail, raw.comments].filter(Boolean).join(' · ') || null,
+      },
+    ];
+  });
 }
 
 interface RawInjury {

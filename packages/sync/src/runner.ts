@@ -9,10 +9,11 @@
  * Prioridades:
  *  1. Bootstrap: competiciones y temporadas (0 req) -> equipos -> calendario -> plantillas
  *  2. Resultados: refrescar fixtures si hay partidos pendientes de resultado (1 req/competición-temporada)
- *  3. Stats post-partido, primera pasada (2 req/partido, los más recientes primero)
- *  4. Segunda pasada de verificación a las 24h (2 req/partido)
+ *  3. Stats y eventos post-partido, primera pasada (3 req/partido, los más recientes primero)
+ *  4. Segunda pasada de verificación a las 24h (3 req/partido)
  *  5. Clasificación (1 req/competición-temporada, máx. 1 vez/20h)
  *  6. Lesiones (1 req/competición-temporada, máx. 1 vez/20h)
+ *  7. Eventos de partidos antiguos que aún no los tienen (1 req/partido)
  */
 import type { PrismaClient, SyncEntity } from '@cornermaximo/db';
 import {
@@ -30,6 +31,7 @@ import {
   syncCompetitions,
   syncFixtures,
   syncInjuries,
+  syncMatchEvents,
   syncMatchStats,
   syncSquad,
   syncStandings,
@@ -322,9 +324,10 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
       take: 80,
     });
     for (const match of unsyncedMatches) {
-      await unit('PLAYER_MATCH_STATS', match.externalId, `stats:${match.externalId}`, 3, () =>
-        syncMatchStats(db, provider, providerRow.id, match.id, match.externalId),
-      );
+      await unit('PLAYER_MATCH_STATS', match.externalId, `stats:${match.externalId}`, 3, async () => {
+        await syncMatchStats(db, provider, providerRow.id, match.id, match.externalId);
+        await syncMatchEvents(db, provider, providerRow.id, match.id, match.externalId);
+      });
     }
 
     // 6. Segunda pasada (correcciones del proveedor) 24h después
@@ -341,6 +344,7 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
     for (const match of toVerify) {
       await unit('MATCH_DETAILS', match.externalId, `verificacion:${match.externalId}`, 4, async () => {
         await syncMatchStats(db, provider, providerRow.id, match.id, match.externalId);
+        await syncMatchEvents(db, provider, providerRow.id, match.id, match.externalId);
         await db.match.update({ where: { id: match.id }, data: { statsVerifiedAt: new Date() } });
       });
     }
@@ -384,6 +388,36 @@ export async function runSync(db: PrismaClient, options: SyncRunOptions = {}): P
           syncInjuries(db, provider, providerRow.id, comp.externalId, season.year),
         );
       }
+    }
+
+    // 9. Eventos de partidos que se cerraron antes de que la sincronización
+    // los descargara. Va al final: es histórico y no debe retrasar lo demás.
+    // Cada partido se intenta una sola vez, porque un 0-0 sin tarjetas ni
+    // cambios registrados no tendrá eventos nunca.
+    const withoutEvents = await db.match.findMany({
+      where: { status: 'FINISHED', matchPlayers: { some: {} }, events: { none: {} } },
+      orderBy: { kickoffAt: 'desc' },
+      select: { id: true, externalId: true },
+      take: 40,
+    });
+    const eventsKey = (externalId: string) => `events:${externalId}`;
+    const alreadyTried =
+      withoutEvents.length === 0
+        ? []
+        : await db.syncJob.findMany({
+            where: {
+              entity: 'MATCH_DETAILS',
+              status: 'SUCCESS',
+              entityExternalId: { in: withoutEvents.map((match) => eventsKey(match.externalId)) },
+            },
+            select: { entityExternalId: true },
+          });
+    const tried = new Set(alreadyTried.map((job) => job.entityExternalId));
+    for (const match of withoutEvents) {
+      if (tried.has(eventsKey(match.externalId))) continue;
+      await unit('MATCH_DETAILS', eventsKey(match.externalId), `eventos:${match.externalId}`, 7, () =>
+        syncMatchEvents(db, provider, providerRow.id, match.id, match.externalId),
+      );
     }
   } catch (err) {
     if (err instanceof BudgetExceededError) {
