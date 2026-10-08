@@ -43,7 +43,7 @@ async function queryTopLeaguePlayers(metric: LeaderboardMetric, limit: number): 
     SELECT p.slug,
            COALESCE(p."knownAs", p."fullName") AS name,
            p."photoUrl" AS "photoUrl",
-           t.name AS team,
+           (ARRAY_AGG(t.name ORDER BY m."kickoffAt" DESC))[1] AS team,
            SUM(s.${column}) AS total
     FROM ${table} s
     JOIN "MatchPlayer" mp ON mp.id = s."matchPlayerId"
@@ -57,7 +57,7 @@ async function queryTopLeaguePlayers(metric: LeaderboardMetric, limit: number): 
       AND se."isCurrent" = true
       AND m.status = 'FINISHED'
       AND s.${column} IS NOT NULL
-    GROUP BY p.slug, p."knownAs", p."fullName", p."photoUrl", t.name
+    GROUP BY p.id, p.slug, p."knownAs", p."fullName", p."photoUrl"
     ORDER BY total DESC, name ASC
     LIMIT $1
     `,
@@ -68,7 +68,7 @@ async function queryTopLeaguePlayers(metric: LeaderboardMetric, limit: number): 
   return rows.map((row) => ({ ...row, total: Number(row.total) }));
 }
 
-const cachedTopLeaguePlayers = unstable_cache(queryTopLeaguePlayers, ['top-league-players-current-v3'], {
+const cachedTopLeaguePlayers = unstable_cache(queryTopLeaguePlayers, ['top-league-players-current-v4'], {
   revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
   tags: [FOOTBALL_DATA_CACHE_TAG, 'leaderboards'],
 });
@@ -92,7 +92,17 @@ type RankingDefinition = {
   expression: string;
   presentCondition: string;
   decimals?: number;
+  /** Medias (p. ej. valoración): sin muestra mínima, un único partido brillante encabeza la tabla. */
+  requiresMinimumSample?: boolean;
 };
+
+/**
+ * Muestra mínima para rankings de media. Con 1 partido de 9,7 un jugador
+ * superaba a titulares con 7 partidos de 8,4. Tres partidos y 270 minutos
+ * equivalen a tres encuentros completos.
+ */
+export const AVERAGE_RANKING_MIN_APPEARANCES = 3;
+export const AVERAGE_RANKING_MIN_MINUTES = 270;
 
 const RANKING_DEFINITIONS: Record<string, RankingDefinition> = {
   goals: { source: 'field', expression: 'SUM(s.goals)', presentCondition: 's.goals IS NOT NULL' },
@@ -106,7 +116,7 @@ const RANKING_DEFINITIONS: Record<string, RankingDefinition> = {
   yellowCards: { source: 'field', expression: 'SUM(s."yellowCards")', presentCondition: 's."yellowCards" IS NOT NULL' },
   saves: { source: 'gk', expression: 'SUM(s.saves)', presentCondition: 's.saves IS NOT NULL' },
   cleanSheets: { source: 'gk', expression: 'SUM(CASE WHEN s."cleanSheet" = true THEN 1 ELSE 0 END)', presentCondition: 's."cleanSheet" IS NOT NULL' },
-  rating: { source: 'matchPlayer', expression: 'AVG(mp.rating)', presentCondition: 'mp.rating IS NOT NULL', decimals: 2 },
+  rating: { source: 'matchPlayer', expression: 'AVG(mp.rating)', presentCondition: 'mp.rating IS NOT NULL', decimals: 2, requiresMinimumSample: true },
   minutes: { source: 'matchPlayer', expression: 'SUM(mp."minutesPlayed")', presentCondition: 'mp."minutesPlayed" > 0' },
 };
 
@@ -183,11 +193,18 @@ async function queryRankingRows(
         WHERE pp."playerId" = p.id AND pp."isPrimary" = true
         LIMIT 1)
     )`;
-  let having = '';
+  const havingConditions: string[] = [];
   if (position !== '') {
     params.push(position);
-    having = `HAVING ${positionExpression} = $${params.length}`;
+    havingConditions.push(`${positionExpression} = $${params.length}`);
   }
+  if (definition.requiresMinimumSample === true) {
+    params.push(AVERAGE_RANKING_MIN_APPEARANCES);
+    havingConditions.push(`COUNT(DISTINCT mp.id) >= $${params.length}`);
+    params.push(AVERAGE_RANKING_MIN_MINUTES);
+    havingConditions.push(`SUM(mp."minutesPlayed") >= $${params.length}`);
+  }
+  const having = havingConditions.length > 0 ? `HAVING ${havingConditions.join(' AND ')}` : '';
   params.push(limit);
 
   const statsJoin = definition.source === 'field'
@@ -205,7 +222,9 @@ async function queryRankingRows(
     SELECT p.slug,
            COALESCE(p."knownAs", p."fullName") AS name,
            p."photoUrl" AS "photoUrl",
-           t.name AS team,
+           -- Un jugador traspasado o cedido es una sola fila: se muestra el
+           -- equipo de su partido más reciente en el periodo.
+           (ARRAY_AGG(t.name ORDER BY m."kickoffAt" DESC))[1] AS team,
            ${definition.expression} AS total,
            SUM(mp."minutesPlayed")::bigint AS minutes,
            COUNT(DISTINCT mp.id)::bigint AS appearances,
@@ -218,7 +237,7 @@ async function queryRankingRows(
     JOIN "Season" se      ON se.id = m."seasonId"
     JOIN "Competition" c  ON c.id = se."competitionId"
     WHERE ${conditions.join(' AND ')}
-    GROUP BY p.id, p.slug, p."knownAs", p."fullName", p."photoUrl", t.name
+    GROUP BY p.id, p.slug, p."knownAs", p."fullName", p."photoUrl"
     ${having}
     ORDER BY total DESC NULLS LAST, minutes DESC, name ASC
     LIMIT $${params.length}
@@ -238,7 +257,7 @@ async function queryRankingRows(
   }));
 }
 
-const cachedRankingRows = unstable_cache(queryRankingRows, ['ranking-rows-v4'], {
+const cachedRankingRows = unstable_cache(queryRankingRows, ['ranking-rows-v5'], {
   revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
   tags: [FOOTBALL_DATA_CACHE_TAG, 'leaderboards'],
 });
