@@ -70,6 +70,17 @@ test.describe('calidad web esencial', () => {
     }, probe)).toBe(true);
   });
 
+  // Un Suspense por encima de la página (p. ej. un loading.tsx raíz) hace que la
+  // respuesta salga con 200 antes de que la ficha llame a notFound().
+  for (const path of ['/jugadores/no-existe-cm-e2e', '/equipos/no-existe-cm-e2e', '/ruta-inexistente-cm-e2e']) {
+    test(`${path} responde 404 con la página propia`, async ({ page }) => {
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(404);
+      await expect(page.getByRole('heading', { level: 1, name: 'No encontramos esta página' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Volver a la portada' })).toBeVisible();
+    });
+  }
+
   test('una ruta privada no expone contenido sin sesión', async ({ page }) => {
     await page.goto('/cuenta');
     await expect(page).toHaveURL(/\/auth\/login\?next=\/mi-corner$/);

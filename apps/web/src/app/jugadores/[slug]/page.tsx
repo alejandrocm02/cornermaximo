@@ -11,6 +11,7 @@ import { getHistoryOptions, getPlayerMatchHistory } from '@/lib/playerMatchHisto
 import { getEffectivePositionGroup, type PositionGroupCode } from '@/lib/playerPosition';
 import { getPlayerProfileContent, getPlayerProfileCore } from '@/lib/playerProfile';
 import { getLastMatches } from '@/lib/recent';
+import { getSiteUrl } from '@/lib/site-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,7 +108,7 @@ export default async function PlayerPage({
     '@context': 'https://schema.org',
     '@type': 'Person',
     name: player.knownAs ?? player.fullName,
-    url: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/jugadores/${player.slug}`,
+    url: `${getSiteUrl()}/jugadores/${player.slug}`,
     ...(player.photoUrl ? { image: player.photoUrl } : {}),
     ...(player.currentTeam ? { affiliation: { '@type': 'SportsTeam', name: player.currentTeam.name } } : {}),
     ...(player.nationality ? { nationality: player.nationality.name } : {}),
