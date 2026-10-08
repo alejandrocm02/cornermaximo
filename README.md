@@ -16,7 +16,7 @@ colectivas por competición.
 | PostgreSQL | Neon |
 | Cuentas y datos personales | Supabase Auth + Postgres con RLS |
 | Caché | Upstash Redis (opcional) |
-| Sincronización | GitHub Actions (cron cada hora) |
+| Sincronización | Supabase `pg_cron` (cada hora) + GitHub Actions de respaldo (cada 6 h) |
 
 El plan Pro (19 $/mes) da acceso a la temporada en curso y a competiciones
 como el Mundial. Competiciones y temporadas rastreadas (fijas en código, en
@@ -57,8 +57,10 @@ apps/
    Plan **Pro** (19 $/mes, 7 500 req/día). Copia tu API key → variable `API_FOOTBALL_KEY`.
    Regístrate en el dashboard de api-football.com directamente, NO vía RapidAPI.
 2. **GitHub** (gratis) — https://github.com/signup
-   Sube este proyecto a un repositorio; GitHub Actions ejecutará la sincronización cada hora.
-   En el repo: Settings → Secrets and variables → Actions → añade `SYNC_SECRET` y `APP_URL`.
+   Sube este proyecto a un repositorio; GitHub Actions ejecuta una sincronización de respaldo cada 6 h.
+   En el repo: Settings → Secrets and variables → Actions → añade `SYNC_SECRET`.
+   La sincronización horaria la lanza Supabase (`supabase/migrations/20261008181500_hourly_sync_cron.sql`);
+   guarda el mismo `SYNC_SECRET` en `private.sync_runtime_config` como indica esa migración.
 3. **Neon** (PostgreSQL, gratis) — https://neon.tech
    Crea un proyecto → copia la "Connection string" → variable `DATABASE_URL`.
 4. **Supabase** — Auth, favoritos, alertas, watchlists, comparaciones y estado del Analizador con RLS.
@@ -106,7 +108,7 @@ curl -X POST -H "Authorization: Bearer TU_SYNC_SECRET" \
    todavía necesita una migración baseline antes de automatizar ese paso.
    Las migraciones de datos personales se versionan en `supabase/migrations/`.
 3. Lanza la primera sincronización con el `curl` anterior apuntando a tu dominio de Vercel,
-   o espera al cron de GitHub Actions (cada hora).
+   o espera a la siguiente tanda programada (minutos 17, 27 y 37 de cada hora).
 4. El bootstrap completo (5 ligas × 2 temporadas + Mundial 2026: ~110 equipos,
    ~3.000 jugadores, ~2.100 partidos de liga + 104 del Mundial) tarda varias
    horas con el plan Pro (7 500 req/día, 300 req/min), no días. El
