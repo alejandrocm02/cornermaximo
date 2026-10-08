@@ -22,12 +22,16 @@ const PAGE_SIZE = 24,
   ] as const,
   POSITION_LABEL: Record<string, string> = Object.fromEntries(POSITIONS.map((p) => [p.value, p.label])),
   SORTS = [
-    { value: 'minutos', label: 'Minutos jugados' },
-    { value: 'goles', label: 'Goles' },
+    { value: 'minutos', label: 'Minutos en liga (temporada actual)' },
+    { value: 'goles', label: 'Goles en liga (temporada actual)' },
     { value: 'nombre', label: 'Nombre (A-Z)' },
   ] as const,
   DEFAULT_SORT = 'minutos';
 type SortKey = (typeof SORTS)[number]['value'];
+// Los totales de orden se limitan a partidos de liga finalizados de la temporada
+// vigente, igual que el centro de rankings. Antes sumaban todas las temporadas
+// sincronizadas, el Mundial y partidos sin terminar.
+const CURRENT_LEAGUE_MATCHES = `JOIN "Match" m ON m.id=mp."matchId" AND m.status='FINISHED' JOIN "Season" se ON se.id=m."seasonId" AND se."isCurrent" JOIN "Competition" c ON c.id=se."competitionId" AND c.type='LEAGUE'`;
 const ACCENTED = 'áàâäãåéèêëíìîïóòôöõúùûüçñý',
   PLAIN = 'aaaaaaeeeeiiiiooooouuuucny';
 function normalizeQuery(v: string) {
@@ -122,9 +126,9 @@ export default async function PlayersPage({
   const whereSql = conditions.join(' AND '),
     metricJoin =
       orden === 'minutos'
-        ? `LEFT JOIN (SELECT mp."playerId",SUM(mp."minutesPlayed")::bigint value FROM "MatchPlayer" mp JOIN filtered_players selected ON selected.id=mp."playerId" GROUP BY mp."playerId") metric ON metric."playerId"=fp.id`
+        ? `LEFT JOIN (SELECT mp."playerId",SUM(mp."minutesPlayed")::bigint value FROM "MatchPlayer" mp JOIN filtered_players selected ON selected.id=mp."playerId" ${CURRENT_LEAGUE_MATCHES} GROUP BY mp."playerId") metric ON metric."playerId"=fp.id`
         : orden === 'goles'
-          ? `LEFT JOIN (SELECT mp."playerId",SUM(stats.goals)::bigint value FROM "PlayerMatchStatistics" stats JOIN "MatchPlayer" mp ON mp.id=stats."matchPlayerId" JOIN filtered_players selected ON selected.id=mp."playerId" GROUP BY mp."playerId") metric ON metric."playerId"=fp.id`
+          ? `LEFT JOIN (SELECT mp."playerId",SUM(stats.goals)::bigint value FROM "PlayerMatchStatistics" stats JOIN "MatchPlayer" mp ON mp.id=stats."matchPlayerId" JOIN filtered_players selected ON selected.id=mp."playerId" ${CURRENT_LEAGUE_MATCHES} GROUP BY mp."playerId") metric ON metric."playerId"=fp.id`
           : '',
     metricSelect =
       orden === 'minutos'
