@@ -1,6 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
-import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
+import { liveInvalidationTags } from '@/lib/cache';
 import { isNewRefresh } from '@/lib/liveGuard';
 import { guardedMatchDetail } from '@/lib/liveThrottle';
 
@@ -44,9 +44,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const result = outcome.result.value;
   if (result == null) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
 
+  // Estadísticas de un partido en juego: solo su vista. La descarga final de
+  // un partido terminado alimenta fichas, rankings y medias.
   if (result.processed > 0 && isNewRefresh(`detail:${id}`, outcome.result.at)) {
-    revalidateTag('matches', { expire: 0 });
-    revalidateTag(FOOTBALL_DATA_CACHE_TAG, { expire: 0 });
+    for (const tag of liveInvalidationTags({ matchDataChanged: true, matchFinished: result.terminal })) {
+      revalidateTag(tag, { expire: 0 });
+    }
   }
 
   return NextResponse.json(result, { headers: CACHE_HEADERS });

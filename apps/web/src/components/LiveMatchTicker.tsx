@@ -18,6 +18,12 @@ interface CoreSnapshot {
   elapsed: number | null;
   extra: number | null;
   terminal: boolean;
+  changed?: boolean;
+  refreshedAt: string;
+}
+
+interface DetailSnapshot {
+  processed: number;
   refreshedAt: string;
 }
 
@@ -37,6 +43,11 @@ export function LiveMatchTicker({
   const [connected, setConnected] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const finalDetailSent = useRef(false);
+  // Último resultado que ya provocó un re-render del servidor. Las respuestas
+  // vienen de una caché compartida, así que el mismo resultado puede llegar
+  // varias veces: solo se refresca la página una vez por cambio real.
+  const lastAppliedCore = useRef<string | null>(null);
+  const lastAppliedDetail = useRef<string | null>(null);
 
   useEffect(() => setStatus(initialStatus), [initialStatus]);
 
@@ -54,7 +65,11 @@ export function LiveMatchTicker({
       const response = await fetch(`/api/live/matches/${matchId}/detail`);
       if (!response.ok) return;
       setConnected(true);
-      router.refresh();
+      const snapshot = (await response.json()) as DetailSnapshot;
+      if (snapshot.processed > 0 && snapshot.refreshedAt !== lastAppliedDetail.current) {
+        lastAppliedDetail.current = snapshot.refreshedAt;
+        router.refresh();
+      }
     } catch {
       setConnected(false);
     }
@@ -74,7 +89,12 @@ export function LiveMatchTicker({
       setExtra(snapshot.extra);
       setLastUpdatedAt(snapshot.refreshedAt);
       setConnected(true);
-      router.refresh();
+      // Minuto y estado ya se pintan en cliente; el servidor solo se vuelve a
+      // renderizar si cambió el marcador, el estado o los eventos.
+      if ((snapshot.changed ?? true) && snapshot.refreshedAt !== lastAppliedCore.current) {
+        lastAppliedCore.current = snapshot.refreshedAt;
+        router.refresh();
+      }
 
       if (becameTerminal && !finalDetailSent.current) {
         finalDetailSent.current = true;

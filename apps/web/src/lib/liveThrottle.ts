@@ -58,7 +58,7 @@ async function attempt<T>(label: string, run: () => Promise<T>): Promise<Throttl
 
 const cachedScoreboard = unstable_cache(
   () => attempt('live scoreboard sync', syncLiveScoreboard),
-  ['live-scoreboard-v2'],
+  ['live-scoreboard-v3'],
   { revalidate: SCOREBOARD_INTERVAL_S },
 );
 
@@ -68,7 +68,7 @@ export function throttledScoreboard(): Promise<Throttled<LiveScoreboardResult>> 
 
 const cachedCore = unstable_cache(
   (matchId: number) => attempt('live match core sync', () => syncLiveMatchCore(matchId)),
-  ['live-match-core-v2'],
+  ['live-match-core-v3'],
   { revalidate: CORE_INTERVAL_S },
 );
 
@@ -123,6 +123,8 @@ export async function guardedMatchCore(matchId: number): Promise<GuardedCore> {
       awayGoals: match.teams.find((team) => !team.isHome)?.goals ?? null,
       eventCount: match._count.events,
       terminal: TERMINAL.includes(status),
+      changed: false,
+      becameTerminal: false,
       refreshedAt: new Date().toISOString(),
     },
   };
