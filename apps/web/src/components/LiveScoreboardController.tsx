@@ -10,6 +10,8 @@ const HIDDEN_INTERVAL_MS = 120_000;
 
 interface ScoreboardSnapshot {
   live: number;
+  changed?: number;
+  refreshedAt?: string;
 }
 
 export function LiveScoreboardController() {
@@ -18,6 +20,8 @@ export function LiveScoreboardController() {
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastApplied: string | null = null;
+    let lastLive: number | null = null;
 
     const loop = async () => {
       if (cancelled) return;
@@ -28,7 +32,16 @@ export function LiveScoreboardController() {
           if (response.ok) {
             const snapshot = (await response.json()) as ScoreboardSnapshot;
             delay = snapshot.live > 0 ? LIVE_INTERVAL_MS : IDLE_INTERVAL_MS;
-            router.refresh();
+            // Solo se vuelve a renderizar en servidor si hubo cambios: antes se
+            // hacía en cada sondeo (cada 80 s en /partidos aunque no hubiera
+            // directos), con una invocación de función completa cada vez.
+            const isNewResult = snapshot.refreshedAt == null || snapshot.refreshedAt !== lastApplied;
+            const hasChanges = (snapshot.changed ?? 1) > 0 || (lastLive != null && snapshot.live !== lastLive);
+            if (isNewResult && hasChanges) {
+              lastApplied = snapshot.refreshedAt ?? null;
+              router.refresh();
+            }
+            lastLive = snapshot.live;
           }
         } else {
           delay = HIDDEN_INTERVAL_MS;

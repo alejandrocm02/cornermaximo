@@ -6,8 +6,8 @@ import { MatchRows } from '@/components/MatchRows';
 import { SearchBox } from '@/components/SearchBox';
 import { SectionHeader } from '@/components/SectionHeader';
 import { AWAITING_RESULT_AFTER_MS, seasonLabel } from '@/lib/football';
+import { getHomeSnapshot, HOME_MATCH_SELECT } from '@/lib/homeData';
 import { topLeaguePlayers } from '@/lib/leaderboards';
-import { newsSourceFilter } from '@/lib/newsLanguage';
 import { topPlayerStat } from '@/lib/worldCupStats';
 
 export const dynamic = 'force-dynamic';
@@ -33,17 +33,14 @@ const TOOLS = [
 export default async function HomePage() {
   const now = new Date();
   const [
-    playersCount,
+    { playersCount, upcomingMatches, recentMatches, latestNews },
     liveMatches,
-    upcomingMatches,
-    recentMatches,
     topScorers,
     topAssists,
     topSaves,
-    latestNews,
     wcScorers,
   ] = await Promise.all([
-    prisma.player.count(),
+    getHomeSnapshot(),
     prisma.match.findMany({
       // Un "LIVE" de hace horas es un cierre que no llegó, no un directo.
       where: {
@@ -51,41 +48,13 @@ export default async function HomePage() {
         kickoffAt: { gte: new Date(now.getTime() - AWAITING_RESULT_AFTER_MS) },
         season: { isCurrent: true },
       },
-      include: {
-        teams: { include: { team: { select: { name: true, slug: true } } } },
-        season: { include: { competition: { select: { name: true, slug: true } } } },
-      },
+      select: HOME_MATCH_SELECT,
       orderBy: { kickoffAt: 'asc' },
       take: 8,
-    }),
-    prisma.match.findMany({
-      where: { status: 'SCHEDULED', kickoffAt: { gte: now }, season: { isCurrent: true } },
-      include: {
-        teams: { include: { team: { select: { name: true, slug: true } } } },
-        season: { include: { competition: { select: { name: true, slug: true } } } },
-      },
-      orderBy: { kickoffAt: 'asc' },
-      take: 6,
-    }),
-    prisma.match.findMany({
-      where: { status: 'FINISHED', season: { isCurrent: true } },
-      include: {
-        teams: { include: { team: { select: { name: true, slug: true } } } },
-        season: { include: { competition: { select: { name: true, slug: true } } } },
-      },
-      orderBy: { kickoffAt: 'desc' },
-      take: 6,
     }),
     topLeaguePlayers('goals', 5),
     topLeaguePlayers('assists', 5),
     topLeaguePlayers('saves', 5),
-    prisma.newsItem.findMany({
-      // La portada es en español; los titulares en inglés siguen en /noticias.
-      where: { source: newsSourceFilter('es') },
-      orderBy: { publishedAt: 'desc' },
-      take: 5,
-      select: { id: true, title: true, url: true, source: true, publishedAt: true },
-    }),
     topPlayerStat(WORLD_CUP_2026.slug, 'goals', 3),
   ]);
 
