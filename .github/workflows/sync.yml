@@ -8,10 +8,12 @@ name: sync
 
 on:
   schedule:
-    # Cada hora, en el minuto 17. GitHub retrasa o descarta las ejecuciones
-    # programadas en la hora en punto por saturación; con '0 * * * *' este
-    # workflow corría en la práctica cada 4-6 horas.
-    - cron: '17 * * * *'
+    # Respaldo. La sincronización horaria la lanza Supabase con pg_cron
+    # (supabase/migrations/20261008181500_hourly_sync_cron.sql) en los minutos
+    # 17, 27 y 37: GitHub descartaba la mayoría de ejecuciones programadas y el
+    # cron horario corría en la práctica 3-4 veces al día. Este respaldo cada
+    # 6 h, en el minuto 52, cubre una caída de pg_cron y queda lejos de sus tandas.
+    - cron: '52 */6 * * *'
   workflow_dispatch: {}
 
 permissions:
