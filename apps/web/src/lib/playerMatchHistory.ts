@@ -47,8 +47,9 @@ async function queryPlayerMatchHistory(playerId: number, filters: HistoryFilters
   const rows = await prisma.matchPlayer.findMany({
     where: { id: { in: ids.map((row) => row.id) } },
     include: {
-      fieldStats: true,
-      gkStats: true,
+      // Sin rawProviderData: la tabla de historial no lo usa (ver recent.ts).
+      fieldStats: { omit: { rawProviderData: true } },
+      gkStats: { omit: { rawProviderData: true } },
       match: { include: {
         season: { include: { competition: true } },
         teams: { include: { team: { select: { id: true, name: true, crestUrl: true } } } },

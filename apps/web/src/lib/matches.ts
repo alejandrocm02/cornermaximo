@@ -103,10 +103,25 @@ interface MatchCenterQuery {
   teamSlug?: string;
 }
 
-function formationGridFromRaw(value: unknown): string | null {
-  if (value == null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const grid = (value as { formationGrid?: unknown }).formationGrid;
-  return typeof grid === 'string' && /^\d+:\d+$/.test(grid) ? grid : null;
+export function parseFormationGrid(value: unknown): string | null {
+  return typeof value === 'string' && /^\d+:\d+$/.test(value) ? value : null;
+}
+
+/**
+ * Lee solo la clave formationGrid del JSON original del proveedor. Traer el
+ * JSON entero de ~30 jugadores por partido era la mayor parte de lo que se
+ * transfería desde Neon en cada ficha de partido.
+ */
+async function queryFormationGrids(matchId: number): Promise<Map<number, string | null>> {
+  const rows = await prisma.$queryRaw<Array<{ matchPlayerId: number; grid: string | null }>>`
+    SELECT mp.id AS "matchPlayerId",
+           COALESCE(f."rawProviderData"->>'formationGrid', g."rawProviderData"->>'formationGrid') AS grid
+    FROM "MatchPlayer" mp
+    LEFT JOIN "PlayerMatchStatistics" f ON f."matchPlayerId" = mp.id
+    LEFT JOIN "GoalkeeperMatchStatistics" g ON g."matchPlayerId" = mp.id
+    WHERE mp."matchId" = ${matchId}
+  `;
+  return new Map(rows.map((row) => [row.matchPlayerId, row.grid]));
 }
 
 function madridDateParts(date: Date): { year: number; month: number; day: number } {
@@ -338,8 +353,10 @@ async function queryMatchDetail(id: number): Promise<MatchDetail | null> {
         include: {
           player: { select: { id: true, slug: true, fullName: true, knownAs: true, photoUrl: true } },
           team: { select: { name: true } },
-          fieldStats: true,
-          gkStats: true,
+          // rawProviderData pesa varios KB por jugador y solo se usa para
+          // formationGrid, que se lee aparte con queryFormationGrids.
+          fieldStats: { omit: { rawProviderData: true } },
+          gkStats: { omit: { rawProviderData: true } },
         },
         orderBy: [{ teamId: 'asc' }, { role: 'asc' }, { shirtNumber: 'asc' }],
       },
@@ -347,6 +364,8 @@ async function queryMatchDetail(id: number): Promise<MatchDetail | null> {
     },
   });
   if (match == null) return null;
+
+  const formationGrids = await queryFormationGrids(id);
 
   const playerIds = [
     ...new Set(
@@ -376,9 +395,7 @@ async function queryMatchDetail(id: number): Promise<MatchDetail | null> {
       teamName: entry.team.name,
       role: String(entry.role),
       positionPlayed: entry.positionPlayed,
-      formationGrid: formationGridFromRaw(
-        entry.fieldStats?.rawProviderData ?? entry.gkStats?.rawProviderData,
-      ),
+      formationGrid: parseFormationGrid(formationGrids.get(entry.id)),
       shirtNumber: entry.shirtNumber,
       minutesPlayed: entry.minutesPlayed,
       rating: entry.rating,
