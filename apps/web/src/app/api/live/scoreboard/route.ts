@@ -1,6 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
-import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
+import { liveInvalidationTags } from '@/lib/cache';
 import { isNewRefresh } from '@/lib/liveGuard';
 import { throttledScoreboard } from '@/lib/liveThrottle';
 
@@ -16,13 +16,14 @@ export async function GET() {
     );
   }
 
-  // Las páginas se invalidan una vez por sincronización que haya cambiado
-  // algo, no en cada sondeo (cada 20-80 s por visitante): eso dejaba sin
-  // efecto la caché de toda la web.
+  // Las páginas se invalidan una vez por sincronización y solo con lo que
+  // cambió: marcadores -> vistas de partidos; partido terminado -> también
+  // fichas y rankings. Ver liveInvalidationTags.
   const result = scoreboard.value;
-  if (result.updated > 0 && isNewRefresh('scoreboard', scoreboard.at)) {
-    revalidateTag('matches', { expire: 0 });
-    revalidateTag(FOOTBALL_DATA_CACHE_TAG, { expire: 0 });
+  if (isNewRefresh('scoreboard', scoreboard.at)) {
+    for (const tag of liveInvalidationTags({ matchDataChanged: result.changed > 0, matchFinished: result.finished > 0 })) {
+      revalidateTag(tag, { expire: 0 });
+    }
   }
 
   return NextResponse.json(result, {

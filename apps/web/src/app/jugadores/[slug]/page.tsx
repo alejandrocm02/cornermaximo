@@ -10,6 +10,7 @@ import { parseHistoryFilters, type HistorySearchParams } from '@/lib/matchHistor
 import { getHistoryOptions, getPlayerMatchHistory } from '@/lib/playerMatchHistory';
 import { getEffectivePositionGroup, type PositionGroupCode } from '@/lib/playerPosition';
 import { getPlayerProfileContent, getPlayerProfileCore } from '@/lib/playerProfile';
+import { formatNumber } from '@/lib/format';
 import { getLastMatches } from '@/lib/recent';
 import { getSiteUrl } from '@/lib/site-url';
 
@@ -59,16 +60,38 @@ function calculateAge(value: string | null) {
   return age >= 0 ? age : null;
 }
 
+const SITE_OG_IMAGE = { url: '/opengraph-image', width: 1200, height: 630, alt: 'CornerMaximo Sports Intelligence' };
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const player = await getPlayerProfileCore(slug);
   if (!player) return { title: 'Jugador' };
   const name = player.knownAs ?? player.fullName;
+  const title = `${name}: estadísticas y rendimiento`;
+  const description = `Rendimiento de ${name}${player.currentTeam ? ` (${player.currentTeam.name})` : ''}: métricas, forma y últimos partidos.`;
+  const url = `/jugadores/${slug}`;
+  // La foto del proveedor mide 150×150: vale para la tarjeta pequeña de X
+  // ("summary", mínimo 144 px), no para "summary_large_image". Sin foto se usa
+  // la imagen 1200×630 del sitio. `openGraph` y `twitter` sustituyen enteros a
+  // los del layout, así que se repiten siteName y locale.
+  const shareTitle = `${name} | CornerMaximo`;
+  const photo = player.photoUrl ? { url: player.photoUrl, width: 150, height: 150, alt: name } : null;
   return {
-    title: `${name}: estadísticas y rendimiento`,
-    description: `Rendimiento de ${name}${player.currentTeam ? ` (${player.currentTeam.name})` : ''}: métricas, forma y últimos partidos.`,
-    alternates: { canonical: `/jugadores/${slug}` },
-    openGraph: { title: `${name} | CornerMaximo`, ...(player.photoUrl ? { images: [player.photoUrl] } : {}) },
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: 'profile',
+      siteName: 'CornerMaximo',
+      locale: 'es_ES',
+      url,
+      title: shareTitle,
+      description,
+      images: [photo ?? SITE_OG_IMAGE],
+    },
+    twitter: photo
+      ? { card: 'summary', title: shareTitle, description, images: [photo.url] }
+      : { card: 'summary_large_image', title: shareTitle, description, images: [SITE_OG_IMAGE.url] },
   };
 }
 
@@ -99,7 +122,8 @@ export default async function PlayerPage({
   ]);
   const age = calculateAge(player.birthDate);
   const pos = effectivePos ?? registeredPos;
-  const fmt = (value: number | null | undefined) => (value == null ? '—' : String(value));
+  const fmt = (value: number | null | undefined) => formatNumber(value);
+  const per90 = (value: number | null | undefined) => (value == null ? undefined : `${formatNumber(value)}/90'`);
   const recentMetrics = isGK
     ? (['saves', 'goalsConceded', 'cleanSheets', 'shotsOnTargetFaced', 'penaltiesSaved'] as const)
     : (['goals', 'assists', 'goalContributions', 'shotsOnTarget', 'keyPasses', 'duelsWon'] as const);
@@ -156,9 +180,9 @@ export default async function PlayerPage({
           <h2 className="mt-1 text-xl font-bold">Forma reciente</h2>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          <Stat label="Minutos" value={String(data.summary.minutes)} />
-          <Stat label="Rating" value={fmt(data.summary.avgRating)} />
-          {recentMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric] ?? metric} value={fmt(data.summary.metrics[metric]?.total)} sub={data.summary.metrics[metric]?.per90 != null ? `${data.summary.metrics[metric]!.per90}/90'` : undefined} />)}
+          <Stat label="Minutos" value={formatNumber(data.summary.minutes)} />
+          <Stat label="Valoración" value={fmt(data.summary.avgRating)} />
+          {recentMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric] ?? metric} value={fmt(data.summary.metrics[metric]?.total)} sub={per90(data.summary.metrics[metric]?.per90)} />)}
         </div>
 
         {!isGK && (
@@ -171,7 +195,7 @@ export default async function PlayerPage({
               <p className="text-xs text-pitch-muted">{seasonData.summary.matches} partidos · {seasonData.summary.minutes} min</p>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {defensiveMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric] ?? metric} value={fmt(seasonData.summary.metrics[metric]?.total)} sub={seasonData.summary.metrics[metric]?.per90 != null ? `${seasonData.summary.metrics[metric]!.per90}/90'` : undefined} />)}
+              {defensiveMetrics.map((metric) => <Stat key={metric} label={METRIC_ES[metric] ?? metric} value={fmt(seasonData.summary.metrics[metric]?.total)} sub={per90(seasonData.summary.metrics[metric]?.per90)} />)}
             </div>
           </div>
         )}

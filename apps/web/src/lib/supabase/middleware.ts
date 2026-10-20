@@ -36,6 +36,10 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
   let response = nextResponse();
   let refreshedSession = false;
 
+  // Sin cookie de sesión no hay nada que validar ni refrescar: se evita una
+  // llamada a Supabase en cada petición de visitantes anónimos (la mayoría).
+  if (!hasSupabaseAuthCookie(request)) return response;
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -65,7 +69,11 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
     if (isMissingRefreshToken(error)) {
       clearStaleAuthCookies(request, response);
     } else {
-      throw error;
+      // Una caída o lentitud de Supabase no debe tumbar la web entera: el
+      // proxy corre en todas las rutas, también en las públicas que no usan
+      // la sesión. Se sigue sin refrescar; las páginas privadas vuelven a
+      // validar la sesión por su cuenta y redirigen al login si falla.
+      console.error('updateSession: no se pudo validar la sesión de Supabase', error);
     }
   }
 

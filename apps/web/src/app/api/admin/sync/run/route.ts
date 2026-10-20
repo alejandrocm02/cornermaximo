@@ -35,9 +35,13 @@ export async function POST(request: Request) {
     const result = await runSync(prisma, { maxRequests });
 
     // Las agregaciones públicas se sirven desde la caché de datos de Next.
-    // Cada tanda completada invalida la etiqueta para que la siguiente visita
-    // reciba los resultados recién sincronizados, sin esperar al TTL horario.
-    revalidateTag(FOOTBALL_DATA_CACHE_TAG, 'max');
+    // Una tanda que ejecutó trabajo invalida la etiqueta para que la siguiente
+    // visita reciba los datos nuevos sin esperar al TTL horario. Con tres
+    // tandas por hora, las que no encuentran nada pendiente no deben vaciar
+    // la caché de toda la web.
+    if (result.executed.length > 0) {
+      revalidateTag(FOOTBALL_DATA_CACHE_TAG, 'max');
+    }
 
     return NextResponse.json(result);
   } catch (err) {

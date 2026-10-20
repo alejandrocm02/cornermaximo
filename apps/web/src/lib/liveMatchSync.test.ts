@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   matchFindMany: vi.fn(),
+  matchFindUnique: vi.fn(),
   matchUpdate: vi.fn(),
   matchTeamUpdate: vi.fn(),
   providerGet: vi.fn(),
@@ -12,7 +13,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('@cornermaximo/db', () => ({
   prisma: {
     dataProvider: { findUnique: vi.fn().mockResolvedValue({ id: 1 }) },
-    match: { findMany: mocks.matchFindMany, update: mocks.matchUpdate },
+    match: { findMany: mocks.matchFindMany, findUnique: mocks.matchFindUnique, update: mocks.matchUpdate },
     matchTeam: { update: mocks.matchTeamUpdate },
     $transaction: mocks.transaction,
   },
@@ -49,6 +50,13 @@ describe('syncLiveScoreboard', () => {
     process.env.API_FOOTBALL_KEY = 'test-key';
     mocks.matchFindMany.mockResolvedValue([{ id: 4141, externalId: '1379361' }]);
     mocks.matchUpdate.mockResolvedValue({});
+    mocks.matchFindUnique.mockResolvedValue({
+      status: 'LIVE',
+      teams: [
+        { isHome: true, goals: 2, penaltyGoals: null },
+        { isHome: false, goals: 1, penaltyGoals: null },
+      ],
+    });
     mocks.matchTeamUpdate.mockResolvedValue({});
     mocks.transaction.mockResolvedValue([]);
     mocks.providerGet
@@ -83,6 +91,22 @@ describe('syncLiveScoreboard', () => {
     });
     expect(query.where).not.toHaveProperty('kickoffAt');
     expect(mocks.providerGet).toHaveBeenLastCalledWith('/fixtures', { id: '1379361' });
-    expect(result).toMatchObject({ live: 0, updated: 1, terminalProbes: 1 });
+    expect(result).toMatchObject({ live: 0, updated: 1, terminalProbes: 1, changed: 1, finished: 1 });
+  });
+
+  // La caché global (fichas, rankings) solo se invalida cuando algo cambia.
+  it('no informa cambios si estado y marcador ya estaban guardados', async () => {
+    mocks.matchFindUnique.mockResolvedValue({
+      status: 'FINISHED',
+      teams: [
+        { isHome: true, goals: 2, penaltyGoals: null },
+        { isHome: false, goals: 2, penaltyGoals: null },
+      ],
+    });
+
+    const result = await syncLiveScoreboard();
+
+    expect(result).toMatchObject({ updated: 1, changed: 0, finished: 0 });
+    expect(mocks.transaction).toHaveBeenCalledOnce();
   });
 });

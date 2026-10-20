@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseClient } from '@/lib/supabase/lazyClient';
 
 export type AccountStateKey = 'analyzer' | 'comparisons';
 export type AccountSyncStatus = 'loading' | 'local' | 'syncing' | 'synced' | 'error';
@@ -76,7 +76,7 @@ export function useSyncedAccountState<T extends object>({
     let active = true;
 
     async function initialize() {
-      const supabase = createClient();
+      const supabase = await getSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
       let localOwner = localStorage.getItem(ownerKey(storageKey));
 
@@ -201,7 +201,7 @@ export function useSyncedAccountState<T extends object>({
         return;
       }
 
-      const supabase = createClient();
+      const supabase = await getSupabaseClient();
       const { error: writeError } = await supabase.rpc('save_user_app_state', {
         p_state_key: stateKey,
         p_payload: state,
