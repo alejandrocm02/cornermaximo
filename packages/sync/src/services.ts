@@ -4,7 +4,7 @@
  */
 import type { PrismaClient, Prisma } from '@cornermaximo/db';
 import type { FootballDataProvider, ProviderMatchEvent, ProviderPlayerMatchStats } from '@cornermaximo/providers';
-import { TRACKED_COMPETITIONS, toSlug } from '@cornermaximo/shared';
+import { isIncludedRound, TRACKED_COMPETITIONS, toSlug } from '@cornermaximo/shared';
 
 // ---------- helpers ----------
 
@@ -99,7 +99,26 @@ export async function syncTeams(
   const seasonRow = comp.seasons[0];
   if (seasonRow == null) throw new Error(`Season ${season} no existe para ${comp.name}`);
 
-  const teams = await provider.getTeamsByCompetition(competitionExternalId, season);
+  const tracked = TRACKED_COMPETITIONS.find((c) => String(c.apiFootballId) === competitionExternalId);
+  let teams = await provider.getTeamsByCompetition(competitionExternalId, season);
+  if (tracked?.includedRounds != null) {
+    // /teams devuelve también los equipos de las rondas previas. Se conservan
+    // solo los que juegan algún partido de la fase sincronizada (1 request más,
+    // una vez por competición-temporada).
+    const fixtures = await provider.getFixtures(competitionExternalId, season);
+    const included = fixtures.filter((f) => isIncludedRound(tracked, f.round));
+    const playing = new Set(included.flatMap((f) => [f.homeTeamExternalId, f.awayTeamExternalId]));
+    if (playing.size === 0) {
+      // Un nombre de ronda inesperado dejaría la competición vacía en silencio
+      // y la reintentaría en cada tanda. Fallar deja el motivo en SyncJob y
+      // aparca la unidad tras varios intentos.
+      const rounds = [...new Set(fixtures.map((f) => f.round ?? '(sin ronda)'))].slice(0, 12);
+      throw new Error(
+        `${comp.name} ${season}: ningún partido de la fase principal. Rondas recibidas: ${rounds.join(', ') || 'ninguna'}`,
+      );
+    }
+    teams = teams.filter((t) => playing.has(t.externalId));
+  }
   for (const t of teams) {
     const countryId = await ensureCountry(db, t.country);
 
@@ -222,7 +241,10 @@ export async function syncFixtures(
   const seasonRow = comp.seasons[0];
   if (seasonRow == null) throw new Error(`Season ${season} no existe para ${comp.name}`);
 
-  const fixtures = await provider.getFixtures(competitionExternalId, season);
+  const tracked = TRACKED_COMPETITIONS.find((c) => String(c.apiFootballId) === competitionExternalId);
+  const fixtures = (await provider.getFixtures(competitionExternalId, season)).filter((f) =>
+    isIncludedRound(tracked, f.round),
+  );
 
   // Mapa externalId de equipo -> id interno (una sola consulta)
   const teams = await db.team.findMany({
@@ -576,7 +598,22 @@ export async function syncInjuries(
   const injuries = await provider.getInjuries(competitionExternalId, season);
   const cutoff = new Date(Date.now() - INJURY_ACTIVE_DAYS * 86_400_000);
 
-  /** Jugadores de esta competición-temporada, para poder reconciliar las altas. */
+  const competition = await db.competition.findFirst({
+    where: { providerId: providerDbId, externalId: competitionExternalId },
+    select: { type: true },
+  });
+  const isCup = competition?.type === 'CUP';
+
+  /**
+   * Jugadores a los que esta competición puede dar el alta.
+   *
+   * Un club de LaLiga que juega la Champions aparece en las dos. El parte de la
+   * Champions solo lista lesiones relevantes para sus partidos, así que si una
+   * copa reconciliara a esos jugadores daría de alta a lesionados que su liga
+   * acaba de marcar, y el estado oscilaría según qué sincronización corriera la
+   * última. En una copa solo se reconcilian jugadores cuyo club no tiene liga
+   * rastreada en curso (p. ej. un club escocés en la Europa League).
+   */
   const squadRows: Array<{ id: number }> = await db.player.findMany({
     where: {
       providerId: providerDbId,
@@ -584,6 +621,9 @@ export async function syncInjuries(
         seasons: {
           some: { season: { year: season, competition: { externalId: competitionExternalId } } },
         },
+        ...(isCup
+          ? { NOT: { seasons: { some: { season: { isCurrent: true, competition: { type: 'LEAGUE' } } } } } }
+          : {}),
       },
     },
     select: { id: true },

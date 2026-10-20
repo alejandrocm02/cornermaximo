@@ -20,6 +20,8 @@ interface JugadorFalso {
   status: Estado;
   manuallyEdited: boolean;
   enCompeticion: boolean;
+  /** Su club juega además una liga rastreada en curso. */
+  enLiga?: boolean;
 }
 
 interface LesionFalsa {
@@ -33,7 +35,7 @@ const DIA = 86_400_000;
 const hace = (dias: number): Date => new Date(Date.now() - dias * DIA);
 
 /** Doble mínimo de PrismaClient con solo lo que usa syncInjuries. */
-function crearDb(jugadores: JugadorFalso[], lesiones: LesionFalsa[] = []) {
+function crearDb(jugadores: JugadorFalso[], lesiones: LesionFalsa[] = [], tipo: 'LEAGUE' | 'CUP' = 'LEAGUE') {
   const coincide = (row: LesionFalsa, where: Record<string, unknown>): boolean => {
     if (where.playerId != null) {
       const p = where.playerId as number | { in: number[] };
@@ -54,10 +56,16 @@ function crearDb(jugadores: JugadorFalso[], lesiones: LesionFalsa[] = []) {
   return {
     jugadores,
     lesiones,
+    competition: {
+      findFirst: async () => ({ type: tipo }),
+    },
     player: {
       findUnique: async ({ where }: { where: { providerId_externalId: { externalId: string } } }) =>
         jugadores.find((j) => j.externalId === where.providerId_externalId.externalId) ?? null,
-      findMany: async () => jugadores.filter((j) => j.enCompeticion).map((j) => ({ id: j.id })),
+      findMany: async ({ where }: { where: { currentTeam: { NOT?: unknown } } }) =>
+        jugadores
+          .filter((j) => j.enCompeticion && (where.currentTeam.NOT == null || !j.enLiga))
+          .map((j) => ({ id: j.id })),
       updateMany: async ({ where, data }: { where: Record<string, unknown>; data: { status: Estado } }) => {
         for (const j of jugadores) {
           if (where.id != null) {
@@ -200,6 +208,33 @@ describe('syncInjuries', () => {
     await ejecutar(db, provider);
 
     expect(lesiones).toHaveLength(1);
+    expect(db.jugadores[0]!.status).toBe('AVAILABLE');
+  });
+
+  it('una copa no da de alta a un lesionado cuyo club juega una liga rastreada', async () => {
+    const db = crearDb(
+      [
+        { id: 1, externalId: 'liga', status: 'INJURED', manuallyEdited: false, enCompeticion: true, enLiga: true },
+        { id: 2, externalId: 'solo-copa', status: 'INJURED', manuallyEdited: false, enCompeticion: true },
+      ],
+      [],
+      'CUP',
+    );
+
+    await ejecutar(db, crearProveedor([]));
+
+    // El de LaLiga lo gestiona el parte de su liga; el club sin liga rastreada sí se reconcilia.
+    expect(db.jugadores[0]!.status).toBe('INJURED');
+    expect(db.jugadores[1]!.status).toBe('AVAILABLE');
+  });
+
+  it('una liga sigue reconciliando a toda su plantilla', async () => {
+    const db = crearDb([
+      { id: 1, externalId: 'p1', status: 'INJURED', manuallyEdited: false, enCompeticion: true, enLiga: true },
+    ]);
+
+    await ejecutar(db, crearProveedor([]));
+
     expect(db.jugadores[0]!.status).toBe('AVAILABLE');
   });
 });

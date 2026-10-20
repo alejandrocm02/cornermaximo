@@ -5,6 +5,7 @@ import {
   currentSeasonOf,
   EXPANSION_CANDIDATES,
   formatSeasonLabel,
+  isIncludedRound,
   previousSeasonOf,
   seasonFormatOf,
   seasonLabelOf,
@@ -12,6 +13,7 @@ import {
   SPLIT_YEAR_SEASONS,
   TRACKED_COMPETITIONS,
   trackedCompetition,
+  UEFA_SEASONS,
 } from '../src/index';
 
 describe('formatSeasonLabel', () => {
@@ -94,10 +96,51 @@ describe('ligas añadidas en la ampliación', () => {
     }
   });
 
-  it('la plataforma sincroniza 11 competiciones', () => {
-    expect(TRACKED_COMPETITIONS).toHaveLength(11);
+  it('la plataforma sincroniza 14 competiciones', () => {
+    expect(TRACKED_COMPETITIONS).toHaveLength(14);
     expect(TRACKED_COMPETITIONS.filter((c) => c.type === 'LEAGUE')).toHaveLength(10);
-    expect(TRACKED_COMPETITIONS.filter((c) => c.type === 'CUP')).toHaveLength(1);
+    expect(TRACKED_COMPETITIONS.filter((c) => c.type === 'CUP')).toHaveLength(4);
+  });
+});
+
+describe('competiciones UEFA', () => {
+  const uefa = [
+    ['champions-league', 2],
+    ['europa-league', 3],
+    ['conference-league', 848],
+  ] as const;
+
+  it('están rastreadas como copas, solo en la temporada en juego', () => {
+    for (const [slug, id] of uefa) {
+      const comp = trackedCompetition(slug);
+      expect(comp, `falta ${slug}`).not.toBeNull();
+      expect(comp!.apiFootballId).toBe(id);
+      expect(comp!.type).toBe('CUP');
+      expect(comp!.seasons).toEqual(UEFA_SEASONS);
+      expect(currentSeasonOf(slug)).toBe(2026);
+      expect(seasonLabelOf(slug, 2026)).toBe('2026/27');
+    }
+  });
+
+  it('ya no aparecen en el catálogo de candidatas', () => {
+    for (const [slug] of uefa) {
+      expect(EXPANSION_CANDIDATES.find((c) => c.slug === slug)).toBeUndefined();
+    }
+  });
+
+  it('sincronizan la fase principal y descartan las previas', () => {
+    const ucl = trackedCompetition('champions-league');
+    for (const round of ['League Stage - 1', 'League Stage - 8', 'Knockout Round Play-offs', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Final']) {
+      expect(isIncludedRound(ucl, round), round).toBe(true);
+    }
+    for (const round of ['Preliminary Round', '1st Qualifying Round', '2nd Qualifying Round', '3rd Qualifying Round', 'Play-offs', null]) {
+      expect(isIncludedRound(ucl, round), String(round)).toBe(false);
+    }
+  });
+
+  it('las ligas no filtran rondas', () => {
+    expect(isIncludedRound(trackedCompetition('laliga'), 'Regular Season - 9')).toBe(true);
+    expect(isIncludedRound(trackedCompetition('laliga'), null)).toBe(true);
   });
 });
 

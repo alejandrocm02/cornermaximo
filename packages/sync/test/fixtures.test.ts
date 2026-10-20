@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { FootballDataProvider, ProviderFixture } from '@cornermaximo/providers';
-import { syncFixtures } from '../src/services';
+import { syncFixtures, syncTeams } from '../src/services';
 
 interface FilaEquipo {
   matchId: number;
@@ -125,5 +125,108 @@ describe('syncFixtures', () => {
     expect(filas.find((f) => f.isHome)?.teamId).toBe(20);
     expect(filas.find((f) => !f.isHome)?.teamId).toBe(10);
     expect(filas).toHaveLength(2);
+  });
+
+  it('en la Champions descarta las rondas previas', async () => {
+    const { db, filas } = crearDb([]);
+    const resultado = await syncFixtures(
+      db as never,
+      proveedor({ competitionExternalId: '2', round: '2nd Qualifying Round' }),
+      1,
+      '2',
+      2026,
+    );
+    expect(resultado).toBe(0);
+    expect(filas).toHaveLength(0);
+  });
+
+  it('en la Champions guarda la fase de liga', async () => {
+    const { db, filas } = crearDb([]);
+    const resultado = await syncFixtures(
+      db as never,
+      proveedor({ competitionExternalId: '2', round: 'League Stage - 3' }),
+      1,
+      '2',
+      2026,
+    );
+    expect(resultado).toBe(1);
+    expect(filas).toHaveLength(2);
+  });
+});
+
+describe('syncTeams en competiciones con fase principal', () => {
+  function dbEquipos() {
+    const creados: string[] = [];
+    const db = {
+      competition: { findUniqueOrThrow: async () => ({ name: 'UEFA Champions League', seasons: [{ id: 7 }] }) },
+      country: { upsert: async () => ({ id: 1 }) },
+      stadium: { findFirst: async () => null, create: async () => ({ id: 1 }) },
+      team: {
+        findUnique: async () => null,
+        upsert: async ({ create }: { create: { externalId: string } }) => {
+          creados.push(create.externalId);
+          return { id: creados.length };
+        },
+      },
+      seasonTeam: { upsert: async () => ({}) },
+    };
+    return { db, creados };
+  }
+
+  const equipo = (id: string) => ({
+    externalId: id,
+    name: `Equipo ${id}`,
+    shortName: null,
+    crestUrl: null,
+    founded: null,
+    country: 'Spain',
+    isNational: false,
+    stadiumName: null,
+    stadiumCity: null,
+    stadiumCapacity: null,
+  });
+
+  const partido = (round: string, home: string, away: string) =>
+    ({ externalId: `${home}-${away}`, round, homeTeamExternalId: home, awayTeamExternalId: away }) as ProviderFixture;
+
+  it('solo crea los equipos que juegan la fase principal', async () => {
+    const { db, creados } = dbEquipos();
+    const provider = {
+      getTeamsByCompetition: async () => [equipo('541'), equipo('529'), equipo('9999')],
+      getFixtures: async () => [partido('League Stage - 1', '541', '529'), partido('1st Qualifying Round', '9999', '8888')],
+    } as unknown as FootballDataProvider;
+
+    const total = await syncTeams(db as never, provider, 1, '2', 2026);
+
+    expect(total).toBe(2);
+    expect(creados).toEqual(['541', '529']);
+  });
+
+  it('falla con las rondas recibidas si no reconoce ninguna', async () => {
+    const { db, creados } = dbEquipos();
+    const provider = {
+      getTeamsByCompetition: async () => [equipo('541')],
+      getFixtures: async () => [partido('Group Stage - 1', '541', '529')],
+    } as unknown as FootballDataProvider;
+
+    await expect(syncTeams(db as never, provider, 1, '2', 2026)).rejects.toThrow(/Rondas recibidas: Group Stage - 1/);
+    expect(creados).toEqual([]);
+  });
+
+  it('en una liga no consulta el calendario', async () => {
+    const { db, creados } = dbEquipos();
+    let consultas = 0;
+    const provider = {
+      getTeamsByCompetition: async () => [equipo('541'), equipo('529')],
+      getFixtures: async () => {
+        consultas++;
+        return [];
+      },
+    } as unknown as FootballDataProvider;
+
+    await syncTeams(db as never, provider, 1, '140', 2026);
+
+    expect(consultas).toBe(0);
+    expect(creados).toEqual(['541', '529']);
   });
 });
