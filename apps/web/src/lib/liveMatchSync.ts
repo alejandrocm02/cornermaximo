@@ -41,6 +41,10 @@ export interface LiveCoreSnapshot {
   awayGoals: number | null;
   eventCount: number;
   terminal: boolean;
+  /** Marcador, estado o nº de eventos distintos de lo que había guardado. */
+  changed: boolean;
+  /** El partido acaba de pasar a un estado final en esta sincronización. */
+  becameTerminal: boolean;
   refreshedAt: string;
 }
 
@@ -48,6 +52,10 @@ export interface LiveScoreboardResult {
   /** Partidos rastreados por CornerMaximo que están realmente en directo. */
   live: number;
   updated: number;
+  /** Partidos cuyo marcador o estado cambió respecto a lo guardado. */
+  changed: number;
+  /** Partidos que han pasado a un estado final en esta sincronización. */
+  finished: number;
   terminalProbes: number;
   refreshedAt: string;
 }
@@ -77,8 +85,35 @@ async function createClient(providerDbId: number, runLimit: number): Promise<Api
   });
 }
 
-async function persistFixture(matchId: number, rawFixture: RawFixtureStatus): Promise<void> {
+interface PersistOutcome {
+  changed: boolean;
+  becameTerminal: boolean;
+}
+
+/**
+ * Guarda estado y marcador, e informa de si algo cambió. Los endpoints de
+ * directo usan ese dato para invalidar la caché solo cuando hace falta: antes
+ * cada refresco (cada 20-80 s por partido) vaciaba la caché de toda la web.
+ */
+async function persistFixture(matchId: number, rawFixture: RawFixtureStatus): Promise<PersistOutcome> {
   const fixture = mapFixture(rawFixture);
+  const previous = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { status: true, teams: { select: { isHome: true, goals: true, penaltyGoals: true } } },
+  });
+  const previousHome = previous?.teams.find((team) => team.isHome);
+  const previousAway = previous?.teams.find((team) => !team.isHome);
+  const previousStatus = previous == null ? null : String(previous.status);
+  const changed =
+    previousStatus !== fixture.status ||
+    previousHome?.goals !== fixture.homeGoals ||
+    previousAway?.goals !== fixture.awayGoals ||
+    previousHome?.penaltyGoals !== fixture.homePenaltyGoals ||
+    previousAway?.penaltyGoals !== fixture.awayPenaltyGoals;
+  const becameTerminal = terminalStatus(fixture.status) && !terminalStatus(previousStatus ?? '');
+
+  // Se escribe siempre (hora de inicio, jornada o prórroga pueden corregirse
+  // sin cambiar el marcador); `changed` solo decide qué caché invalidar.
   await prisma.$transaction([
     prisma.match.update({
       where: { id: matchId },
@@ -99,6 +134,7 @@ async function persistFixture(matchId: number, rawFixture: RawFixtureStatus): Pr
       data: { goals: fixture.awayGoals, penaltyGoals: fixture.awayPenaltyGoals },
     }),
   ]);
+  return { changed, becameTerminal };
 }
 
 export async function syncLiveScoreboard(): Promise<LiveScoreboardResult> {
@@ -121,11 +157,17 @@ export async function syncLiveScoreboard(): Promise<LiveScoreboardResult> {
   const matchIdByExternal = new Map(knownMatches.map((match) => [match.externalId, match.id]));
 
   let updated = 0;
+  let changed = 0;
+  let finished = 0;
+  const record = (outcome: PersistOutcome) => {
+    updated++;
+    if (outcome.changed) changed++;
+    if (outcome.becameTerminal) finished++;
+  };
   for (const rawFixture of liveRows) {
     const matchId = matchIdByExternal.get(String(rawFixture.fixture.id));
     if (matchId == null) continue;
-    await persistFixture(matchId, rawFixture);
-    updated++;
+    record(await persistFixture(matchId, rawFixture));
   }
 
   // Un partido que acaba deja de aparecer en `live=all`. Sondeamos los
@@ -150,14 +192,15 @@ export async function syncLiveScoreboard(): Promise<LiveScoreboardResult> {
     const rows = await client.get<RawFixtureStatus>('/fixtures', { id: match.externalId });
     const rawFixture = rows[0];
     if (rawFixture == null) continue;
-    await persistFixture(match.id, rawFixture);
+    record(await persistFixture(match.id, rawFixture));
     terminalProbes++;
-    updated++;
   }
 
   return {
     live: knownMatches.length,
     updated,
+    changed,
+    finished,
     terminalProbes,
     refreshedAt: new Date().toISOString(),
   };
@@ -183,7 +226,8 @@ export async function syncLiveMatchCore(matchId: number): Promise<LiveCoreSnapsh
   const fixture = mapFixture(rawFixture);
   const events = mapFixtureEvents(rawEvents);
 
-  await persistFixture(matchId, rawFixture);
+  const previousEventCount = await prisma.matchEvent.count({ where: { matchId } });
+  const outcome = await persistFixture(matchId, rawFixture);
   await replaceMatchEvents(prisma, match.providerId, matchId, events);
 
   return {
@@ -194,6 +238,8 @@ export async function syncLiveMatchCore(matchId: number): Promise<LiveCoreSnapsh
     awayGoals: fixture.awayGoals,
     eventCount: events.length,
     terminal: terminalStatus(fixture.status),
+    changed: outcome.changed || events.length !== previousEventCount,
+    becameTerminal: outcome.becameTerminal,
     refreshedAt: new Date().toISOString(),
   };
 }

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSupabaseClient } from '@/lib/supabase/lazyClient';
 
 export type FavoriteKind = 'player' | 'team' | 'competition';
 export type FavoriteStorageMode = 'local' | 'account';
@@ -100,7 +100,7 @@ function itemToRow(item: FavoriteItem, userId: string) {
 }
 
 async function readAccountFavorites(userId: string): Promise<{ items: FavoriteItem[]; error: string | null }> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from('user_favorites')
     .select('kind, entity_slug, display_name, image_url, subtitle, added_at')
@@ -151,7 +151,7 @@ export async function syncFavoritesWithAccount(): Promise<FavoriteSyncResult> {
   const localItems = readFavorites();
   if (typeof window === 'undefined') return { items: localItems, mode: 'local', error: null };
 
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || authData.user == null) {
     return { items: localItems, mode: 'local', error: null };
@@ -188,7 +188,7 @@ export async function persistFavoriteForCurrentUser(
   item: Omit<FavoriteItem, 'addedAt'>,
   active: boolean,
 ): Promise<{ mode: FavoriteStorageMode; error: string | null }> {
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || authData.user == null) return { mode: 'local', error: null };
 
@@ -229,7 +229,7 @@ export async function clearFavoritesForCurrentUser(): Promise<{
   error: string | null;
 }> {
   clearFavorites();
-  const supabase = createClient();
+  const supabase = await getSupabaseClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || authData.user == null) return { mode: 'local', error: null };
 

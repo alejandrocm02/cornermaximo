@@ -1,6 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
-import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
+import { liveInvalidationTags } from '@/lib/cache';
 import { isNewRefresh } from '@/lib/liveGuard';
 import { guardedMatchCore } from '@/lib/liveThrottle';
 
@@ -42,8 +42,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (snapshot == null) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
 
   if (isNewRefresh(`core:${id}`, outcome.result.at)) {
-    revalidateTag('matches', { expire: 0 });
-    revalidateTag(FOOTBALL_DATA_CACHE_TAG, { expire: 0 });
+    for (const tag of liveInvalidationTags({ matchDataChanged: snapshot.changed, matchFinished: snapshot.becameTerminal })) {
+      revalidateTag(tag, { expire: 0 });
+    }
   }
 
   return NextResponse.json(snapshot, { headers: CACHE_HEADERS });
