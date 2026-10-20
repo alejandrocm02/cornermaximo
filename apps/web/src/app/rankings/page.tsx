@@ -282,7 +282,7 @@ export default async function RankingsPage({
                 {rows.map((row, index) => (
                   <tr key={`${row.slug}-${row.team ?? ''}`}>
                     <td><span className={index < 3 ? `cm-table-rank cm-rank-${index + 1}` : 'cm-table-rank'}>{index + 1}</span></td>
-                    <th scope="row" className="w-full max-w-0 sm:w-auto sm:max-w-none">
+                    <th scope="row" className="w-full max-w-0 text-left sm:w-auto sm:max-w-none">
                       <Link href={`/jugadores/${row.slug}`} className="flex min-w-0 items-center gap-3 font-semibold text-white hover:text-pitch-accent">
                         <PlayerAvatar name={row.name} photoUrl={row.photoUrl} />
                         <span className="min-w-0">
