@@ -6,6 +6,7 @@ import { prisma } from '@cornermaximo/db';
 import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
 import { getLastMatches, type ComparisonWindow } from '@/lib/recent';
+import { countryNameEs } from '@/lib/countries';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
       photoUrl: p.photoUrl,
       team: p.currentTeam?.name ?? null,
       position: groups[i],
-      nationality: p.nationality?.name ?? null,
+      nationality: countryNameEs(p.nationality?.name),
       lastMatches: summaries[i],
     })),
   });

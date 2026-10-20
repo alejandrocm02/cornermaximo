@@ -1,6 +1,7 @@
 import { prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
+import { countryNameEs } from '@/lib/countries';
 
 const DATA_HEALTH_REVALIDATE_SECONDS = 15 * 60;
 
@@ -247,7 +248,7 @@ async function queryPublicDataHealth(): Promise<PublicDataHealth> {
           | 'CALENDAR_YEAR',
         logoUrl: season.competition.logoUrl,
         externalId: season.competition.externalId,
-        country: season.competition.country.name,
+        country: countryNameEs(season.competition.country.name),
       },
       level: competitionCoverageLevel({
         competitionType,

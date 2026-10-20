@@ -2,6 +2,7 @@ import { prisma } from '@cornermaximo/db';
 import { UEFA_CLUB_COMPETITION_SLUGS } from '@cornermaximo/shared';
 import Link from 'next/link';
 import { seasonLabel } from '@/lib/football';
+import { countryNameEs } from '@/lib/countries';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -92,7 +93,7 @@ function CompetitionCard({ league, european = false }: { league: CompetitionWith
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 pt-1">
             <p className="truncate font-display text-lg font-semibold text-white">{league.name}</p>
-            <p className="mt-1 text-sm text-pitch-muted">{european ? 'Competición europea de clubes' : league.country.name}</p>
+            <p className="mt-1 text-sm text-pitch-muted">{european ? 'Competición europea de clubes' : countryNameEs(league.country.name)}</p>
           </div>
           <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-white/95 p-2 shadow-sm transition-transform duration-200 group-hover:scale-105">
             {/* eslint-disable-next-line @next/next/no-img-element */}

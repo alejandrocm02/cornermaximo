@@ -15,6 +15,10 @@ export const dynamic = 'force-dynamic';
 /** Nº de jornadas iniciales que se muestran en la página de la liga. */
 const FIRST_ROUNDS_SHOWN = 5;
 
+function formatGoalDifference(diff: number): string {
+  return diff > 0 ? `+${diff}` : String(diff);
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const competition = await prisma.competition.findUnique({
@@ -146,8 +150,7 @@ export default async function LeaguePage({
         )}
       </div>
 
-      {insights != null && <LeagueInsightsPanel insights={insights} />}
-
+      {/* La clasificación es lo que más se consulta de una liga: va primero. */}
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">Clasificación</h2>
         {season != null && season.standings.length > 0 && (
@@ -160,50 +163,49 @@ export default async function LeaguePage({
             })}
           </p>
         )}
-        {season != null && season.standings.length > 0 && (
-          <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">
-            Desliza la tabla lateralmente para ver todas las columnas →
-          </p>
-        )}
-
         {season != null && season.standings.length > 0 ? (
+          // En móvil se ocultan G, E, P, GF, GC y forma, y se muestra la diferencia
+          // de goles: la tabla cabe sin desplazarse y los puntos quedan a la vista.
           <div className="overflow-x-auto rounded-xl border border-pitch-border">
-            <table className="w-full min-w-[560px] bg-pitch-card text-sm">
+            <table className="w-full bg-pitch-card text-sm sm:min-w-[560px]">
+              <caption className="sr-only">Clasificación de {competition.name}</caption>
               <thead className="text-left text-xs uppercase text-pitch-muted">
                 <tr className="border-b border-pitch-border">
-                  <th className="px-3 py-2">#</th>
-                  <th className="px-3 py-2">Equipo</th>
-                  <th className="px-3 py-2 text-right">PJ</th>
-                  <th className="px-3 py-2 text-right">G</th>
-                  <th className="px-3 py-2 text-right">E</th>
-                  <th className="px-3 py-2 text-right">P</th>
-                  <th className="px-3 py-2 text-right">GF</th>
-                  <th className="px-3 py-2 text-right">GC</th>
-                  <th className="px-3 py-2 text-right">Pts</th>
-                  <th className="px-3 py-2">Forma</th>
+                  <th scope="col" className="px-3 py-2">#</th>
+                  <th scope="col" className="px-3 py-2">Equipo</th>
+                  <th scope="col" className="px-3 py-2 text-right">PJ</th>
+                  <th scope="col" className="hidden px-3 py-2 text-right sm:table-cell">G</th>
+                  <th scope="col" className="hidden px-3 py-2 text-right sm:table-cell">E</th>
+                  <th scope="col" className="hidden px-3 py-2 text-right sm:table-cell">P</th>
+                  <th scope="col" className="hidden px-3 py-2 text-right sm:table-cell">GF</th>
+                  <th scope="col" className="hidden px-3 py-2 text-right sm:table-cell">GC</th>
+                  <th scope="col" className="px-3 py-2 text-right sm:hidden">DG</th>
+                  <th scope="col" className="px-3 py-2 text-right">Pts</th>
+                  <th scope="col" className="hidden px-3 py-2 sm:table-cell">Forma</th>
                 </tr>
               </thead>
               <tbody>
                 {season.standings.map((row) => (
                   <tr key={row.id} className="border-b border-pitch-border/50 last:border-0">
                     <td className="px-3 py-2 text-pitch-muted">{row.position}</td>
-                    <td className="px-3 py-2">
-                      <Link href={`/equipos/${row.team.slug}`} className="inline-flex items-center gap-2 hover:text-pitch-accent">
+                    <td className="w-full max-w-0 px-3 py-2 sm:w-auto sm:max-w-none">
+                      <Link href={`/equipos/${row.team.slug}`} className="flex min-w-0 items-center gap-2 hover:text-pitch-accent">
                         {row.team.crestUrl != null && (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img width={22} height={22} src={row.team.crestUrl} alt="" className="h-[22px] w-[22px] object-contain" />
+                          <img width={22} height={22} src={row.team.crestUrl} alt="" className="h-[22px] w-[22px] shrink-0 object-contain" />
                         )}
-                        {row.team.name}
+                        <span className="truncate">{row.team.name}</span>
                       </Link>
                     </td>
-                    <td className="px-3 py-2 text-right">{row.played}</td>
-                    <td className="px-3 py-2 text-right">{row.won}</td>
-                    <td className="px-3 py-2 text-right">{row.drawn}</td>
-                    <td className="px-3 py-2 text-right">{row.lost}</td>
-                    <td className="px-3 py-2 text-right">{row.goalsFor}</td>
-                    <td className="px-3 py-2 text-right">{row.goalsAgainst}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{row.points}</td>
-                    <td className="px-3 py-2 text-xs tracking-widest text-pitch-muted">{row.form ?? ''}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.played}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{row.won}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{row.drawn}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{row.lost}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{row.goalsFor}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{row.goalsAgainst}</td>
+                    <td className="px-3 py-2 text-right tabular-nums sm:hidden">{formatGoalDifference(row.goalsFor - row.goalsAgainst)}</td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{row.points}</td>
+                    <td className="hidden px-3 py-2 text-xs tracking-widest text-pitch-muted sm:table-cell">{row.form ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -216,6 +218,8 @@ export default async function LeaguePage({
           </p>
         )}
       </section>
+
+      {insights != null && <LeagueInsightsPanel insights={insights} />}
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-pitch-muted">

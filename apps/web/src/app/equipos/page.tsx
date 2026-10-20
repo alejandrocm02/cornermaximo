@@ -2,6 +2,7 @@ import { prisma } from '@cornermaximo/db';
 import type { Metadata } from 'next';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { TeamsDirectory, type TeamDirectoryItem } from './TeamsDirectory';
+import { countryNameEs } from '@/lib/countries';
 
 export const revalidate = 3600;
 export const metadata: Metadata = {
@@ -36,7 +37,7 @@ export default async function TeamsPage() {
     shortName: team.shortName,
     crestUrl: team.crestUrl,
     isNational: team.isNational,
-    country: team.country?.name ?? null,
+    country: countryNameEs(team.country?.name),
     playerCount: team._count.players,
     competitions: team.seasons.map((entry) => entry.season.competition),
   }));

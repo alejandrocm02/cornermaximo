@@ -233,16 +233,22 @@ export default async function RankingsPage({
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             {podium.map((row, index) => (
-              <Link key={`${row.slug}-${row.team ?? ''}`} href={`/jugadores/${row.slug}`} className={`cm-podium-card group p-5 ${index === 0 ? 'md:-translate-y-2 md:border-pitch-accent/50' : ''}`}>
-                <div className="flex items-start justify-between gap-4">
+              // En móvil cada puesto es una fila compacta; las tarjetas altas
+              // ocupaban casi una pantalla entera antes de la tabla.
+              <Link key={`${row.slug}-${row.team ?? ''}`} href={`/jugadores/${row.slug}`} className={`cm-podium-card group flex items-center gap-3 p-4 md:block md:p-5 ${index === 0 ? 'md:-translate-y-2 md:border-pitch-accent/50' : ''}`}>
+                <span className={`cm-rank-medal cm-rank-${index + 1} shrink-0 md:hidden`}>{index + 1}</span>
+                <span className="shrink-0 md:hidden"><PlayerAvatar name={row.name} photoUrl={row.photoUrl} /></span>
+                <div className="hidden items-start justify-between gap-4 md:flex">
                   <PlayerAvatar name={row.name} photoUrl={row.photoUrl} size="lg" />
                   <span className={`cm-rank-medal cm-rank-${index + 1}`}>{index + 1}</span>
                 </div>
-                <p className="mt-5 truncate font-display text-xl font-bold text-white group-hover:text-pitch-accent">{row.name}</p>
-                <p className="mt-1 truncate text-xs text-pitch-muted">{row.team ?? '—'}{row.position ? ` · ${POSITION_LABEL[row.position] ?? row.position}` : ''}</p>
-                <div className="mt-5 flex items-end justify-between border-t border-white/8 pt-4">
-                  <div><p className="text-3xl font-bold tabular-nums text-white">{displayValue(metric, row.total)}</p><p className="text-2xs uppercase tracking-widest text-pitch-muted">{metric.unit}</p></div>
-                  <span className="cm-data-pill">{secondaryMetric(metric, row.total, row.minutes)}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display text-base font-bold text-white group-hover:text-pitch-accent md:mt-5 md:text-xl">{row.name}</p>
+                  <p className="mt-1 truncate text-xs text-pitch-muted">{row.team ?? '—'}{row.position ? ` · ${POSITION_LABEL[row.position] ?? row.position}` : ''}</p>
+                </div>
+                <div className="shrink-0 text-right md:mt-5 md:flex md:items-end md:justify-between md:border-t md:border-white/8 md:pt-4 md:text-left">
+                  <div><p className="text-2xl font-bold tabular-nums text-white md:text-3xl">{displayValue(metric, row.total)}</p><p className="text-2xs uppercase tracking-widest text-pitch-muted">{metric.unit}</p></div>
+                  <span className="cm-data-pill hidden md:inline-flex">{secondaryMetric(metric, row.total, row.minutes)}</span>
                 </div>
               </Link>
             ))}
@@ -261,31 +267,38 @@ export default async function RankingsPage({
               Solo jugadores con al menos {AVERAGE_RANKING_MIN_APPEARANCES} partidos y {AVERAGE_RANKING_MIN_MINUTES} minutos en el periodo, para que una única actuación no encabece la media.
             </p>
           )}
-          <p className="text-xs text-pitch-muted sm:hidden">Desliza lateralmente para ver todas las métricas →</p>
+          {/* En móvil: posición, jugador (con su equipo debajo) y la métrica del
+              ranking. Antes la cifra quedaba fuera de pantalla tras el equipo. */}
           <div className="cm-table-shell overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full text-sm sm:min-w-[760px]">
               <caption className="sr-only">Ranking de {metric.label.toLowerCase()} en {leagueName}, temporada {label(season)}</caption>
               <thead>
                 <tr>
-                  <th scope="col">#</th><th scope="col">Jugador</th><th scope="col">Equipo</th><th scope="col">PJ</th>
-                  <th scope="col" className="text-right">{metric.label}</th><th scope="col" className="text-right">Minutos</th><th scope="col" className="text-right">Por 90&apos;</th><th scope="col" />
+                  <th scope="col">#</th><th scope="col">Jugador</th><th scope="col" className="hidden sm:table-cell">Equipo</th><th scope="col" className="hidden sm:table-cell">PJ</th>
+                  <th scope="col" className="text-right">{metric.label}</th><th scope="col" className="hidden text-right sm:table-cell">Minutos</th><th scope="col" className="hidden text-right sm:table-cell">Por 90&apos;</th><th scope="col" className="hidden sm:table-cell"><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, index) => (
                   <tr key={`${row.slug}-${row.team ?? ''}`}>
                     <td><span className={index < 3 ? `cm-table-rank cm-rank-${index + 1}` : 'cm-table-rank'}>{index + 1}</span></td>
-                    <th scope="row">
-                      <Link href={`/jugadores/${row.slug}`} className="flex items-center gap-3 font-semibold text-white hover:text-pitch-accent">
-                        <PlayerAvatar name={row.name} photoUrl={row.photoUrl} /><span className="truncate">{row.name}</span>
+                    <th scope="row" className="w-full max-w-0 sm:w-auto sm:max-w-none">
+                      <Link href={`/jugadores/${row.slug}`} className="flex min-w-0 items-center gap-3 font-semibold text-white hover:text-pitch-accent">
+                        <PlayerAvatar name={row.name} photoUrl={row.photoUrl} />
+                        <span className="min-w-0">
+                          <span className="block truncate">{row.name}</span>
+                          <span className="block truncate text-xs font-normal text-pitch-muted sm:hidden">
+                            {row.team ?? '—'} · {row.appearances} PJ
+                          </span>
+                        </span>
                       </Link>
                     </th>
-                    <td><span className="text-pitch-muted">{row.team ?? '—'}</span>{row.position && <span className="ml-2 cm-position-tag">{POSITION_LABEL[row.position] ?? row.position}</span>}</td>
-                    <td className="tabular-nums text-pitch-muted">{row.appearances}</td>
+                    <td className="hidden sm:table-cell"><span className="text-pitch-muted">{row.team ?? '—'}</span>{row.position && <span className="ml-2 cm-position-tag">{POSITION_LABEL[row.position] ?? row.position}</span>}</td>
+                    <td className="hidden tabular-nums text-pitch-muted sm:table-cell">{row.appearances}</td>
                     <td className="text-right font-display text-base font-bold tabular-nums text-pitch-accent">{displayValue(metric, row.total)}</td>
-                    <td className="text-right tabular-nums text-pitch-muted">{row.minutes.toLocaleString('es-ES')}</td>
-                    <td className="text-right tabular-nums text-pitch-muted">{per90Cell(metric, row.total, row.minutes)}</td>
-                    <td className="text-right"><Link href={`/comparador?p1=${row.slug}`} className="cm-inline-action">Comparar</Link></td>
+                    <td className="hidden text-right tabular-nums text-pitch-muted sm:table-cell">{row.minutes.toLocaleString('es-ES')}</td>
+                    <td className="hidden text-right tabular-nums text-pitch-muted sm:table-cell">{per90Cell(metric, row.total, row.minutes)}</td>
+                    <td className="hidden text-right sm:table-cell"><Link href={`/comparador?p1=${row.slug}`} className="cm-inline-action">Comparar</Link></td>
                   </tr>
                 ))}
                 {rows.length === 0 && <tr><td colSpan={8} className="py-12 text-center text-pitch-muted">Aún no hay datos oficiales para esta combinación. No se rellenan con estadísticas de otra temporada.</td></tr>}

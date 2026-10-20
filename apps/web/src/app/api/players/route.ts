@@ -7,6 +7,7 @@ import { prisma, type Prisma } from '@cornermaximo/db';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { jsonError } from '@/lib/api';
+import { countryNameEs } from '@/lib/countries';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
       teamSlug: p.currentTeam?.slug ?? null,
       crestUrl: p.currentTeam?.crestUrl ?? null,
       position: p.positions[0]?.group ?? null,
-      nationality: p.nationality?.name ?? null,
+      nationality: countryNameEs(p.nationality?.name),
       status: p.status,
     })),
   });

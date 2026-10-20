@@ -121,15 +121,20 @@ export default async function HomePage() {
 
         <div className="lg:col-span-5">
           <SectionHeader eyebrow={`Rankings · ${currentLabel}`} title="Líderes · Top 5 ligas" action={{ href: '/rankings', label: 'Centro de rankings' }} />
+          {/* En móvil cada ranking ocupa el ancho completo: en tres columnas de
+              ~110 px los nombres quedaban en "Rap…" o "M. …". */}
           <div className="cm-dashboard-card">
-            <div className="grid grid-cols-3 border-b border-pitch-border/60 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-pitch-muted">
-              <span className="border-r border-pitch-border/60 py-3">Goles</span><span className="border-r border-pitch-border/60 py-3">Asist.</span><span className="py-3">Paradas</span>
-            </div>
-            <div className="grid grid-cols-3 divide-x divide-pitch-border/60">
-              {[topScorers, topAssists, topSaves].map((ranking, column) => (
-                <ol key={column} className="min-w-0">
+            <div className="grid sm:grid-cols-3 sm:divide-x sm:divide-pitch-border/60">
+              {[
+                { label: 'Goles', ranking: topScorers },
+                { label: 'Asistencias', ranking: topAssists },
+                { label: 'Paradas', ranking: topSaves },
+              ].map(({ label, ranking }, column) => (
+                <section key={label} aria-label={`Líderes en ${label.toLowerCase()}`} className="min-w-0 border-b border-pitch-border/60 last:border-b-0 sm:border-b-0">
+                <h3 className="border-b border-pitch-border/60 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-pitch-muted">{label}</h3>
+                <ol className="min-w-0">
                   {ranking.slice(0, 5).map((player, index) => (
-                    <li key={`${player.slug}-${column}`} className="border-b border-pitch-border/45 last:border-0">
+                    <li key={`${player.slug}-${column}`} className={`border-b border-pitch-border/45 last:border-0 ${index >= 3 ? 'hidden sm:block' : ''}`}>
                       <Link href={`/jugadores/${player.slug}`} className="flex min-h-[58px] items-center gap-2 px-2.5 py-2 transition hover:bg-pitch-elevated/35 sm:px-3">
                         <span className={`cm-table-rank ${index < 3 ? `cm-rank-${index + 1}` : ''}`}>{index + 1}</span>
                         <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-white">{player.name}</span><span className="block truncate text-[9px] text-pitch-muted">{player.team ?? '—'}</span></span>
@@ -139,6 +144,7 @@ export default async function HomePage() {
                   ))}
                   {ranking.length === 0 && <li className="p-4 text-center text-[10px] text-pitch-muted">Esperando datos {currentLabel}</li>}
                 </ol>
+                </section>
               ))}
             </div>
           </div>

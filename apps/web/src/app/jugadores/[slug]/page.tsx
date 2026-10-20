@@ -13,6 +13,7 @@ import { getPlayerProfileContent, getPlayerProfileCore } from '@/lib/playerProfi
 import { formatNumber } from '@/lib/format';
 import { getLastMatches } from '@/lib/recent';
 import { getSiteUrl } from '@/lib/site-url';
+import { countryNameEs } from '@/lib/countries';
 
 export const dynamic = 'force-dynamic';
 
@@ -151,7 +152,10 @@ export default async function PlayerPage({
           ) : (
             <span className="h-24 w-24 rounded-2xl bg-pitch-elevated" />
           )}
-          <div className="min-w-0 flex-1">
+          {/* basis-48: en móvil el bloque del nombre necesita sitio propio. Con
+              flex-1 sin base, la columna de acciones nunca bajaba de línea y el
+              botón tapaba el nombre. */}
+          <div className="min-w-0 flex-1 basis-48">
             <p className="fs-eyebrow">CORNERMAXIMO · PLAYER INTELLIGENCE</p>
             <h1 className="mt-2 text-3xl font-bold sm:text-4xl">{player.knownAs ?? player.fullName}</h1>
             <p className="mt-2 flex flex-wrap gap-x-2 text-sm text-pitch-muted">
@@ -159,9 +163,9 @@ export default async function PlayerPage({
               {player.currentTeam && <><span>·</span><Link href={`/equipos/${player.currentTeam.slug}`} className="text-pitch-accent hover:underline">{player.currentTeam.name}</Link></>}
               {player.shirtNumber != null && <span>· #{player.shirtNumber}</span>}
             </p>
-            <p className="mt-1 text-xs text-pitch-muted">{[player.nationality?.name, age != null ? `${age} años` : null, player.heightCm ? `${player.heightCm} cm` : null].filter(Boolean).join(' · ')}</p>
+            <p className="mt-1 text-xs text-pitch-muted">{[countryNameEs(player.nationality?.name), age != null ? `${age} años` : null, player.heightCm ? `${player.heightCm} cm` : null].filter(Boolean).join(' · ')}</p>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-col sm:items-stretch">
             <span className={`fs-chip justify-center ${player.status === 'AVAILABLE' ? 'text-pitch-accent' : 'text-pitch-danger'}`}>{STATUS_LABEL[player.status] ?? player.status}</span>
             <Link href={`/comparador?p1=${player.slug}`} className="fs-btn-primary">CM Compare</Link>
           </div>

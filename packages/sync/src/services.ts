@@ -631,6 +631,8 @@ export async function syncInjuries(
   const squadPlayerIds = new Set<number>(squadRows.map((p) => p.id));
 
   const stillInjured = new Map<number, 'INJURED' | 'DOUBT'>();
+  /** Fecha del parte vigente más reciente de cada jugador marcado como baja. */
+  const latestReport = new Map<number, Date>();
   let count = 0;
 
   for (const inj of injuries) {
@@ -658,8 +660,17 @@ export async function syncInjuries(
     const status = inj.type?.toLowerCase().includes('question') ? 'DOUBT' : 'INJURED';
     // Si hay varios partes vigentes, la lesión pesa más que la duda.
     if (stillInjured.get(player.id) !== 'INJURED') stillInjured.set(player.id, status);
+    const since = latestReport.get(player.id);
+    if (since == null || startDate > since) latestReport.set(player.id, startDate);
     count++;
   }
+
+  // --- Partes desmentidos por el acta ---
+  // El proveedor da a veces como baja para un partido a un jugador que lo acaba
+  // jugando, y no retira el parte. Quien ha jugado minutos en un partido
+  // terminado igual o posterior a su último parte vigente está disponible.
+  const outdated = await playersWhoPlayedSince(db, latestReport, cutoff);
+  for (const playerId of outdated) stillInjured.delete(playerId);
 
   // --- Altas: aplicar el estado vigente ---
   for (const [playerId, status] of stillInjured) {
@@ -676,7 +687,7 @@ export async function syncInjuries(
   // Jugadores de la competición marcados como baja pero SIN parte vigente:
   // se les da el alta y se cierran sus lesiones abiertas. Sin este paso los
   // estados nunca vuelven atrás.
-  const recovered = [...squadPlayerIds].filter((id) => !stillInjured.has(id));
+  const recovered = [...new Set([...squadPlayerIds, ...outdated])].filter((id) => !stillInjured.has(id));
   if (recovered.length > 0) {
     await db.player.updateMany({
       where: { id: { in: recovered }, manuallyEdited: false, status: { in: ['INJURED', 'DOUBT'] } },
@@ -689,6 +700,29 @@ export async function syncInjuries(
   }
 
   return count;
+}
+
+/** Jugadores que han jugado minutos en un partido terminado desde su último parte. */
+async function playersWhoPlayedSince(
+  db: PrismaClient,
+  latestReport: Map<number, Date>,
+  cutoff: Date,
+): Promise<number[]> {
+  if (latestReport.size === 0) return [];
+  const appearances: Array<{ playerId: number; match: { kickoffAt: Date } }> = await db.matchPlayer.findMany({
+    where: {
+      playerId: { in: [...latestReport.keys()] },
+      minutesPlayed: { gt: 0 },
+      match: { status: 'FINISHED', kickoffAt: { gte: cutoff } },
+    },
+    select: { playerId: true, match: { select: { kickoffAt: true } } },
+  });
+  const played = new Set<number>();
+  for (const appearance of appearances) {
+    const since = latestReport.get(appearance.playerId);
+    if (since != null && appearance.match.kickoffAt >= since) played.add(appearance.playerId);
+  }
+  return [...played];
 }
 
 // ---------- traspasos (mercado) ----------

@@ -3,6 +3,7 @@ import { prisma } from '@cornermaximo/db';
 import { percentage } from '@cornermaximo/stats';
 import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
+import { countryNameEs } from '@/lib/countries';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +60,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     photoUrl: player.photoUrl,
     birthDate: player.birthDate,
     age,
-    nationality: player.nationality?.name ?? null,
+    nationality: countryNameEs(player.nationality?.name),
     secondNationality: player.secondNationality?.name ?? null,
     heightCm: player.heightCm,
     weightKg: player.weightKg,
