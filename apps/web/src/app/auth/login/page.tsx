@@ -6,6 +6,7 @@ import { PasswordRequirements } from '@/components/PasswordRequirements';
 import { TURNSTILE_CONFIGURED, TurnstileChallenge } from '@/components/TurnstileChallenge';
 import { safeInternalPath } from '@/lib/security/redirect';
 import { createClient } from '@/lib/supabase/client';
+import { authErrorMessage } from '@/lib/auth/authErrors';
 import { getPasswordValidationError, isPasswordValid, PASSWORD_MIN_LENGTH } from '@/lib/auth/passwordPolicy';
 type Mode = 'login' | 'register';
 export default function AuthPage() {
@@ -73,9 +74,7 @@ export default function AuthPage() {
         router.refresh();
       }
     } catch (authError) {
-      setError(
-        authError instanceof Error ? authError.message : 'No se ha podido completar la autenticación.',
-      );
+      setError(authErrorMessage(authError, 'No se ha podido completar la autenticación. Inténtalo de nuevo.'));
     } finally {
       setLoading(false);
       resetCaptcha();

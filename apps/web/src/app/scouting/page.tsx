@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
+import { formatFixed } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -63,7 +64,7 @@ function parseDecimal(v: string | undefined, min: number, max: number) {
   return Number.isFinite(p) ? Math.min(max, Math.max(min, p)) : null;
 }
 function fmt(v: number | null) {
-  return v == null ? '—' : v.toFixed(2);
+  return formatFixed(v, 2);
 }
 export default async function ScoutingPage({
   searchParams,

@@ -2,6 +2,7 @@ import { formatSeasonLabel, WORLD_CUP_2026 } from '@cornermaximo/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { formatNumber } from '@/lib/format';
 import {
   getPublicDataHealth,
   type CompetitionCoverage,
@@ -127,7 +128,7 @@ export default async function DataStatusPage() {
           detail={
             health.hoursSinceSuccessfulSync == null
               ? 'No se puede calcular la antigüedad.'
-              : `Hace ${health.hoursSinceSuccessfulSync} h`
+              : `Hace ${formatNumber(health.hoursSinceSuccessfulSync, 1)} h`
           }
         />
         <SummaryCard

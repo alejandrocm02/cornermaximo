@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element -- ImageResponse renderiza JSX a PNG y no admite next/image. */
+import { formatFixed } from '@/lib/format';
 import { ImageResponse } from 'next/og';
 import { prisma } from '@cornermaximo/db';
 import { getPlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
@@ -74,7 +75,7 @@ export async function GET(request: Request) {
                 {[
                   ['Min', entry.analytics.minutes.toLocaleString('es-ES')],
                   ['PJ', String(entry.analytics.appearances)],
-                  ['Rating', entry.analytics.avgRating?.toFixed(2) ?? '—'],
+                  ['Valoración', formatFixed(entry.analytics.avgRating, 2)],
                 ].map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 12, borderRadius: 14, background: '#10271b' }}>
                     <div style={{ display: 'flex', fontSize: 20, fontWeight: 800 }}>{value}</div>
