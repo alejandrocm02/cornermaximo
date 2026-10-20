@@ -1,6 +1,7 @@
 import { PositionGroup, prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG, FOOTBALL_DATA_REVALIDATE_SECONDS } from '@/lib/cache';
+import { formatFixed } from '@/lib/format';
 
 export type AdvancedMetric = {
   key: string;
@@ -157,7 +158,7 @@ function percentile(value: number | null, values: number[], lowerIsBetter = fals
 
 function formatMetric(value: number | null, rate = false): string {
   if (value == null) return '—';
-  return rate ? `${value.toFixed(1)}%` : value.toFixed(2);
+  return rate ? `${formatFixed(value, 1)} %` : formatFixed(value, 2);
 }
 
 function fetchCohort(seasonId: number, positionGroup: PositionGroup) {

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { PlayerAdvancedAnalytics as Analytics, AdvancedMetric } from '@/lib/playerAdvanced';
 import { DISPLAY_TIME_ZONE } from '@/lib/football';
+import { formatFixed } from '@/lib/format';
 
 const POSITION_LABEL = { GK: 'porteros', DF: 'defensas', MF: 'centrocampistas', FW: 'delanteros' } as const;
 
@@ -99,7 +100,7 @@ function Evolution({ form }: { form: Analytics['form'] }) {
       <div className="mt-3 flex flex-wrap gap-2">
         {form.slice(0, 5).map((item) => (
           <Link key={item.matchId} href={`/partidos/${item.matchId}`} className="fs-chip hover:border-pitch-accent">
-            {item.rival} · {item.rating?.toFixed(1) ?? '—'}{item.contribution != null && item.contribution > 0 ? ` · ${item.contribution} G+A` : ''}
+            {item.rival} · {formatFixed(item.rating, 1)}{item.contribution != null && item.contribution > 0 ? ` · ${item.contribution} G+A` : ''}
           </Link>
         ))}
       </div>
@@ -136,7 +137,7 @@ export function PlayerAdvancedAnalytics({ analytics }: { analytics: Analytics })
           <Summary label="Minutos" value={analytics.minutes.toLocaleString('es-ES')} />
           <Summary label="Partidos" value={String(analytics.appearances)} />
           <Summary label="Titularidades" value={String(analytics.starts)} />
-          <Summary label="Valoración media" value={analytics.avgRating?.toFixed(2) ?? '—'} />
+          <Summary label="Valoración media" value={formatFixed(analytics.avgRating, 2)} />
         </div>
       </div>
 

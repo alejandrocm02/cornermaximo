@@ -65,8 +65,10 @@ function fetchPlayed(playerId: number, take?: number, currentSeasonOnly = false)
       },
     },
     include: {
-      fieldStats: true,
-      gkStats: true,
+      // rawProviderData es la respuesta original del proveedor (~KB por fila) y
+      // aquí no se usa: traerla multiplicaba la transferencia desde Neon.
+      fieldStats: { omit: { rawProviderData: true } },
+      gkStats: { omit: { rawProviderData: true } },
       team: { select: { name: true } },
       match: {
         include: {

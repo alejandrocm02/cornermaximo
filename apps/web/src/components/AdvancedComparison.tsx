@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { prisma } from '@cornermaximo/db';
 import { getPlayerAdvancedAnalytics, type PlayerAdvancedAnalytics } from '@/lib/playerAdvanced';
 import { ShareComparisonButton } from '@/components/ShareComparisonButton';
+import { formatFixed } from '@/lib/format';
 
 type PlayerEntry = {
   slug: string;
@@ -106,7 +107,7 @@ export async function AdvancedComparison({ p1, p2 }: { p1?: string; p2?: string 
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               <Summary label="Partidos" value={String(entry.analytics.appearances)} />
               <Summary label="Titular" value={String(entry.analytics.starts)} />
-              <Summary label="Rating" value={entry.analytics.avgRating?.toFixed(2) ?? '—'} />
+              <Summary label="Rating" value={formatFixed(entry.analytics.avgRating, 2)} />
             </div>
 
             <div className="mt-5 space-y-3">

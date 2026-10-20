@@ -9,6 +9,7 @@ import {
   PASSWORD_MIN_LENGTH,
 } from '@/lib/auth/passwordPolicy';
 import { createClient } from '@/lib/supabase/client';
+import { authErrorMessage } from '@/lib/auth/authErrors';
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function UpdatePasswordPage() {
     const { error: updateError } = await supabase.auth.updateUser({ password });
 
     if (updateError) {
-      setError(updateError.message);
+      setError(authErrorMessage(updateError, 'No se ha podido actualizar la contraseña. Inténtalo de nuevo.'));
       setLoading(false);
       return;
     }

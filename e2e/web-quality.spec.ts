@@ -137,14 +137,16 @@ test.describe('flujos de cuenta', () => {
     await page.route('**/auth/v1/token**', (route) => route.fulfill({
       status: 400,
       contentType: 'application/json',
-      body: JSON.stringify({ code: 'invalid_credentials', msg: 'Credenciales no válidas' }),
+      body: JSON.stringify({ code: 'invalid_credentials', msg: 'Invalid login credentials' }),
     }));
 
     await page.goto('/auth/login');
     await page.getByLabel('Correo electrónico').fill('e2e@example.test');
     await page.getByLabel('Contraseña').fill('incorrecta');
     await page.getByRole('button', { name: 'Entrar en CornerMaximo' }).click();
-    await expect(page.getByText('Credenciales no válidas', { exact: true })).toBeVisible();
+    // Supabase responde en inglés; la interfaz debe mostrar siempre el texto en español.
+    await expect(page.getByText('Correo o contraseña incorrectos.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Invalid login credentials')).toHaveCount(0);
   });
 
   test('recuperación mantiene una respuesta no enumerable', async ({ page }) => {

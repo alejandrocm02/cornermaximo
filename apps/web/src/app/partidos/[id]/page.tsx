@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { JsonLd } from '@/components/JsonLd';
 import { roundLabel, statusLabel } from '@/lib/football';
 import { getMatchDetail, type MatchDetail, type MatchDetailPlayer, type MatchListTeam } from '@/lib/matches';
+import { formatFixed } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -230,7 +231,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                     </td>
                     <td className="px-3 py-2 text-pitch-muted">{player.teamName}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{player.minutesPlayed}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{player.rating?.toFixed(1) ?? '—'}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatFixed(player.rating, 1)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{player.fieldStats?.goals ?? '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{player.fieldStats?.assists ?? '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
