@@ -1,3 +1,5 @@
+import { isSupabaseSessionCookie } from './sessionCookie';
+
 /**
  * Acceso diferido al cliente de Supabase en el navegador.
  *
@@ -16,6 +18,6 @@ export function hasSupabaseSessionCookie(): boolean {
   if (typeof document === 'undefined') return false;
   return document.cookie.split(';').some((cookie) => {
     const name = cookie.trim().split('=')[0] ?? '';
-    return name.startsWith('sb-') && name.includes('-auth-token');
+    return isSupabaseSessionCookie(name);
   });
 }
