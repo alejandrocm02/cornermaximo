@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import {
   TURNSTILE_CONFIGURED,
   TurnstileChallenge,
 } from '@/components/TurnstileChallenge';
+import { LINK_ERROR_MESSAGE } from '@/lib/auth/authLinks';
 
 interface RecoveryResponse {
   message?: string;
@@ -18,7 +20,12 @@ export default function ForgotPasswordPage() {
   const [captchaRevision, setCaptchaRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  // Llegada desde un enlace de recuperación caducado o que no se pudo validar.
+  const [error, setError] = useState<string | null>(() => {
+    const reason = searchParams.get('error');
+    return reason === 'expired' || reason === 'invalid' ? LINK_ERROR_MESSAGE[reason] : null;
+  });
   const captchaReady = !TURNSTILE_CONFIGURED || captchaToken != null;
 
   function resetCaptcha() {
