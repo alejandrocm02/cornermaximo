@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { MatchDetail, MatchDetailPlayer } from '@/lib/matches';
+import { formatFixed } from '@/lib/format';
 
 type TeamSide = 'home' | 'away';
 type PositionGroup = 'GK' | 'DF' | 'MF' | 'FW';
@@ -250,7 +251,7 @@ export function MatchAdvancedOverview({ match }: { match: MatchDetail }) {
             <p className="text-sm text-pitch-muted">{standout.teamName} · {standout.minutesPlayed} minutos</p>
           </div>
           <div className="rounded-xl border border-pitch-accent/30 bg-pitch-accent/10 px-4 py-3 text-center">
-            <p className="font-display text-2xl font-bold text-pitch-accent">{standout.rating?.toFixed(1)}</p>
+            <p className="font-display text-2xl font-bold text-pitch-accent">{formatFixed(standout.rating, 1)}</p>
             <p className="text-2xs uppercase tracking-wide text-pitch-muted">Valoración</p>
           </div>
         </article>
