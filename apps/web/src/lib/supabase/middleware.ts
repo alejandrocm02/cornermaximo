@@ -1,8 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isSupabaseAuthCookie, isSupabaseSessionCookie } from './sessionCookie';
 
-function hasSupabaseAuthCookie(request: NextRequest): boolean {
-  return request.cookies.getAll().some(({ name }) => name.startsWith('sb-') && name.includes('-auth-token'));
+function hasSupabaseSessionInRequest(request: NextRequest): boolean {
+  return request.cookies.getAll().some(({ name }) => isSupabaseSessionCookie(name));
 }
 
 function markPrivateNoStore(response: NextResponse): NextResponse {
@@ -22,7 +23,7 @@ function isMissingRefreshToken(error: unknown): boolean {
 
 function clearStaleAuthCookies(request: NextRequest, response: NextResponse): void {
   for (const { name } of request.cookies.getAll()) {
-    if (!name.startsWith('sb-') || !name.includes('-auth-token')) continue;
+    if (!isSupabaseAuthCookie(name)) continue;
     request.cookies.delete(name);
     response.cookies.set(name, '', { path: '/', maxAge: 0 });
   }
@@ -38,7 +39,7 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
 
   // Sin cookie de sesión no hay nada que validar ni refrescar: se evita una
   // llamada a Supabase en cada petición de visitantes anónimos (la mayoría).
-  if (!hasSupabaseAuthCookie(request)) return response;
+  if (!hasSupabaseSessionInRequest(request)) return response;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -79,7 +80,7 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
 
   // Evita que una CDN almacene una respuesta con Set-Cookie y la sirva a otro usuario.
   // También evita cachear respuestas públicas visitadas por un usuario autenticado.
-  if (refreshedSession || hasSupabaseAuthCookie(request)) {
+  if (refreshedSession || hasSupabaseSessionInRequest(request)) {
     markPrivateNoStore(response);
   }
 
