@@ -5,23 +5,12 @@ import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { JsonLd } from '@/components/JsonLd';
 import { roundLabel, statusLabel } from '@/lib/football';
-import { getMatchDetail, type MatchDetailPlayer, type MatchListTeam } from '@/lib/matches';
+import { getMatchDetail, type MatchDetail, type MatchDetailPlayer, type MatchListTeam } from '@/lib/matches';
 import { formatFixed } from '@/lib/format';
 import { competitionHref } from '@/lib/competitionLinks';
+import { describeMatchEvent } from '@/lib/matchEvents';
 
 export const dynamic = 'force-dynamic';
-
-const EVENT_LABEL: Record<string, string> = {
-  GOAL: 'Gol',
-  OWN_GOAL: 'Gol en propia puerta',
-  PENALTY_GOAL: 'Gol de penalti',
-  MISSED_PENALTY: 'Penalti fallado',
-  YELLOW_CARD: 'Tarjeta amarilla',
-  SECOND_YELLOW: 'Segunda amarilla',
-  RED_CARD: 'Tarjeta roja',
-  SUBSTITUTION: 'Sustitución',
-  VAR: 'VAR',
-};
 
 const ROLE_LABEL: Record<string, string> = {
   STARTER: 'Titular',
@@ -165,20 +154,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                 <span className="font-display font-bold tabular-nums text-pitch-accent">
                   {event.minute}&apos;{event.extraMinute != null ? `+${event.extraMinute}` : ''}
                 </span>
-                <div className="min-w-0">
-                  <p className="font-semibold text-white">{EVENT_LABEL[event.type] ?? event.type}</p>
-                  <p className="mt-0.5 text-xs text-pitch-muted">
-                    {event.player != null ? (
-                      <Link href={`/jugadores/${event.player.slug}`} className="text-pitch-subtle hover:text-pitch-accent">{event.player.name}</Link>
-                    ) : (
-                      'Jugador no identificado'
-                    )}
-                    {event.assistPlayer != null && (
-                      <> · Asistencia de <Link href={`/jugadores/${event.assistPlayer.slug}`} className="text-pitch-subtle hover:text-pitch-accent">{event.assistPlayer.name}</Link></>
-                    )}
-                    {event.detail != null && <> · {event.detail}</>}
-                  </p>
-                </div>
+                <EventBody event={event} />
               </li>
             ))}
           </ol>
@@ -291,4 +267,35 @@ function PlayerGroup({ title, players }: { title: string; players: MatchDetailPl
 
 function EmptyState({ text }: { text: string }) {
   return <p className="fs-panel border-dashed px-5 py-8 text-center text-sm text-pitch-muted">{text}</p>;
+}
+
+type MatchEventItem = MatchDetail['events'][number];
+
+function PlayerLink({ player }: { player: { name: string; slug: string } }) {
+  return <Link href={`/jugadores/${player.slug}`} className="text-pitch-subtle hover:text-pitch-accent">{player.name}</Link>;
+}
+
+function EventBody({ event }: { event: MatchEventItem }) {
+  const description = describeMatchEvent(event.type, event.detail);
+  const primary = event.player != null ? <PlayerLink player={event.player} /> : <>jugador sin identificar</>;
+  const secondary = event.assistPlayer != null ? <PlayerLink player={event.assistPlayer} /> : null;
+  return (
+    <div className="min-w-0">
+      <p className="font-semibold text-white">{description.title}</p>
+      <p className="mt-0.5 text-xs text-pitch-muted">
+        {description.secondaryLabel === 'Entra' ? (
+          // Cambio: primero quien entra, que es lo que se busca al leerlo.
+          <>
+            Entra {secondary ?? <>jugador sin identificar</>} · Sale {primary}
+          </>
+        ) : (
+          <>
+            {primary}
+            {secondary != null && description.secondaryLabel != null && <> · {description.secondaryLabel} {secondary}</>}
+          </>
+        )}
+        {description.note != null && <> · {description.note}</>}
+      </p>
+    </div>
+  );
 }

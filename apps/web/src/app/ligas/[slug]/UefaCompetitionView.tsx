@@ -1,10 +1,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { DISPLAY_TIME_ZONE, formatMatchDate, roundLabel, seasonLabel } from '@/lib/football';
+import { DISPLAY_TIME_ZONE, roundLabel, seasonLabel } from '@/lib/football';
 import { rankingRows, type RankingRow } from '@/lib/leaderboards';
 import {
+  formatKickoffTime,
   getUefaCompetitionSeason,
+  groupMatchesByDay,
   groupMatchesByRound,
   LEAGUE_PHASE_ZONES,
   leaguePhaseZone,
@@ -72,23 +74,20 @@ export async function UefaCompetitionView({ competition, season, requestedRound 
                 </li>
               ))}
             </ul>
-            <p className="mb-1 text-xs text-pitch-muted sm:hidden" aria-hidden="true">
-              Desliza la tabla lateralmente para ver todas las columnas →
-            </p>
             <div className="overflow-x-auto rounded-xl border border-pitch-border">
-              <table className="w-full min-w-[560px] bg-pitch-card text-sm">
+              <table className="w-full bg-pitch-card text-sm sm:min-w-[560px]">
                 <caption className="sr-only">Clasificación de la fase de liga de {competition.name}</caption>
                 <thead className="text-left text-xs uppercase text-pitch-muted">
                   <tr className="border-b border-pitch-border">
                     <th scope="col" className="px-3 py-2">#</th>
                     <th scope="col" className="px-3 py-2">Equipo</th>
                     <th scope="col" className="px-3 py-2 text-right">PJ</th>
-                    <th scope="col" className="px-3 py-2 text-right">G</th>
-                    <th scope="col" className="px-3 py-2 text-right">E</th>
-                    <th scope="col" className="px-3 py-2 text-right">P</th>
+                    <th scope="col" className="hidden px-3 py-2 text-right sm:table-cell">G</th>
+                    <th scope="col" className="hidden px-3 py-2 text-right sm:table-cell">E</th>
+                    <th scope="col" className="hidden px-3 py-2 text-right sm:table-cell">P</th>
                     <th scope="col" className="px-3 py-2 text-right">DG</th>
                     <th scope="col" className="px-3 py-2 text-right">Pts</th>
-                    <th scope="col" className="px-3 py-2">Forma</th>
+                    <th scope="col" className="hidden px-3 py-2 sm:table-cell">Forma</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -101,21 +100,21 @@ export async function UefaCompetitionView({ competition, season, requestedRound 
                           {row.position}
                           <span className="sr-only">, zona de {LEAGUE_PHASE_ZONES[zone].label.toLowerCase()}</span>
                         </td>
-                        <td className="px-3 py-2">
-                          <Link href={`/equipos/${row.team.slug}`} className="inline-flex items-center gap-2 hover:text-pitch-accent">
+                        <td className="w-full max-w-0 px-3 py-2 sm:w-auto sm:max-w-none">
+                          <Link href={`/equipos/${row.team.slug}`} className="flex min-w-0 items-center gap-2 hover:text-pitch-accent">
                             {row.team.crestUrl != null && (
-                              <Image width={22} height={22} src={row.team.crestUrl} alt="" className="h-[22px] w-[22px] object-contain" />
+                              <Image width={22} height={22} src={row.team.crestUrl} alt="" className="h-[22px] w-[22px] shrink-0 object-contain" />
                             )}
-                            {row.team.name}
+                            <span className="truncate">{row.team.name}</span>
                           </Link>
                         </td>
-                        <td className="px-3 py-2 text-right">{row.played}</td>
-                        <td className="px-3 py-2 text-right">{row.won}</td>
-                        <td className="px-3 py-2 text-right">{row.drawn}</td>
-                        <td className="px-3 py-2 text-right">{row.lost}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{row.played}</td>
+                        <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{row.won}</td>
+                        <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{row.drawn}</td>
+                        <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{row.lost}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{diff > 0 ? `+${diff}` : diff}</td>
-                        <td className="px-3 py-2 text-right font-semibold">{row.points}</td>
-                        <td className="px-3 py-2 text-xs tracking-widest text-pitch-muted">{row.form ?? ''}</td>
+                        <td className="px-3 py-2 text-right font-semibold tabular-nums">{row.points}</td>
+                        <td className="hidden px-3 py-2 text-xs tracking-widest text-pitch-muted sm:table-cell">{row.form ?? ''}</td>
                       </tr>
                     );
                   })}
@@ -157,9 +156,14 @@ export async function UefaCompetitionView({ competition, season, requestedRound 
               <p className="border-b border-pitch-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-pitch-muted">
                 {roundLabel(current.round) ?? current.round}
               </p>
-              <ul className="divide-y divide-pitch-border/50">
-                {current.matches.map((match) => <MatchRow key={match.id} match={match} />)}
-              </ul>
+              {groupMatchesByDay(current.matches).map((group) => (
+                <div key={group.day}>
+                  <p className="border-b border-pitch-border/50 bg-pitch-elevated/40 px-4 py-1.5 text-xs text-pitch-muted">{group.day}</p>
+                  <ul className="divide-y divide-pitch-border/50">
+                    {group.matches.map((match) => <MatchRow key={match.id} match={match} />)}
+                  </ul>
+                </div>
+              ))}
             </div>
           </>
         ) : (
@@ -192,14 +196,14 @@ function MatchRow({ match }: { match: UefaMatch }) {
   const penalties = home?.penaltyGoals != null && away?.penaltyGoals != null ? ` (${home.penaltyGoals}–${away.penaltyGoals} pen.)` : '';
   return (
     <li>
-      <Link href={`/partidos/${match.id}`} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-pitch-elevated/60">
+      <Link href={`/partidos/${match.id}`} className="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-pitch-elevated/60 sm:px-4">
         <TeamName team={home?.team} align="right" />
         <span
-          className={`w-20 shrink-0 rounded px-1 text-center font-semibold tabular-nums ${
+          className={`w-14 shrink-0 rounded px-1 text-center font-semibold tabular-nums ${
             played ? 'bg-pitch-accent/10 text-pitch-accent' : 'text-xs text-pitch-muted'
           }`}
         >
-          {played ? `${home?.goals ?? '-'}–${away?.goals ?? '-'}` : formatMatchDate(match.kickoffAt)}
+          {played ? `${home?.goals ?? '-'}–${away?.goals ?? '-'}` : formatKickoffTime(match.kickoffAt)}
           {match.status === 'LIVE' && <span className="block text-[10px] font-normal uppercase">En juego</span>}
         </span>
         <TeamName team={away?.team} align="left" />

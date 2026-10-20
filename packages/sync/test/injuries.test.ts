@@ -35,7 +35,18 @@ const DIA = 86_400_000;
 const hace = (dias: number): Date => new Date(Date.now() - dias * DIA);
 
 /** Doble mínimo de PrismaClient con solo lo que usa syncInjuries. */
-function crearDb(jugadores: JugadorFalso[], lesiones: LesionFalsa[] = [], tipo: 'LEAGUE' | 'CUP' = 'LEAGUE') {
+interface PartidoFalso {
+  playerId: number;
+  minutos: number;
+  inicio: Date;
+}
+
+function crearDb(
+  jugadores: JugadorFalso[],
+  lesiones: LesionFalsa[] = [],
+  tipo: 'LEAGUE' | 'CUP' = 'LEAGUE',
+  partidos: PartidoFalso[] = [],
+) {
   const coincide = (row: LesionFalsa, where: Record<string, unknown>): boolean => {
     if (where.playerId != null) {
       const p = where.playerId as number | { in: number[] };
@@ -58,6 +69,18 @@ function crearDb(jugadores: JugadorFalso[], lesiones: LesionFalsa[] = [], tipo: 
     lesiones,
     competition: {
       findFirst: async () => ({ type: tipo }),
+    },
+    matchPlayer: {
+      findMany: async ({
+        where,
+      }: {
+        where: { playerId: { in: number[] }; match: { kickoffAt: { gte: Date } } };
+      }) =>
+        partidos
+          .filter(
+            (p) => where.playerId.in.includes(p.playerId) && p.minutos > 0 && p.inicio >= where.match.kickoffAt.gte,
+          )
+          .map((p) => ({ playerId: p.playerId, match: { kickoffAt: p.inicio } })),
     },
     player: {
       findUnique: async ({ where }: { where: { providerId_externalId: { externalId: string } } }) =>
@@ -236,5 +259,53 @@ describe('syncInjuries', () => {
     await ejecutar(db, crearProveedor([]));
 
     expect(db.jugadores[0]!.status).toBe('AVAILABLE');
+  });
+
+  it('da el alta a quien jugó el partido para el que figuraba como baja', async () => {
+    // Caso real (Raphinha, 17-oct): parte "Missing Fixture" para un partido en el que jugó 20 minutos.
+    const partido = hace(3);
+    const db = crearDb(
+      [{ id: 1, externalId: 'p1', status: 'INJURED', manuallyEdited: false, enCompeticion: true }],
+      [],
+      'LEAGUE',
+      [{ playerId: 1, minutos: 20, inicio: partido }],
+    );
+    const provider = crearProveedor([
+      { playerExternalId: 'p1', type: 'Missing Fixture', date: hace(6).toISOString() },
+      { playerExternalId: 'p1', type: 'Missing Fixture', date: partido.toISOString() },
+    ]);
+
+    await ejecutar(db, provider);
+
+    expect(db.jugadores[0]!.status).toBe('AVAILABLE');
+  });
+
+  it('mantiene la baja si solo jugó antes del último parte', async () => {
+    const db = crearDb(
+      [{ id: 1, externalId: 'p1', status: 'AVAILABLE', manuallyEdited: false, enCompeticion: true }],
+      [],
+      'LEAGUE',
+      [{ playerId: 1, minutos: 90, inicio: hace(5) }],
+    );
+    const provider = crearProveedor([{ playerExternalId: 'p1', type: 'Missing Fixture', date: hace(2).toISOString() }]);
+
+    await ejecutar(db, provider);
+
+    expect(db.jugadores[0]!.status).toBe('INJURED');
+  });
+
+  it('convocado sin minutos no cuenta como haber jugado', async () => {
+    const partido = hace(2);
+    const db = crearDb(
+      [{ id: 1, externalId: 'p1', status: 'AVAILABLE', manuallyEdited: false, enCompeticion: true }],
+      [],
+      'LEAGUE',
+      [{ playerId: 1, minutos: 0, inicio: partido }],
+    );
+    const provider = crearProveedor([{ playerExternalId: 'p1', type: 'Missing Fixture', date: partido.toISOString() }]);
+
+    await ejecutar(db, provider);
+
+    expect(db.jugadores[0]!.status).toBe('INJURED');
   });
 });

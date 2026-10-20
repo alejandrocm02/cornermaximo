@@ -6,6 +6,7 @@
 import { prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import { FOOTBALL_DATA_CACHE_TAG, MATCHES_CACHE_TAG } from '@/lib/cache';
+import { DISPLAY_TIME_ZONE } from '@/lib/football';
 
 /** Puestos de la fase de liga: 1-8 a octavos, 9-24 al play-off, 25-36 eliminados. */
 export type LeaguePhaseZone = 'ROUND_OF_16' | 'PLAYOFF' | 'ELIMINATED';
@@ -77,6 +78,29 @@ export function selectRound(rounds: UefaRound[], requested: string | undefined):
     if (match != null) return match;
   }
   return rounds.find((round) => round.pending) ?? rounds[rounds.length - 1]!;
+}
+
+const DAY_FORMAT = new Intl.DateTimeFormat('es-ES', { timeZone: DISPLAY_TIME_ZONE, weekday: 'long', day: 'numeric', month: 'short' });
+const TIME_FORMAT = new Intl.DateTimeFormat('es-ES', { timeZone: DISPLAY_TIME_ZONE, hour: '2-digit', minute: '2-digit' });
+
+export function formatKickoffTime(date: Date): string {
+  return TIME_FORMAT.format(date);
+}
+
+/**
+ * Partidos de una ronda agrupados por día (hora de Madrid). Mostrar el día una
+ * vez por grupo deja sitio en móvil para los nombres de los equipos.
+ */
+export function groupMatchesByDay(matches: UefaMatch[]): Array<{ day: string; matches: UefaMatch[] }> {
+  const groups: Array<{ day: string; matches: UefaMatch[] }> = [];
+  for (const match of matches) {
+    const raw = DAY_FORMAT.format(match.kickoffAt);
+    const day = raw.charAt(0).toUpperCase() + raw.slice(1);
+    const last = groups.at(-1);
+    if (last?.day === day) last.matches.push(match);
+    else groups.push({ day, matches: [match] });
+  }
+  return groups;
 }
 
 async function queryCompetitionSeason(seasonId: number) {

@@ -2,6 +2,7 @@ import { prisma } from '@cornermaximo/db';
 import { unstable_cache } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
+import { countryNameEs } from '@/lib/countries';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_PER_KIND = 20;
@@ -121,7 +122,7 @@ async function queryFavoriteFeed(
       slug: team.slug,
       name: team.name,
       imageUrl: team.crestUrl,
-      subtitle: team.isNational ? `Selección de ${team.country.name}` : team.country.name,
+      subtitle: team.isNational ? `Selección de ${countryNameEs(team.country.name)}` : countryNameEs(team.country.name),
       href: `/equipos/${team.slug}`,
     })),
     competitions: competitions.map((competition) => ({
@@ -131,7 +132,7 @@ async function queryFavoriteFeed(
       imageUrl:
         competition.logoUrl ??
         `https://media.api-sports.io/football/leagues/${competition.externalId}.png`,
-      subtitle: competition.country.name,
+      subtitle: countryNameEs(competition.country.name),
       href: `/ligas/${competition.slug}`,
     })),
     upcomingMatches: matches.map((match) => ({

@@ -2,6 +2,7 @@ import { prisma } from '@cornermaximo/db';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { JsonLd } from '@/components/JsonLd';
 import { getSiteUrl } from '@/lib/site-url';
+import { countryNameEs } from '@/lib/countries';
 
 const BASE_URL = getSiteUrl();
 
@@ -49,7 +50,7 @@ export default async function TeamProfileLayout({
               },
             }
           : {}),
-        description: `${team.isNational ? 'Selección nacional' : 'Club de fútbol'} de ${team.country.name}.`,
+        description: `${team.isNational ? 'Selección nacional' : 'Club de fútbol'} de ${countryNameEs(team.country.name)}.`,
       };
 
   return (
@@ -65,7 +66,7 @@ export default async function TeamProfileLayout({
               slug: team.slug,
               name: team.name,
               imageUrl: team.crestUrl,
-              subtitle: team.isNational ? `Selección de ${team.country.name}` : team.country.name,
+              subtitle: team.isNational ? `Selección de ${countryNameEs(team.country.name)}` : countryNameEs(team.country.name),
             }}
           />
         </div>

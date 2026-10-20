@@ -7,6 +7,7 @@ import { TeamInsightsPanel } from '@/components/CompetitionInsightPanels';
 import { getTeamInsights } from '@/lib/competitionInsights';
 import { DISPLAY_TIME_ZONE, groupLabel, seasonLabel } from '@/lib/football';
 import { competitionHref } from '@/lib/competitionLinks';
+import { countryNameEs } from '@/lib/countries';
 
 export const dynamic = 'force-dynamic';
 
@@ -223,7 +224,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
             )}
           </h1>
           <p className="text-sm text-pitch-muted">
-            {team.country.name}
+            {countryNameEs(team.country.name)}
             {team.stadium != null && ` · ${team.stadium.name}`}
             {team.coach != null && ` · DT: ${team.coach.name}`}
           </p>
