@@ -99,7 +99,7 @@ export async function UefaCompetitionView({ competition, season, requestedRound 
                       <tr key={row.id} className="border-b border-pitch-border/50 last:border-0">
                         <td className={`border-l-4 px-3 py-2 text-pitch-muted ${ZONE_STYLE[zone].bar}`}>
                           {row.position}
-                          <span className="sr-only">, {LEAGUE_PHASE_ZONES[zone].label}</span>
+                          <span className="sr-only">, zona de {LEAGUE_PHASE_ZONES[zone].label.toLowerCase()}</span>
                         </td>
                         <td className="px-3 py-2">
                           <Link href={`/equipos/${row.team.slug}`} className="inline-flex items-center gap-2 hover:text-pitch-accent">

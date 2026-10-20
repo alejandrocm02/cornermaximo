@@ -13,7 +13,8 @@ export type LeaguePhaseZone = 'ROUND_OF_16' | 'PLAYOFF' | 'ELIMINATED';
 export const LEAGUE_PHASE_ZONES: Record<LeaguePhaseZone, { label: string; from: number; to: number }> = {
   ROUND_OF_16: { label: 'Octavos de final', from: 1, to: 8 },
   PLAYOFF: { label: 'Play-off de eliminatorias', from: 9, to: 24 },
-  ELIMINATED: { label: 'Eliminado', from: 25, to: 36 },
+  // Es una zona, no un estado: tras dos jornadas nadie está eliminado todavía.
+  ELIMINATED: { label: 'Eliminación', from: 25, to: 36 },
 };
 
 export function leaguePhaseZone(position: number): LeaguePhaseZone {
