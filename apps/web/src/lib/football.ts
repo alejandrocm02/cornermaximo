@@ -56,6 +56,8 @@ export function statusLabel(status: MatchStatus): string {
 }
 
 const ROUND_ES: Record<string, string> = {
+  'Knockout Round Play-offs': 'Play-off de eliminatorias',
+  'Round of 32': 'Dieciseisavos de final',
   'Round of 16': 'Octavos de final',
   'Quarter-finals': 'Cuartos de final',
   'Semi-finals': 'Semifinales',
@@ -68,6 +70,9 @@ export function roundLabel(round: string | null): string | null {
   if (round == null) return null;
   const jornada = round.match(/^Regular Season - (\d+)$/);
   if (jornada != null) return `Jornada ${jornada[1]}`;
+  // Competiciones UEFA desde 2024-25: "League Stage - 3".
+  const faseLiga = round.match(/^League (?:Stage|Phase) - (\d+)$/);
+  if (faseLiga != null) return `Fase de liga · Jornada ${faseLiga[1]}`;
   const grupo = round.match(/^Group Stage - (\d+)$/);
   if (grupo != null) return `Fase de grupos · Jornada ${grupo[1]}`;
   return ROUND_ES[round] ?? round;

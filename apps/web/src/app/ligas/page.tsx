@@ -1,4 +1,5 @@
 import { prisma } from '@cornermaximo/db';
+import { UEFA_CLUB_COMPETITION_SLUGS } from '@cornermaximo/shared';
 import Link from 'next/link';
 import { seasonLabel } from '@/lib/football';
 
@@ -14,18 +15,24 @@ function apiFootballLeagueLogo(externalId: string): string {
   return `https://media.api-sports.io/football/leagues/${encodeURIComponent(externalId)}.png`;
 }
 
+const COMPETITION_INCLUDE = {
+  country: { select: { name: true } },
+  seasons: {
+    orderBy: { year: 'desc' as const },
+    select: { id: true, year: true, isCurrent: true },
+  },
+};
+
 export default async function LeaguesPage() {
-  const leagues = await prisma.competition.findMany({
-    where: { type: 'LEAGUE' },
-    include: {
-      country: { select: { name: true } },
-      seasons: {
-        orderBy: { year: 'desc' },
-        select: { id: true, year: true, isCurrent: true },
-      },
-    },
-    orderBy: { name: 'asc' },
-  });
+  const [leagues, european] = await Promise.all([
+    prisma.competition.findMany({ where: { type: 'LEAGUE' }, include: COMPETITION_INCLUDE, orderBy: { name: 'asc' } }),
+    prisma.competition.findMany({
+      where: { slug: { in: [...UEFA_CLUB_COMPETITION_SLUGS] } },
+      include: COMPETITION_INCLUDE,
+    }),
+  ]);
+  // Orden de la UEFA (Champions, Europa, Conference), no alfabético.
+  european.sort((a, b) => UEFA_CLUB_COMPETITION_SLUGS.indexOf(a.slug) - UEFA_CLUB_COMPETITION_SLUGS.indexOf(b.slug));
 
   const countries = new Set(leagues.map((league) => league.country.name)).size;
 
@@ -47,61 +54,74 @@ export default async function LeaguesPage() {
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {leagues.map((league) => {
-          const currentSeason =
-            league.seasons.find((season) => season.isCurrent) ?? league.seasons[0];
-          const logoUrl = league.logoUrl ?? apiFootballLeagueLogo(league.externalId);
-
-          return (
-            <Link
-              key={league.id}
-              href={`/ligas/${league.slug}`}
-              className="fs-panel-interactive group flex min-h-40 flex-col justify-between p-5"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 pt-1">
-                    <p className="truncate font-display text-lg font-semibold text-white">{league.name}</p>
-                    <p className="mt-1 text-sm text-pitch-muted">{league.country.name}</p>
-                  </div>
-                  <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-white/95 p-2 shadow-sm transition-transform duration-200 group-hover:scale-105">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={logoUrl}
-                      alt={`Logo de ${league.name}`}
-                      width={52}
-                      height={52}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-contain"
-                    />
-                  </span>
-                </div>
-
-                {currentSeason != null && (
-                  <p className="mt-4 text-xs text-pitch-subtle">
-                    <span className="text-pitch-muted">
-                      {currentSeason.isCurrent ? 'Temporada actual' : 'Última disponible'}:{' '}
-                    </span>
-                    {seasonLabel(currentSeason.year, league.seasonFormat)}
-                  </p>
-                )}
-              </div>
-
-              <p className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-pitch-accent">
-                Abrir competición
-                <span aria-hidden="true" className="transition-transform group-hover:translate-x-1">→</span>
-              </p>
-            </Link>
-          );
-        })}
-
+        {leagues.map((league) => <CompetitionCard key={league.id} league={league} />)}
         {leagues.length === 0 && (
           <p className="col-span-full fs-panel px-4 py-8 text-center text-sm text-pitch-muted">
             Sin ligas sincronizadas todavía.
           </p>
         )}
       </div>
+
+      {european.length > 0 && (
+        <section aria-labelledby="competiciones-europeas" className="space-y-3">
+          <div>
+            <p className="fs-eyebrow">UEFA</p>
+            <h2 id="competiciones-europeas" className="mt-1 text-2xl font-bold">Competiciones europeas</h2>
+            <p className="mt-1 text-sm text-pitch-muted">Fase de liga y eliminatorias de la temporada en juego.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {european.map((competition) => <CompetitionCard key={competition.id} league={competition} european />)}
+          </div>
+        </section>
+      )}
     </div>
+  );
+}
+
+type CompetitionWithSeasons = Awaited<ReturnType<typeof prisma.competition.findMany<{ include: typeof COMPETITION_INCLUDE }>>>[number];
+
+function CompetitionCard({ league, european = false }: { league: CompetitionWithSeasons; european?: boolean }) {
+  const currentSeason = league.seasons.find((season) => season.isCurrent) ?? league.seasons[0];
+  const logoUrl = league.logoUrl ?? apiFootballLeagueLogo(league.externalId);
+  return (
+    <Link
+      href={`/ligas/${league.slug}`}
+      className="fs-panel-interactive group flex min-h-40 flex-col justify-between p-5"
+    >
+      <div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 pt-1">
+            <p className="truncate font-display text-lg font-semibold text-white">{league.name}</p>
+            <p className="mt-1 text-sm text-pitch-muted">{european ? 'Competición europea de clubes' : league.country.name}</p>
+          </div>
+          <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-white/95 p-2 shadow-sm transition-transform duration-200 group-hover:scale-105">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoUrl}
+              alt={`Logo de ${league.name}`}
+              width={52}
+              height={52}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-contain"
+            />
+          </span>
+        </div>
+
+        {currentSeason != null && (
+          <p className="mt-4 text-xs text-pitch-subtle">
+            <span className="text-pitch-muted">
+              {currentSeason.isCurrent ? 'Temporada actual' : 'Última disponible'}:{' '}
+            </span>
+            {seasonLabel(currentSeason.year, league.seasonFormat)}
+          </p>
+        )}
+      </div>
+
+      <p className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-pitch-accent">
+        Abrir competición
+        <span aria-hidden="true" className="transition-transform group-hover:translate-x-1">→</span>
+      </p>
+    </Link>
   );
 }

@@ -6,7 +6,9 @@ import { notFound, redirect } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { LeagueInsightsPanel } from '@/components/CompetitionInsightPanels';
 import { getLeagueInsights } from '@/lib/competitionInsights';
+import { isUefaClubCompetition } from '@/lib/competitionLinks';
 import { DISPLAY_TIME_ZONE, formatMatchDate, seasonLabel } from '@/lib/football';
+import { UefaCompetitionView } from './UefaCompetitionView';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,13 +22,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     select: { name: true, type: true },
   });
 
+  const isUefa = competition != null && isUefaClubCompetition(slug);
   return {
     title: competition?.name ?? 'Liga',
     description:
       competition == null
         ? undefined
-        : `Clasificación, calendario, equipos y temporadas de ${competition.name} en CornerMaximo.`,
-    alternates: { canonical: competition?.type === 'LEAGUE' ? `/ligas/${slug}` : undefined },
+        : isUefa
+          ? `${competition.name}: clasificación de la fase de liga, partidos, eliminatorias, goleadores y asistentes en CornerMaximo.`
+          : `Clasificación, calendario, equipos y temporadas de ${competition.name} en CornerMaximo.`,
+    alternates: { canonical: competition?.type === 'LEAGUE' || isUefa ? `/ligas/${slug}` : undefined },
   };
 }
 
@@ -35,10 +40,10 @@ export default async function LeaguePage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ temporada?: string }>;
+  searchParams: Promise<{ temporada?: string; ronda?: string }>;
 }) {
   const { slug } = await params;
-  const { temporada } = await searchParams;
+  const { temporada, ronda } = await searchParams;
 
   const competition = await prisma.competition.findUnique({
     where: { slug },
@@ -51,12 +56,20 @@ export default async function LeaguePage({
   });
   if (competition == null) notFound();
 
-  // Solo el Mundial dispone actualmente de una experiencia específica para
-  // copas. Una copa distinta nunca debe redirigir a un torneo que no le
-  // corresponde.
+  // Copas con página propia: el Mundial tiene su sección y las competiciones
+  // UEFA de clubes una vista de fase de liga y eliminatorias. Cualquier otra
+  // copa no debe mostrarse con la plantilla de liga.
   if (competition.type === 'CUP') {
     if (competition.slug === WORLD_CUP_2026.slug) redirect('/mundial-2026');
-    notFound();
+    if (!isUefaClubCompetition(competition.slug)) notFound();
+    const currentSeason = competition.seasons.find((season) => season.isCurrent) ?? competition.seasons.at(-1) ?? null;
+    return (
+      <UefaCompetitionView
+        competition={{ name: competition.name, slug: competition.slug, seasonFormat: competition.seasonFormat }}
+        season={currentSeason == null ? null : { id: currentSeason.id, year: currentSeason.year }}
+        requestedRound={typeof ronda === 'string' ? ronda.slice(0, 80) : undefined}
+      />
+    );
   }
 
   const availableSeasons = competition.seasons;

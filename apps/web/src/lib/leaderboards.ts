@@ -166,14 +166,19 @@ async function queryRankingRows(
 ): Promise<RankingRow[]> {
   const definition = RANKING_DEFINITIONS[metric]!;
   const params: unknown[] = [];
-  const conditions = [`c.type = 'LEAGUE'`, `m.status = 'FINISHED'`, definition.presentCondition];
+  const conditions = [`m.status = 'FINISHED'`, definition.presentCondition];
 
   if (league === TOP_FIVE_LEAGUES_FILTER) {
     params.push(TOP_FIVE_SLUGS);
     conditions.push(`c.slug = ANY($${params.length}::text[])`);
   } else if (league !== '') {
+    // Una competición concreta, liga o copa europea (p. ej. "champions-league").
     params.push(league);
     conditions.push(`c.slug = $${params.length}`);
+  } else {
+    // "Todas las ligas" no mezcla copas: un partido de Champions no cuenta
+    // como partido de liga.
+    conditions.push(`c.type = 'LEAGUE'`);
   }
   if (season != null) {
     params.push(season);
@@ -257,7 +262,7 @@ async function queryRankingRows(
   }));
 }
 
-const cachedRankingRows = unstable_cache(queryRankingRows, ['ranking-rows-v5'], {
+const cachedRankingRows = unstable_cache(queryRankingRows, ['ranking-rows-v6'], {
   revalidate: FOOTBALL_DATA_REVALIDATE_SECONDS,
   tags: [FOOTBALL_DATA_CACHE_TAG, 'leaderboards'],
 });

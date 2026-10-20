@@ -1,14 +1,14 @@
-import { formatSeasonLabel, WORLD_CUP_2026 } from '@cornermaximo/shared';
+import { formatSeasonLabel } from '@cornermaximo/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { formatNumber } from '@/lib/format';
 import {
   getPublicDataHealth,
-  type CompetitionCoverage,
   type CompetitionCoverageLevel,
   type DataHealthLevel,
 } from '@/lib/dataHealth';
+import { competitionHref } from '@/lib/competitionLinks';
 
 export const metadata: Metadata = {
   title: 'Estado y cobertura de los datos',
@@ -62,12 +62,6 @@ const COVERAGE_LABEL: Record<CompetitionCoverageLevel, { label: string; classNam
     className: 'border-pitch-danger/40 bg-pitch-danger/10 text-pitch-danger',
   },
 };
-
-function competitionHref(item: CompetitionCoverage): string | null {
-  if (item.competition.type === 'LEAGUE') return `/ligas/${item.competition.slug}`;
-  if (item.competition.slug === WORLD_CUP_2026.slug) return '/mundial-2026';
-  return null;
-}
 
 function formatDate(value: string | null): string {
   if (value == null) return 'Sin actualización registrada';
@@ -166,7 +160,7 @@ export default async function DataStatusPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           {health.competitions.map((item) => {
             const coverage = COVERAGE_LABEL[item.level];
-            const href = competitionHref(item);
+            const href = competitionHref(item.competition);
             const logoUrl =
               item.competition.logoUrl ??
               `https://media.api-sports.io/football/leagues/${item.competition.externalId}.png`;

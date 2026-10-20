@@ -2,6 +2,7 @@ import { FavoriteButton } from '@/components/FavoriteButton';
 import { JsonLd } from '@/components/JsonLd';
 import { getSiteUrl } from '@/lib/site-url';
 import { getFavoriteCompetitionIdentity } from '@/lib/favoriteEntities';
+import { isUefaClubCompetition } from '@/lib/competitionLinks';
 
 const BASE_URL = getSiteUrl();
 
@@ -26,8 +27,10 @@ export default async function CompetitionProfileLayout({
         url: `${BASE_URL}/ligas/${competition.slug}`,
         sport: 'Football',
         ...(imageUrl != null ? { logo: imageUrl, image: imageUrl } : {}),
-        location: competition.country.name,
-        description: `Competición de fútbol de ${competition.country.name}.`,
+        ...(isUefaClubCompetition(competition.slug) ? {} : { location: competition.country.name }),
+        description: isUefaClubCompetition(competition.slug)
+          ? 'Competición europea de clubes organizada por la UEFA.'
+          : `Competición de fútbol de ${competition.country.name}.`,
       };
 
   return (
@@ -43,7 +46,7 @@ export default async function CompetitionProfileLayout({
               slug: competition.slug,
               name: competition.name,
               imageUrl,
-              subtitle: competition.country.name,
+              subtitle: isUefaClubCompetition(competition.slug) ? 'UEFA' : competition.country.name,
             }}
           />
         </div>

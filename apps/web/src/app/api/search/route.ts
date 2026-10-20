@@ -6,10 +6,10 @@
  * una tanda de sincronización de datos.
  */
 import { prisma } from '@cornermaximo/db';
-import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import { unstable_cache } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { FOOTBALL_DATA_CACHE_TAG } from '@/lib/cache';
+import { competitionHref } from '@/lib/competitionLinks';
 
 export const dynamic = 'force-dynamic';
 
@@ -190,10 +190,7 @@ async function searchDatabase(query: string, scope: SearchScope): Promise<Search
     leagues: leagues.map((league) => ({
       slug: league.slug,
       name: league.name,
-      href:
-        league.type === 'CUP' && league.slug === WORLD_CUP_2026.slug
-          ? '/mundial-2026'
-          : `/ligas/${league.slug}`,
+      href: competitionHref(league) ?? `/ligas/${league.slug}`,
     })),
   };
 }

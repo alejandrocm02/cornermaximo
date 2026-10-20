@@ -5,8 +5,9 @@ import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { JsonLd } from '@/components/JsonLd';
 import { roundLabel, statusLabel } from '@/lib/football';
-import { getMatchDetail, type MatchDetail, type MatchDetailPlayer, type MatchListTeam } from '@/lib/matches';
+import { getMatchDetail, type MatchDetailPlayer, type MatchListTeam } from '@/lib/matches';
 import { formatFixed } from '@/lib/format';
+import { competitionHref } from '@/lib/competitionLinks';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,12 +50,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-function competitionHref(match: MatchDetail): string | null {
-  if (match.competition.type === 'LEAGUE') return `/ligas/${match.competition.slug}`;
-  if (match.competition.slug === 'mundial-2026') return '/mundial-2026';
-  return null;
-}
-
 function TeamIdentity({ team, align }: { team: MatchListTeam | null; align: 'left' | 'right' }) {
   const content = (
     <>
@@ -91,7 +86,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const kickoff = new Date(match.kickoffAt);
   const finished = match.status === 'FINISHED';
   const live = match.status === 'LIVE';
-  const competitionUrl = competitionHref(match);
+  const competitionUrl = competitionHref(match.competition);
   const homePlayers = match.players.filter((player) => player.teamId === match.home?.id);
   const awayPlayers = match.players.filter((player) => player.teamId === match.away?.id);
   const hasPlayerStats = match.players.some(
