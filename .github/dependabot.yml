@@ -21,6 +21,12 @@ updates:
       # eslint-plugin-react (vía eslint-config-next) no admite ESLint 10.
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
+      # Cada versión mayor de stripe fija una versión nueva de la API de Stripe
+      # (22 -> "2026-07-29.dahlia", 23 -> "2026-09-30.endive"), que cambia la
+      # forma de suscripciones, facturas y eventos del webhook. Se actualizará a
+      # mano, probando el flujo completo en modo test, antes de activar cobros.
+      - dependency-name: "stripe"
+        update-types: ["version-update:semver-major"]
     groups:
       # Un paquete entra en el primer grupo que lo reconoce. El cliente de
       # Prisma (producción) y su CLI (desarrollo) deben subir a la vez; con los
