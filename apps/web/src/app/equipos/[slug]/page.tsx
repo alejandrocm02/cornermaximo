@@ -1,5 +1,4 @@
 import { prisma } from '@cornermaximo/db';
-import { WORLD_CUP_2026 } from '@cornermaximo/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -7,6 +6,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { TeamInsightsPanel } from '@/components/CompetitionInsightPanels';
 import { getTeamInsights } from '@/lib/competitionInsights';
 import { DISPLAY_TIME_ZONE, groupLabel, seasonLabel } from '@/lib/football';
+import { competitionHref } from '@/lib/competitionLinks';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,12 +24,6 @@ const PLAYER_STATUS_LABEL: Record<string, string> = {
   DOUBT: 'Duda',
   NOT_CALLED: 'No convocado',
 };
-
-function competitionHref(competition: { slug: string; type: string }): string | undefined {
-  if (competition.slug === WORLD_CUP_2026.slug) return '/mundial-2026';
-  if (competition.type === 'LEAGUE') return `/ligas/${competition.slug}`;
-  return undefined;
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -108,7 +102,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
           .filter((row) => row.seasonId === contextSeason.id)
           .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
   const contextCompetition = contextSeason?.competition;
-  const contextHref = contextCompetition == null ? undefined : competitionHref(contextCompetition);
+  const contextHref = contextCompetition == null ? undefined : (competitionHref(contextCompetition) ?? undefined);
   const contextLabel =
     contextSeason == null
       ? null

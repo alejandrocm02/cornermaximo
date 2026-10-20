@@ -5,6 +5,7 @@ import {
   currentSeasonOf,
   seasonsOf,
   type SeasonFormat,
+  UEFA_CLUB_COMPETITION_SLUGS,
 } from '@cornermaximo/shared';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -113,8 +114,11 @@ export default async function RankingsPage({
 
   const [leagues, rows, lastSync] = await Promise.all([
     prisma.competition.findMany({
-      where: { type: 'LEAGUE', seasons: { some: { isCurrent: true } } },
-      select: { id: true, slug: true, name: true, seasonFormat: true },
+      where: {
+        OR: [{ type: 'LEAGUE' }, { slug: { in: [...UEFA_CLUB_COMPETITION_SLUGS] } }],
+        seasons: { some: { isCurrent: true } },
+      },
+      select: { id: true, slug: true, name: true, type: true, seasonFormat: true },
       orderBy: { name: 'asc' },
     }),
     rankingRows({
@@ -190,7 +194,14 @@ export default async function RankingsPage({
           <select name="league" defaultValue={league}>
             <option value={TOP_FIVE_LEAGUES_FILTER}>Top 5 ligas</option>
             <option value="">Todas las ligas</option>
-            {leagues.map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
+            <optgroup label="Ligas">
+              {leagues.filter((item) => item.type === 'LEAGUE').map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
+            </optgroup>
+            {leagues.some((item) => item.type !== 'LEAGUE') && (
+              <optgroup label="Competiciones europeas">
+                {leagues.filter((item) => item.type !== 'LEAGUE').map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
+              </optgroup>
+            )}
           </select>
         </label>
         <label className="cm-field">

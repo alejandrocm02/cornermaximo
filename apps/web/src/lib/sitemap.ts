@@ -1,4 +1,5 @@
 import { prisma } from '@cornermaximo/db';
+import { UEFA_CLUB_COMPETITION_SLUGS } from '@cornermaximo/shared';
 
 export type ChangeFrequency = 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
 
@@ -42,7 +43,10 @@ export async function getSitemapEntries(now: Date = new Date()): Promise<Sitemap
   const [players, teams, leagues, matches] = await Promise.all([
     prisma.player.findMany({ select: { slug: true, updatedAt: true } }),
     prisma.team.findMany({ select: { slug: true, updatedAt: true } }),
-    prisma.competition.findMany({ where: { type: 'LEAGUE' }, select: { slug: true, updatedAt: true } }),
+    prisma.competition.findMany({
+      where: { OR: [{ type: 'LEAGUE' }, { slug: { in: [...UEFA_CLUB_COMPETITION_SLUGS] } }] },
+      select: { slug: true, updatedAt: true },
+    }),
     prisma.match.findMany({
       where: { kickoffAt: { gte: since } },
       select: { id: true, updatedAt: true },
