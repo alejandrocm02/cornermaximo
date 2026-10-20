@@ -72,6 +72,33 @@ export const WORLD_CUP_2026 = {
 } as const;
 
 /**
+ * Competiciones UEFA de clubes. Solo se sincroniza la fase principal (fase de
+ * liga y eliminatorias): API-Football incluye las rondas previas en la misma
+ * competición y con ellas entrarían unos 250 clubes y miles de jugadores sin
+ * más partidos que esas eliminatorias.
+ *
+ * ⚠️ Verifica los ids con `npx tsx scripts/verify-league-ids.ts` antes de
+ * desplegar: un id equivocado no falla, sincroniza otra competición entera.
+ */
+export const UEFA_CLUB_COMPETITIONS = [
+  { slug: 'champions-league', name: 'UEFA Champions League', country: 'World', apiFootballId: 2 },
+  { slug: 'europa-league', name: 'UEFA Europa League', country: 'World', apiFootballId: 3 },
+  { slug: 'conference-league', name: 'UEFA Conference League', country: 'World', apiFootballId: 848 },
+] as const;
+
+/** Temporadas de las competiciones UEFA que se sincronizan (solo la que está en juego). */
+export const UEFA_SEASONS = [2026] as const; // 2026-27
+
+/**
+ * Rondas de la fase principal de las competiciones UEFA según API-Football
+ * ("League Stage - 3", "Knockout Round Play-offs", "Round of 16",
+ * "Quarter-finals", "Semi-finals", "Final"). Las previas ("1st Qualifying
+ * Round", "Play-offs", "Preliminary Round") quedan fuera.
+ */
+export const UEFA_MAIN_PHASE_ROUNDS =
+  /^(League Stage|League Phase|Knockout Round Play-offs|Round of 16|Quarter-finals|Semi-finals|Final)\b/i;
+
+/**
  * Formato de temporada de una competición.
  *
  * - `SPLIT_YEAR`: la temporada cruza dos años naturales (agosto-mayo). El año
@@ -118,11 +145,17 @@ export interface TrackedCompetition {
   seasonFormat: SeasonFormat;
   /** Temporadas (año de inicio) a sincronizar para esta competición. */
   seasons: readonly number[];
+  /**
+   * Si existe, solo se sincronizan los partidos cuya ronda encaja y los equipos
+   * que juegan alguno de ellos. Sin él se sincroniza la competición entera.
+   */
+  includedRounds?: RegExp;
 }
 
 /**
  * Todas las competiciones que la plataforma sincroniza:
- * 5 grandes ligas + 5 ligas europeas adicionales + Mundial 2026.
+ * 5 grandes ligas + 5 ligas europeas adicionales + Mundial 2026 +
+ * Champions, Europa y Conference League (fase principal).
  */
 export const TRACKED_COMPETITIONS: readonly TrackedCompetition[] = [
   ...[...BIG_FIVE_LEAGUES, ...ADDITIONAL_LEAGUES].map((l) => ({
@@ -143,7 +176,27 @@ export const TRACKED_COMPETITIONS: readonly TrackedCompetition[] = [
     seasonFormat: 'SPLIT_YEAR' as const,
     seasons: [WORLD_CUP_SEASON] as const,
   },
+  ...UEFA_CLUB_COMPETITIONS.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    country: c.country,
+    apiFootballId: c.apiFootballId,
+    type: 'CUP' as const,
+    seasonFormat: 'SPLIT_YEAR' as const,
+    seasons: UEFA_SEASONS,
+    includedRounds: UEFA_MAIN_PHASE_ROUNDS,
+  })),
 ];
+
+/** ¿Se sincroniza este partido? Sin filtro de rondas, todos; con filtro, solo los de esas rondas. */
+export function isIncludedRound(competition: Pick<TrackedCompetition, 'includedRounds'> | null | undefined, round: string | null): boolean {
+  const filter = competition?.includedRounds;
+  if (filter == null) return true;
+  return round != null && filter.test(round.trim());
+}
+
+/** Slugs de las competiciones UEFA de clubes. */
+export const UEFA_CLUB_COMPETITION_SLUGS: readonly string[] = UEFA_CLUB_COMPETITIONS.map((c) => c.slug);
 
 // ---------------------------------------------------------------------
 // Resolución de temporada por competición
@@ -237,10 +290,6 @@ export const EXPANSION_CANDIDATES: readonly TrackedCompetition[] = [
   { slug: 'eliteserien', name: 'Eliteserien', country: 'Norway', apiFootballId: 103, type: 'LEAGUE', seasonFormat: 'CALENDAR_YEAR', seasons: CALENDAR_YEAR_SEASONS },
   { slug: 'allsvenskan', name: 'Allsvenskan', country: 'Sweden', apiFootballId: 113, type: 'LEAGUE', seasonFormat: 'CALENDAR_YEAR', seasons: CALENDAR_YEAR_SEASONS },
 
-  // --- Competiciones UEFA ---
-  { slug: 'champions-league', name: 'UEFA Champions League', country: 'World', apiFootballId: 2, type: 'CUP', seasonFormat: 'SPLIT_YEAR', seasons: SPLIT_YEAR_SEASONS },
-  { slug: 'europa-league', name: 'UEFA Europa League', country: 'World', apiFootballId: 3, type: 'CUP', seasonFormat: 'SPLIT_YEAR', seasons: SPLIT_YEAR_SEASONS },
-  { slug: 'conference-league', name: 'UEFA Europa Conference League', country: 'World', apiFootballId: 848, type: 'CUP', seasonFormat: 'SPLIT_YEAR', seasons: SPLIT_YEAR_SEASONS },
 ];
 
 /** Número de partidos de la ventana de análisis reciente. */
