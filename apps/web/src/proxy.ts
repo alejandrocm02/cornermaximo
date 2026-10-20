@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { authLinkTarget } from '@/lib/auth/authLinks';
 import { createContentSecurityPolicy } from '@/lib/security/csp';
 import { updateSession } from '@/lib/supabase/middleware';
 
@@ -28,6 +29,17 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', contentSecurityPolicy);
+
+  // Enlaces de correo de Supabase que acaban en la portada (URL de vuelta no
+  // permitida en Supabase): se envían a la ruta que procesa el código.
+  const authTarget = authLinkTarget(request.nextUrl);
+  if (authTarget != null) {
+    const target = new URL(authTarget, request.nextUrl.origin);
+    const response = NextResponse.redirect(target, 307);
+    response.headers.set('Content-Security-Policy', contentSecurityPolicy);
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    return response;
+  }
 
   const canonicalRedirect = canonicalAuthRedirect(request);
   if (canonicalRedirect) {

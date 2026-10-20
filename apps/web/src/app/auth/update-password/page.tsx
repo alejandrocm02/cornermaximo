@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PasswordRequirements } from '@/components/PasswordRequirements';
@@ -17,6 +18,7 @@ export default function UpdatePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionMissing, setSessionMissing] = useState(false);
 
   const passwordValid = isPasswordValid(password);
   const passwordsMatch = password === confirmPassword;
@@ -41,6 +43,9 @@ export default function UpdatePasswordPage() {
     const { error: updateError } = await supabase.auth.updateUser({ password });
 
     if (updateError) {
+      // Sin sesión de recuperación (enlace abierto en otro navegador, caducado o
+      // página abierta directamente) no se puede cambiar la contraseña.
+      setSessionMissing(/session missing|session_not_found/i.test(`${updateError.code ?? ''} ${updateError.message}`));
       setError(authErrorMessage(updateError, 'No se ha podido actualizar la contraseña. Inténtalo de nuevo.'));
       setLoading(false);
       return;
@@ -100,7 +105,18 @@ export default function UpdatePasswordPage() {
             )}
           </div>
 
-          {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>}
+          {error && (
+            <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {sessionMissing ? (
+                <>
+                  El enlace de recuperación ha caducado o se abrió en otro navegador.{' '}
+                  <Link href="/auth/forgot-password" className="font-semibold underline">Solicita uno nuevo</Link>.
+                </>
+              ) : (
+                error
+              )}
+            </div>
+          )}
 
           <button
             type="submit"

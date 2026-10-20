@@ -7,6 +7,7 @@ import { TURNSTILE_CONFIGURED, TurnstileChallenge } from '@/components/Turnstile
 import { safeInternalPath } from '@/lib/security/redirect';
 import { createClient } from '@/lib/supabase/client';
 import { authErrorMessage } from '@/lib/auth/authErrors';
+import { LINK_ERROR_MESSAGE } from '@/lib/auth/authLinks';
 import { getPasswordValidationError, isPasswordValid, PASSWORD_MIN_LENGTH } from '@/lib/auth/passwordPolicy';
 type Mode = 'login' | 'register';
 export default function AuthPage() {
@@ -20,7 +21,10 @@ export default function AuthPage() {
     [captchaRevision, setCaptchaRevision] = useState(0),
     [loading, setLoading] = useState(false),
     [message, setMessage] = useState<string | null>(null),
-    [error, setError] = useState<string | null>(null),
+    [error, setError] = useState<string | null>(() => {
+      const reason = searchParams.get('error');
+      return reason === 'expired' || reason === 'invalid' ? LINK_ERROR_MESSAGE[reason] : null;
+    }),
     supabase = createClient(),
     registrationPasswordValid = isPasswordValid(password),
     passwordsMatch = password === confirmPassword,
