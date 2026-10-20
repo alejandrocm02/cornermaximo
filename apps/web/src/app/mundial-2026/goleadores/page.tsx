@@ -50,8 +50,8 @@ export default async function WorldCupTopStatsPage({
         <button type="submit" className="rounded-lg bg-pitch-accent px-4 py-2 font-medium text-black">Ver</button>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-pitch-border">
-        <table className="w-full bg-pitch-card text-sm">
+      <div className="overflow-x-auto rounded-xl border border-pitch-border">
+        <table className="w-full min-w-[480px] bg-pitch-card text-sm">
           <thead className="text-left text-xs uppercase text-pitch-muted">
             <tr className="border-b border-pitch-border">
               <th className="px-4 py-2">#</th>
